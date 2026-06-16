@@ -62,7 +62,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
 
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const displayName = user?.email || (displayAddress ? shortAddress(displayAddress) : "Budol trader");
-  const provider = user?.authProvider ? titleCase(user.authProvider) : "Thirdweb social wallet";
+  const provider = user?.authProvider ? titleCase(user.authProvider) : "Privy social wallet";
   const preferenceSummary = useMemo(
     () => `${preferences.riskMode} risk / ${preferences.oddsFormat} odds / P${Number(preferences.defaultOrderSize || 0).toLocaleString()}`,
     [preferences.defaultOrderSize, preferences.oddsFormat, preferences.riskMode],
@@ -101,7 +101,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
         <div>
           <span className="eyebrow">My Account</span>
           <h1>{displayName}</h1>
-          <p>Manage your Budol profile, social wallet, trading defaults, and alerts.</p>
+          <p>Manage your Budol profile, Privy wallet, trading defaults, and alerts.</p>
         </div>
       </div>
 

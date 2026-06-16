@@ -118,6 +118,15 @@ export type WalletTransfer = {
   timestamp: string;
 };
 
+export type WalletBalance = {
+  raw: string;
+  formatted: string;
+  decimals: number;
+  walletAddress: string;
+  tokenAddress: string;
+  fetchedAt: string;
+};
+
 export type TradeSide = "yes" | "no";
 
 export type Trade = {
@@ -147,8 +156,92 @@ export type Trade = {
   payoutStatus: string;
   payoutError: string;
   payoutTransactionIds: string[];
+  privateClaimLeaf: string;
+  privateClaimLeafIndex: number;
+  privateClaimRoot: string;
+  privateClaimNullifierHash: string;
+  privateClaimId: string;
   settledAt: string;
   createdAt: string;
+};
+
+export type PrivateClaimNote = {
+  amount: string;
+  leaf: string;
+  marketId: string;
+  nullifierHash: string;
+  outcome: string;
+  secret: string;
+  userSalt: string;
+  version: string;
+};
+
+export type ShieldedPayoutNote = {
+  blinding: string;
+  chainId: number;
+  commitment: string;
+  createdAt: string;
+  denomination: string;
+  hashScheme?: "poseidon-v1" | "sha256-v0";
+  poolAddress: string;
+  secret: string;
+  tokenAddress: string;
+  tradeId: string;
+  version: "budol-shielded-payout-v1";
+};
+
+export type ShieldedWithdrawalCircuitInput = {
+  noteCommitment: string;
+  nullifierHash: string;
+  recipient: string;
+  chainId: string;
+  tokenAddress: string;
+  poolAddress: string;
+  denomination: string;
+  secret: string;
+  blinding: string;
+};
+
+export type ShieldedWithdrawal = {
+  id: string;
+  userId: string;
+  mode: string;
+  noteCommitment: string;
+  nullifierHash: string;
+  recipient: string;
+  relayer: string;
+  relayerFee: string;
+  zkProofSubmissionId?: string;
+  zkProofSubmissionRef?: string;
+  status: string;
+  error?: string;
+  transactionId?: string;
+  transactionHash?: string;
+  executeAfter: string;
+  attempts: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PrivateClaim = {
+  id: string;
+  userId: string;
+  tradeId: string;
+  pollId: string;
+  pollSlug: string;
+  pollTitle: string;
+  walletAddress: string;
+  leaf: string;
+  root: string;
+  nullifierHash: string;
+  zkProofSubmissionId: string;
+  amount: number;
+  status: string;
+  payoutStatus: string;
+  payoutError: string;
+  transactionIds: string[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type TradeQuote = {

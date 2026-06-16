@@ -1,4 +1,6 @@
-import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketComment, MarketStats, PublicPoll, Trade, TradeQuote, TradeSide, UserPortfolio, WalletTransfer, WatchlistItem } from "../types";
+import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
+import { createPrivateClaimNote, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
+import { createShieldedPayoutNote, fieldPublicSignalToBytes32, type ShieldedPayoutConfig } from "./shieldedPayouts";
 
 type AuthResponse = {
   user: BudolUser;
@@ -24,8 +26,88 @@ type TradeResponse = {
 
 type TradeResult = {
   trade: Trade;
+  privateClaimNote?: PrivateClaimNote;
   portfolio: UserPortfolio;
   market: Market;
+};
+
+type PrivateClaimResponse = {
+  claim: PrivateClaim;
+  trade: Trade;
+  portfolio: UserPortfolio;
+  payoutStatus: string;
+  payoutError: string;
+  shieldedPayout?: boolean;
+  shieldedPayoutNote?: ShieldedPayoutNote;
+  transactionIds: string[];
+};
+
+type PrivateClaimTreeResponse = {
+  tree: {
+    pollId: string;
+    pollSlug: string;
+    pollTitle: string;
+    root: string;
+    leaves: string[];
+    leafIndexes: number[];
+    leafCount: number;
+    rootHistory: Array<{
+      id: string;
+      pollId: string;
+      root: string;
+      leafCount: number;
+      reason: string;
+      createdAt: string;
+      lastSeenAt: string;
+    }>;
+  };
+};
+
+type PrivateClaimProofSubmissionResponse = {
+  root: string;
+  submission: {
+    id: string;
+    publicSignals: string;
+    status: string;
+    zkVerifyNetwork: string;
+    transactionResult: string;
+    error: string;
+  };
+};
+
+type ShieldedPayoutConfigResponse = ShieldedPayoutConfig;
+
+type ShieldedWithdrawalProofSubmissionResponse = {
+  submission: {
+    id: string;
+    publicSignals: string;
+    status: string;
+    zkVerifyNetwork: string;
+    transactionResult: string;
+    error: string;
+  };
+};
+
+type ShieldedWithdrawalResponse = {
+  noteCommitment: string;
+  nullifierHash: string;
+  recipient: string;
+  status: string;
+  transaction: {
+    id: string;
+    status: string;
+    transactionHash: string;
+  } | null;
+  withdrawal?: ShieldedWithdrawal;
+  zkProofSubmissionId: string;
+};
+
+type ShieldedWithdrawalsResponse = {
+  withdrawals: ShieldedWithdrawal[];
+};
+
+type ShieldedWithdrawalRetryResponse = {
+  withdrawal: ShieldedWithdrawal;
 };
 
 type TradeQuoteResponse = {
@@ -74,6 +156,10 @@ type WalletHistoryResponse = {
   transfers: WalletTransfer[];
 };
 
+type WalletBalanceResponse = {
+  balance: WalletBalance;
+};
+
 type NotificationsResponse = {
   notifications: AccountNotification[];
 };
@@ -105,6 +191,26 @@ export async function loginWithThirdwebToken(authToken: string): Promise<BudolUs
 
   if (!response.ok) {
     throw new Error("Budol login failed. Please try again.");
+  }
+
+  const payload = (await response.json()) as AuthResponse;
+  return payload.user;
+}
+
+export async function loginWithPrivyToken(accessToken: string): Promise<BudolUser> {
+  const baseURL = apiBaseURL();
+  const response = await fetch(`${baseURL}/api/auth/privy`, {
+    body: JSON.stringify({ accessToken }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Budol Privy login failed. Please try again.");
   }
 
   const payload = (await response.json()) as AuthResponse;
@@ -370,8 +476,9 @@ export async function loadPortfolio(): Promise<UserPortfolio | null> {
 }
 
 export async function placeTrade(pollId: string, side: TradeSide, amount: number, escrowTxHash: string): Promise<TradeResult> {
+  const privateClaimNote = await createPrivateClaimNote({ amount, pollId, side });
   const response = await fetch(`${apiBaseURL()}/api/trades`, {
-    body: JSON.stringify({ amount, escrowTxHash, pollId, side }),
+    body: JSON.stringify({ amount, escrowTxHash, pollId, privateClaimLeaf: privateClaimNote.leaf, side }),
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -389,11 +496,203 @@ export async function placeTrade(pollId: string, side: TradeSide, amount: number
   }
 
   const payload = (await response.json()) as TradeResponse;
+  savePrivateClaimNote(payload.trade.id, privateClaimNote);
   return {
     trade: payload.trade,
+    privateClaimNote,
     portfolio: payload.portfolio,
     market: pollToMarket(payload.poll),
   };
+}
+
+export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string): Promise<PrivateClaimResponse> {
+  const note = loadPrivateClaimNote(tradeId);
+  if (!note) {
+    throw new Error("Private claim note is missing on this browser. Claims require the note created when the trade was placed.");
+  }
+  if (!zkProofSubmissionId.trim()) {
+    throw new Error("ZKVerify proof submission ID is required before claiming.");
+  }
+  const shieldedConfig = await loadShieldedPayoutConfig();
+  const shieldedPayoutNote = shieldedConfig.enabled ? await createShieldedPayoutNote(tradeId, shieldedConfig) : null;
+  const response = await fetch(`${apiBaseURL()}/api/private-claims`, {
+    body: JSON.stringify({
+      nullifierHash: note.nullifierHash,
+      shieldedNoteCommitment: shieldedPayoutNote?.commitment,
+      tradeId,
+      zkProofSubmissionId: zkProofSubmissionId.trim(),
+    }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (PrivateClaimResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to claim private payout.");
+  }
+  return { ...(payload as PrivateClaimResponse), shieldedPayoutNote: shieldedPayoutNote || undefined };
+}
+
+export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/shielded-config`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    return {
+      chainId: 421614,
+      denomination: "",
+      enabled: false,
+      poolAddress: "",
+      tokenAddress: "",
+      version: "budol-shielded-payout-v1",
+    };
+  }
+  const payload = (await response.json()) as ShieldedPayoutConfigResponse;
+  return {
+    chainId: Number(payload.chainId || 421614),
+    denomination: String(payload.denomination || ""),
+    enabled: Boolean(payload.enabled),
+    poolAddress: String(payload.poolAddress || ""),
+    tokenAddress: String(payload.tokenAddress || ""),
+    version: "budol-shielded-payout-v1",
+  };
+}
+
+export async function submitShieldedWithdrawalProof(input: {
+  noteCommitment: string;
+  nullifierHash: string;
+  proof: unknown;
+  publicSignals: unknown[];
+  recipient: string;
+  vk: unknown;
+}): Promise<ShieldedWithdrawalProofSubmissionResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/shielded-withdrawal-proofs`, {
+    body: JSON.stringify({
+      noteCommitment: input.noteCommitment,
+      nullifierHash: input.nullifierHash,
+      proof: input.proof,
+      proofSystem: "groth16",
+      publicSignals: input.publicSignals,
+      recipient: input.recipient,
+      vk: input.vk,
+    }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (ShieldedWithdrawalProofSubmissionResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to submit shielded withdrawal proof.");
+  }
+  return payload as ShieldedWithdrawalProofSubmissionResponse;
+}
+
+export async function withdrawShieldedPayout(input: {
+  noteCommitment: string;
+  nullifierHash: string;
+  publicSignals: unknown[];
+  recipient: string;
+  solidityProof: string;
+  zkProofSubmissionId: string;
+}): Promise<ShieldedWithdrawalResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/shielded-withdrawals`, {
+    body: JSON.stringify(input),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (ShieldedWithdrawalResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to withdraw shielded payout.");
+  }
+  return payload as ShieldedWithdrawalResponse;
+}
+
+export async function loadShieldedWithdrawals(): Promise<ShieldedWithdrawal[]> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/shielded-withdrawals`, {
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    return [];
+  }
+
+  if (!response.ok) {
+    throw new Error("Unable to load shielded withdrawals.");
+  }
+
+  const payload = (await response.json()) as ShieldedWithdrawalsResponse;
+  return payload.withdrawals;
+}
+
+export async function retryShieldedWithdrawal(id: string): Promise<ShieldedWithdrawal> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/shielded-withdrawals/${encodeURIComponent(id)}/retry`, {
+    credentials: "include",
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (ShieldedWithdrawalRetryResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to retry shielded withdrawal.");
+  }
+  return (payload as ShieldedWithdrawalRetryResponse).withdrawal;
+}
+
+export function shieldedWithdrawalPublicValues(publicSignals: unknown[]) {
+  return {
+    noteCommitment: fieldPublicSignalToBytes32(String(publicSignals[0] ?? "")),
+    nullifierHash: fieldPublicSignalToBytes32(String(publicSignals[1] ?? "")),
+  };
+}
+
+export async function loadPrivateClaimTree(slug: string): Promise<PrivateClaimTreeResponse["tree"]> {
+  const response = await fetch(`${apiBaseURL()}/api/polls/${encodeURIComponent(slug)}/private-claim-tree`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to load private claim tree.");
+  }
+
+  const payload = (await response.json()) as PrivateClaimTreeResponse;
+  return payload.tree;
+}
+
+export async function submitPrivateClaimProof(input: {
+  nullifierHash: string;
+  proof: unknown;
+  publicSignals: unknown[];
+  tradeId: string;
+  vk: unknown;
+}): Promise<PrivateClaimProofSubmissionResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/private-claims/proof-submissions`, {
+    body: JSON.stringify({
+      domainId: 1,
+      nullifierHash: input.nullifierHash,
+      proof: input.proof,
+      proofSystem: "groth16",
+      publicSignals: input.publicSignals,
+      tradeId: input.tradeId,
+      vk: input.vk,
+    }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const payload = (await response.json().catch(() => null)) as (PrivateClaimProofSubmissionResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to submit private claim proof.");
+  }
+  return payload as PrivateClaimProofSubmissionResponse;
 }
 
 export async function loadTradeQuote(pollId: string, side: TradeSide, amount: number): Promise<TradeQuote> {
@@ -470,6 +769,23 @@ export async function loadWalletHistory(): Promise<WalletTransfer[]> {
 
   const payload = (await response.json()) as WalletHistoryResponse;
   return payload.transfers;
+}
+
+export async function loadWalletBalance(): Promise<WalletBalance | null> {
+  const response = await fetch(`${apiBaseURL()}/api/wallet/balance`, {
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Unable to load wallet balance.");
+  }
+
+  const payload = (await response.json()) as WalletBalanceResponse;
+  return payload.balance;
 }
 
 function pollToMarket(poll: PublicPoll): Market {

@@ -1,9 +1,11 @@
-import { ArrowLeft, BriefcaseBusiness, Clock3, ExternalLink, History, LoaderCircle, ReceiptText, Trophy, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cashoutPosition, loadCashoutQuote, loadPortfolio } from "../lib/api";
+import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivateClaimTree, loadShieldedWithdrawals, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout } from "../lib/api";
 import { formatDate } from "../lib/format";
-import type { Market, Trade, TradeSide, UserPortfolio } from "../types";
+import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, generatePrivateClaimProof, importEncryptedPrivateClaimNotes, listPrivateClaimNotes, loadPrivateClaimNote, PrivateClaimArtifactError, sideToPrivateClaimOutcome, type PrivateClaimCircuitInput } from "../lib/privateClaims";
+import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
+import type { Market, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
 
 type PortfolioPageProps = {
   onBack: () => void;
@@ -18,8 +20,14 @@ type PortfolioPageProps = {
 export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio }: PortfolioPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
+  const [pendingClaim, setPendingClaim] = useState("");
+  const [pendingShieldedWithdrawal, setPendingShieldedWithdrawal] = useState("");
+  const [pendingWithdrawalRetry, setPendingWithdrawalRetry] = useState("");
+  const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
   const [sellAmounts, setSellAmounts] = useState<Record<string, string>>({});
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
+  const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -47,6 +55,24 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     };
   }, [setPortfolio]);
 
+  useEffect(() => {
+    let isMounted = true;
+    loadShieldedWithdrawals()
+      .then(withdrawals => {
+        if (isMounted) {
+          setShieldedWithdrawals(withdrawals);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setShieldedWithdrawals([]);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   if (!portfolio && !isLoading) {
     return (
       <section className="simple-page">
@@ -69,6 +95,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     realizedPnl: 0,
     netPnl: 0,
   };
+  const shieldedNotes = listShieldedPayoutNotes();
 
   const cashout = async (pollId: string, side: TradeSide, amount = 0) => {
     const key = `${pollId}-${side}`;
@@ -91,6 +118,194 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     } finally {
       setPendingCashout("");
     }
+  };
+
+  const claimPayout = async (trade: Trade) => {
+    setPendingClaim(trade.id);
+    setError("");
+    try {
+      const note = loadPrivateClaimNote(trade.id);
+      if (!note) {
+        throw new Error("Private claim note is missing on this browser. Claims require the browser that placed the trade until note backup is implemented.");
+      }
+      const tree = await loadPrivateClaimTree(trade.pollSlug);
+      const circuitInput = await buildPrivateClaimCircuitInput(note, tree.leaves, sideToPrivateClaimOutcome(trade.side));
+      try {
+        const proofBundle = await generatePrivateClaimProof(circuitInput);
+        const proofSubmission = await submitPrivateClaimProof({
+          nullifierHash: note.nullifierHash,
+          proof: proofBundle.proof,
+          publicSignals: proofBundle.publicSignals,
+          tradeId: trade.id,
+          vk: proofBundle.vk,
+        });
+        const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id);
+        setPortfolio(result.portfolio);
+        setSelectedTrade(result.trade);
+        onToast(
+          "Private claim submitted.",
+          result.shieldedPayout
+            ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
+            : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
+        );
+        return;
+      } catch (err) {
+        if (err instanceof PrivateClaimArtifactError) {
+          setProofWork({ circuitInput, trade });
+          setError("Private claim input is ready. Add proving artifacts or generate the proof manually, then submit it from the claim modal.");
+          return;
+        }
+        throw err;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to claim private payout.");
+    } finally {
+      setPendingClaim("");
+    }
+  };
+
+  const submitManualProof = async (trade: Trade, proof: unknown, publicSignals: unknown[], vk: unknown) => {
+    const note = loadPrivateClaimNote(trade.id);
+    if (!note) {
+      setError("Private claim note is missing on this browser.");
+      return;
+    }
+    setPendingClaim(trade.id);
+    setError("");
+    try {
+      const proofSubmission = await submitPrivateClaimProof({
+        nullifierHash: note.nullifierHash,
+        proof,
+        publicSignals,
+        tradeId: trade.id,
+        vk,
+      });
+      const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id);
+      setPortfolio(result.portfolio);
+      setSelectedTrade(result.trade);
+      setProofWork(null);
+      onToast(
+        "Private claim submitted.",
+        result.shieldedPayout
+          ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
+          : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to claim private payout.");
+    } finally {
+      setPendingClaim("");
+    }
+  };
+
+  const withdrawShieldedNote = async (note: ShieldedPayoutNote) => {
+    setPendingShieldedWithdrawal(note.tradeId);
+    setError("");
+    try {
+      const user = await loadCurrentUser();
+      const recipient = window.prompt("Recipient wallet for this shielded withdrawal. For better privacy, use a fresh wallet that has not interacted with Budol.", "");
+      if (!recipient) return;
+      const cleanRecipient = recipient.trim();
+      if (user?.walletAddress && cleanRecipient.toLowerCase() === user.walletAddress.toLowerCase()) {
+        const proceed = window.confirm("This recipient is your connected Budol wallet. The withdrawal will still work, but it makes the payout easier to link to your account. Continue?");
+        if (!proceed) return;
+      }
+      const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
+      const proofBundle = await generateShieldedWithdrawalProof(circuitInput);
+      const noteCommitment = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[0] ?? ""));
+      const nullifierHash = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[1] ?? ""));
+      const proofSubmission = await submitShieldedWithdrawalProof({
+        noteCommitment,
+        nullifierHash,
+        proof: proofBundle.proof,
+        publicSignals: proofBundle.publicSignals,
+        recipient: cleanRecipient,
+        vk: proofBundle.vk,
+      });
+      const withdrawal = await withdrawShieldedPayout({
+        noteCommitment,
+        nullifierHash,
+        publicSignals: proofBundle.publicSignals,
+        recipient: cleanRecipient,
+        solidityProof: proofBundle.solidityProof,
+        zkProofSubmissionId: proofSubmission.submission.id,
+      });
+      if (withdrawal.withdrawal) {
+        setShieldedWithdrawals(current => upsertWithdrawal(current, withdrawal.withdrawal as ShieldedWithdrawal));
+      } else {
+        setShieldedWithdrawals(await loadShieldedWithdrawals());
+      }
+      const executeAfter = withdrawal.withdrawal?.executeAfter ? ` Scheduled after ${formatDate(withdrawal.withdrawal.executeAfter)}.` : "";
+      onToast("Shielded withdrawal queued.", `Budol will relay this withdrawal in a delayed batch.${executeAfter}`);
+    } catch (err) {
+      if (err instanceof ShieldedWithdrawalArtifactError) {
+        setError("Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.");
+      } else {
+        setError(err instanceof Error ? err.message : "Unable to withdraw shielded payout.");
+      }
+    } finally {
+      setPendingShieldedWithdrawal("");
+    }
+  };
+
+  const refreshShieldedWithdrawals = async () => {
+    setShieldedWithdrawals(await loadShieldedWithdrawals());
+  };
+
+  const retryWithdrawal = async (withdrawal: ShieldedWithdrawal) => {
+    setPendingWithdrawalRetry(withdrawal.id);
+    setError("");
+    try {
+      const nextWithdrawal = await retryShieldedWithdrawal(withdrawal.id);
+      setShieldedWithdrawals(current => upsertWithdrawal(current, nextWithdrawal));
+      onToast("Shielded withdrawal retry queued.", `Retry scheduled after ${formatDate(nextWithdrawal.executeAfter)}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to retry shielded withdrawal.");
+    } finally {
+      setPendingWithdrawalRetry("");
+    }
+  };
+
+  const exportClaimNotes = async () => {
+    setBackupStatus("");
+    try {
+      const passphrase = window.prompt("Set a passphrase for this encrypted claim note backup.");
+      if (!passphrase) return;
+      const backup = await exportEncryptedPrivateClaimNotes(passphrase);
+      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `budol-claim-notes-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      const shieldedCount = backup.shieldedNoteCount ?? 0;
+      const message = `Exported ${backup.noteCount} claim note${backup.noteCount === 1 ? "" : "s"} and ${shieldedCount} shielded payout note${shieldedCount === 1 ? "" : "s"}.`;
+      setBackupStatus(message);
+      onToast("Claim notes exported.", message);
+    } catch (err) {
+      setBackupStatus(err instanceof Error ? err.message : "Unable to export claim notes.");
+    }
+  };
+
+  const importClaimNotes = () => {
+    setBackupStatus("");
+    const input = document.createElement("input");
+    input.accept = "application/json,.json";
+    input.type = "file";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        const passphrase = window.prompt("Enter the passphrase for this claim note backup.");
+        if (!passphrase) return;
+        const imported = await importEncryptedPrivateClaimNotes(await file.text(), passphrase);
+        const message = `Imported ${imported} private note${imported === 1 ? "" : "s"}.`;
+        setBackupStatus(message);
+        onToast("Claim notes imported.", message);
+      } catch (err) {
+        setBackupStatus(err instanceof Error ? err.message : "Unable to import claim notes.");
+      }
+    };
+    input.click();
   };
 
   return (
@@ -118,6 +333,94 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
       </div>
 
       {error ? <div className="login-error">{error}</div> : null}
+
+      <section className="panel claim-note-backup-card">
+        <div>
+          <div className="panel-title">
+            <ShieldCheck size={19} />
+            <h2>Private claim notes</h2>
+          </div>
+          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {shieldedNotes.length} shielded payout note{shieldedNotes.length === 1 ? "" : "s"} saved in this browser.</p>
+          {backupStatus ? <small>{backupStatus}</small> : null}
+        </div>
+        <div className="claim-note-backup-actions">
+          <button className="ghost-button" onClick={() => void exportClaimNotes()} type="button">
+            <Download size={16} />
+            Export encrypted backup
+          </button>
+          <button className="ghost-button" onClick={importClaimNotes} type="button">
+            <Upload size={16} />
+            Import backup
+          </button>
+        </div>
+      </section>
+
+      {shieldedNotes.length > 0 ? (
+        <section className="panel shielded-note-card">
+          <div className="panel-title">
+            <ShieldCheck size={19} />
+            <h2>Shielded payout notes</h2>
+          </div>
+          <div className="shielded-note-list">
+            {shieldedNotes.map(note => (
+              <div className="shielded-note-row" key={`${note.tradeId}-${note.commitment}`}>
+                <span>
+                  <strong>{shortHash(note.commitment)}</strong>
+                  <small>{formatRawToken(note.denomination)} BUDOL pool note / trade {shortHash(note.tradeId)}</small>
+                </span>
+                <button className="ghost-button" disabled={pendingShieldedWithdrawal === note.tradeId} onClick={() => void withdrawShieldedNote(note)} type="button">
+                  {pendingShieldedWithdrawal === note.tradeId ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+                  Queue withdrawal
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="panel shielded-note-card">
+        <div className="panel-title panel-title-between">
+          <span>
+            <History size={19} />
+            <h2>Shielded withdrawal queue</h2>
+          </span>
+          <button className="ghost-button" onClick={() => void refreshShieldedWithdrawals()} type="button">
+            <RefreshCcw size={16} />
+            Refresh
+          </button>
+        </div>
+        {shieldedWithdrawals.length === 0 ? (
+          <div className="empty-state">No shielded withdrawals queued yet.</div>
+        ) : (
+          <div className="shielded-note-list">
+            {shieldedWithdrawals.map(withdrawal => (
+              <div className="shielded-note-row" key={withdrawal.id}>
+                <span>
+                  <strong>
+                    {shortHash(withdrawal.noteCommitment)}
+                    <i className={`trade-status-pill payout-${withdrawal.status}`}>{withdrawal.status}</i>
+                  </strong>
+                  <small>
+                    To {shortHash(withdrawal.recipient)} / scheduled {formatDate(withdrawal.executeAfter)} / attempts {withdrawal.attempts}
+                  </small>
+                  {withdrawal.error ? <small className="comment-error">{withdrawal.error}</small> : null}
+                  {withdrawal.transactionHash ? (
+                    <a href={arbitrumSepoliaTxURL(withdrawal.transactionHash)} target="_blank" rel="noreferrer">
+                      {shortHash(withdrawal.transactionHash)}
+                    </a>
+                  ) : null}
+                </span>
+                {withdrawal.status === "failed" ? (
+                  <button className="ghost-button" disabled={pendingWithdrawalRetry === withdrawal.id} onClick={() => void retryWithdrawal(withdrawal)} type="button">
+                    {pendingWithdrawalRetry === withdrawal.id ? <LoaderCircle className="spin-icon" size={16} /> : <RefreshCcw size={16} />}
+                    Retry
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="portfolio-content-grid">
         <section className="panel portfolio-table-card">
@@ -175,7 +478,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           {!isLoading && (portfolio?.trades.length ?? 0) === 0 ? <div className="empty-state">No trades recorded yet.</div> : null}
           <div className="trade-history-list">
             {portfolio?.trades.map(trade => (
-              <button className="trade-history-row" key={trade.id} onClick={() => setSelectedTrade(trade)}>
+              <div className="trade-history-row" key={trade.id} role="button" tabIndex={0} onClick={() => setSelectedTrade(trade)} onKeyDown={event => event.key === "Enter" ? setSelectedTrade(trade) : undefined}>
                 <span>
                   <strong>
                     Buy {trade.outcomeLabel}
@@ -192,16 +495,40 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                       : `settled ${formatDate(trade.settledAt)}`}
                   </small>
                 </span>
-              </button>
+                {trade.payoutStatus === "claimable" ? (
+                  <button
+                    className="ghost-button"
+                    disabled={pendingClaim === trade.id}
+                    onClick={event => {
+                      event.stopPropagation();
+                      void claimPayout(trade);
+                    }}
+                    type="button"
+                  >
+                    {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : "Submit ZK claim"}
+                  </button>
+                ) : null}
+              </div>
             ))}
           </div>
         </section>
       </div>
       {selectedTrade ? (
         <TradeDetailDrawer
+          isClaiming={pendingClaim === selectedTrade.id}
+          onClaim={() => void claimPayout(selectedTrade)}
           onClose={() => setSelectedTrade(null)}
           onOpenMarket={() => onMarketOpen(selectedTrade.pollSlug)}
           trade={selectedTrade}
+        />
+      ) : null}
+      {proofWork ? (
+        <PrivateClaimProofModal
+          circuitInput={proofWork.circuitInput}
+          isSubmitting={pendingClaim === proofWork.trade.id}
+          onClose={() => setProofWork(null)}
+          onSubmit={(proof, publicSignals, vk) => void submitManualProof(proofWork.trade, proof, publicSignals, vk)}
+          trade={proofWork.trade}
         />
       ) : null}
     </section>
@@ -225,7 +552,21 @@ function formatToken(value: number) {
   });
 }
 
-function TradeDetailDrawer({ onClose, onOpenMarket, trade }: { onClose: () => void; onOpenMarket: () => void; trade: Trade }) {
+function formatRawToken(value: string, decimals = 18) {
+  try {
+    const raw = BigInt(value);
+    const base = 10n ** BigInt(decimals);
+    const whole = raw / base;
+    const fraction = raw % base;
+    if (fraction === 0n) return whole.toLocaleString("en-PH");
+    const fractionText = fraction.toString().padStart(decimals, "0").replace(/0+$/, "").slice(0, 4);
+    return `${whole.toLocaleString("en-PH")}.${fractionText}`;
+  } catch {
+    return value;
+  }
+}
+
+function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }: { isClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; trade: Trade }) {
   const payoutStatus = trade.payoutStatus || (trade.status === "open" ? "pending" : "none");
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
@@ -252,6 +593,9 @@ function TradeDetailDrawer({ onClose, onOpenMarket, trade }: { onClose: () => vo
         <div className="trade-detail-section">
           <span>On-chain references</span>
           <CopyableHash label="Escrow tx" value={trade.escrowTxHash} />
+          <CopyableHash label="Private leaf" value={trade.privateClaimLeaf} />
+          <CopyableHash label="Claim root" value={trade.privateClaimRoot} />
+          <CopyableHash label="Nullifier" value={trade.privateClaimNullifierHash} />
           <small>Escrow status: {trade.escrowStatus || (trade.escrowTxHash ? "verified" : "missing")}</small>
           {trade.escrowError ? <small className="comment-error">{trade.escrowError}</small> : null}
           {trade.escrowVerifiedAt ? <small>Verified at {formatDate(trade.escrowVerifiedAt)}</small> : null}
@@ -268,6 +612,11 @@ function TradeDetailDrawer({ onClose, onOpenMarket, trade }: { onClose: () => vo
           <TimelineItem label="Settlement" value={trade.settlementStatus || trade.status} done={trade.status !== "open"} />
           <TimelineItem label="Payout" value={payoutStatus} done={["confirmed", "sent", "submitted", "none"].includes(payoutStatus)} />
         </div>
+        {trade.payoutStatus === "claimable" ? (
+          <button className="primary-button" disabled={isClaiming} onClick={onClaim}>
+            {isClaiming ? <LoaderCircle className="spin-icon" size={16} /> : "Submit ZK claim"}
+          </button>
+        ) : null}
         <button className="primary-button" onClick={onOpenMarket}>Open market</button>
       </aside>
     </div>
@@ -300,6 +649,104 @@ function CopyableHash({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PrivateClaimProofModal({
+  circuitInput,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  trade,
+}: {
+  circuitInput: PrivateClaimCircuitInput;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (proof: unknown, publicSignals: unknown[], vk: unknown) => void;
+  trade: Trade;
+}) {
+  const [proofText, setProofText] = useState("");
+  const [publicSignalsText, setPublicSignalsText] = useState(JSON.stringify([circuitInput.root, circuitInput.resolvedOutcome, circuitInput.nullifierHash], null, 2));
+  const [vkText, setVKText] = useState("");
+  const [localError, setLocalError] = useState("");
+  const circuitInputText = JSON.stringify(circuitInput, null, 2);
+
+  const copyInput = async () => {
+    await navigator.clipboard.writeText(circuitInputText);
+  };
+
+  const downloadInput = () => {
+    const url = URL.createObjectURL(new Blob([circuitInputText], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `budol-private-claim-${trade.id}.input.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const submit = () => {
+    setLocalError("");
+    try {
+      const proof = JSON.parse(proofText);
+      const publicSignals = JSON.parse(publicSignalsText);
+      const vk = JSON.parse(vkText);
+      if (!Array.isArray(publicSignals)) {
+        throw new Error("publicSignals must be a JSON array.");
+      }
+      onSubmit(proof, publicSignals, vk);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : "Proof JSON is invalid.");
+    }
+  };
+
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="private-proof-modal" role="dialog" aria-modal="true" aria-label="Private claim proof" onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <ShieldCheck size={18} />
+            Private claim proof
+          </span>
+          <button onClick={onClose} aria-label="Close private claim proof">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="proof-market-title">
+          <strong>{trade.pollTitle}</strong>
+          <small>{trade.outcomeLabel} / claimable payout {formatToken(trade.settlementPayout)} BUDOL</small>
+        </div>
+        <div className="proof-helper-row">
+          <button className="ghost-button" onClick={() => void copyInput()} type="button">
+            <Copy size={16} />
+            Copy input
+          </button>
+          <button className="ghost-button" onClick={downloadInput} type="button">
+            <Download size={16} />
+            Download input
+          </button>
+        </div>
+        <label>
+          Circuit input
+          <textarea readOnly value={circuitInputText} />
+        </label>
+        <label>
+          proof.json
+          <textarea placeholder='{"pi_a": ...}' value={proofText} onChange={event => setProofText(event.currentTarget.value)} />
+        </label>
+        <label>
+          public.json
+          <textarea value={publicSignalsText} onChange={event => setPublicSignalsText(event.currentTarget.value)} />
+        </label>
+        <label>
+          verification_key.json
+          <textarea placeholder='{"protocol": "groth16", ...}' value={vkText} onChange={event => setVKText(event.currentTarget.value)} />
+        </label>
+        {localError ? <div className="login-error">{localError}</div> : null}
+        <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
+          {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : "Submit proof and claim payout"}
+        </button>
+      </aside>
+    </div>
+  );
+}
+
 function TimelineItem({ done, label, value }: { done: boolean; label: string; value: string }) {
   return (
     <div className={done ? "done" : ""}>
@@ -312,4 +759,13 @@ function TimelineItem({ done, label, value }: { done: boolean; label: string; va
 
 function shortHash(value: string) {
   return value.length > 14 ? `${value.slice(0, 8)}...${value.slice(-6)}` : value;
+}
+
+function upsertWithdrawal(withdrawals: ShieldedWithdrawal[], withdrawal: ShieldedWithdrawal) {
+  const next = [withdrawal, ...withdrawals.filter(item => item.id !== withdrawal.id)];
+  return next.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+}
+
+function arbitrumSepoliaTxURL(hash: string) {
+  return `https://sepolia.arbiscan.io/tx/${hash}`;
 }

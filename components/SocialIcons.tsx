@@ -24,18 +24,3 @@ export function GoogleIcon({ className }: SocialIconProps) {
     </svg>
   );
 }
-
-export function FacebookIcon({ className }: SocialIconProps) {
-  return (
-    <svg aria-hidden="true" className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path
-        d="M24 12a12 12 0 1 0-13.88 11.86v-8.39H7.08V12h3.04V9.36c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.69.23 2.69.23v2.95h-1.51c-1.49 0-1.96.93-1.96 1.88V12h3.33l-.53 3.47h-2.8v8.39A12 12 0 0 0 24 12Z"
-        fill="#1877F2"
-      />
-      <path
-        d="m16.67 15.47.53-3.47h-3.33V9.75c0-.95.47-1.88 1.96-1.88h1.51V4.92s-1.38-.23-2.69-.23c-2.74 0-4.53 1.66-4.53 4.67V12H7.08v3.47h3.04v8.39a12.1 12.1 0 0 0 3.75 0v-8.39h2.8Z"
-        fill="#fff"
-      />
-    </svg>
-  );
-}

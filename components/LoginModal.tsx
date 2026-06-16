@@ -1,43 +1,30 @@
 import { LoaderCircle, X } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
-import { useConnect } from "thirdweb/react";
-import { FacebookIcon, GoogleIcon } from "./SocialIcons";
-import { loginWithThirdwebToken } from "../lib/api";
-import { createBudolSocialWallet, thirdwebClient, web3Chain } from "../lib/thirdweb";
-import type { BudolUser } from "../types";
+import { useLoginWithOAuth } from "@privy-io/react-auth";
+import { GoogleIcon } from "./SocialIcons";
+import { isPrivyConfigured } from "../lib/privy";
 import budolLogoImage from "../../public/assets/budol-politics-market.png";
-
-type SocialProvider = {
-  label: string;
-  strategy: "google" | "facebook";
-  variant: "google" | "facebook";
-};
 
 type LoginModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (user: BudolUser) => void;
 };
 
-const providers: SocialProvider[] = [
-  {
-    label: "Continue with Google",
-    strategy: "google",
-    variant: "google",
-  },
-  {
-    label: "Continue with Facebook",
-    strategy: "facebook",
-    variant: "facebook",
-  },
-];
-
-export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
-  const { connect, error, isConnecting } = useConnect();
+export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+  const { initOAuth, loading } = useLoginWithOAuth({
+    onComplete: () => {
+      setPendingProvider("");
+      onClose();
+    },
+    onError: error => {
+      setServerError(errorMessage(error));
+      setPendingProvider("");
+    },
+  });
   const [serverError, setServerError] = useState("");
-  const [isServerLoginLoading, setIsServerLoginLoading] = useState(false);
-  const isLoading = isConnecting || isServerLoginLoading;
+  const [pendingProvider, setPendingProvider] = useState("");
+  const isLoading = loading || Boolean(pendingProvider);
 
   useEffect(() => {
     if (!isOpen) {
@@ -63,34 +50,24 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
     return null;
   }
 
-  const loginWith = async (provider: SocialProvider) => {
+  const loginWithGoogle = async () => {
     setServerError("");
-    setIsServerLoginLoading(true);
+    if (!isPrivyConfigured()) {
+      setServerError("Set VITE_PRIVY_APP_ID in .env, then restart the frontend dev server.");
+      return;
+    }
+
+    setPendingProvider("google");
 
     try {
-      let authToken = "";
-      const wallet = await connect(async () => {
-        const socialWallet = createBudolSocialWallet();
-        await socialWallet.connect({
-          chain: web3Chain,
-          client: thirdwebClient,
-          strategy: provider.strategy,
-        });
-        authToken = socialWallet.getAuthToken() ?? "";
-        return socialWallet;
-      });
-
-      if (!wallet || !authToken) {
-        throw new Error("Missing thirdweb auth token.");
-      }
-
-      onClose();
-      const user = await loginWithThirdwebToken(authToken);
-      onLogin(user);
+      await initOAuth({ provider: "google" });
     } catch (loginError) {
-      setServerError(loginError instanceof Error ? loginError.message : "Budol login failed. Please try again.");
+      setServerError(errorMessage(loginError));
+      setPendingProvider("");
     } finally {
-      setIsServerLoginLoading(false);
+      if (!loading) {
+        setPendingProvider("");
+      }
     }
   };
 
@@ -119,32 +96,19 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
 
         <div className="login-copy">
           <h3 id="login-modal-title">Log in to trade the chismis</h3>
-          <p>Use your social account to create a thirdweb wallet for Budol.</p>
+          <p>Use your social account to create or reconnect your Privy wallet for Budol.</p>
         </div>
 
         <div className="login-provider-list">
-          {providers.map(provider => (
-            <button
-              className={`login-provider-button ${provider.variant}`}
-              disabled={isLoading}
-              key={provider.strategy}
-              onClick={() => void loginWith(provider)}
-            >
-              <span className="provider-mark">
-                {isLoading ? (
-                  <LoaderCircle className="spin-icon" size={18} />
-                ) : provider.strategy === "google" ? (
-                  <GoogleIcon />
-                ) : (
-                  <FacebookIcon />
-                )}
-              </span>
-              <span>{provider.label}</span>
-            </button>
-          ))}
+          <button className="login-provider-button google" disabled={isLoading} onClick={() => void loginWithGoogle()}>
+            <span className="provider-mark">
+              {isLoading ? <LoaderCircle className="spin-icon" size={18} /> : <GoogleIcon />}
+            </span>
+            <span>Continue with Google</span>
+          </button>
         </div>
 
-        {error || serverError ? <p className="login-error">{serverError || error?.message}</p> : null}
+        {serverError ? <p className="login-error">{serverError}</p> : null}
 
         <small>
           By continuing, you agree to our <a href="/">Terms of Service</a> and <a href="/">Privacy Policy</a>
@@ -152,4 +116,14 @@ export function LoginModal({ isOpen, onClose, onLogin }: LoginModalProps) {
       </section>
     </div>
   );
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return "Privy login failed. Please try again.";
 }

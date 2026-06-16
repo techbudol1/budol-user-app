@@ -188,6 +188,17 @@ a {
   align-items: center;
 }
 
+.panel-title-between {
+  justify-content: space-between;
+}
+
+.panel-title-between > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .brand {
   gap: 10px;
   min-width: 164px;
@@ -704,11 +715,6 @@ a {
 
 .login-provider-button.google {
   background: var(--surface-solid);
-}
-
-.login-provider-button.facebook {
-  background: rgba(24, 119, 242, 0.11);
-  color: var(--login-heading);
 }
 
 .provider-mark {
@@ -2079,6 +2085,82 @@ a {
   line-height: 1.15;
 }
 
+.claim-note-backup-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.claim-note-backup-card p,
+.claim-note-backup-card small {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.claim-note-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.claim-note-backup-actions .ghost-button {
+  width: auto;
+  min-height: 40px;
+}
+
+.shielded-note-card {
+  display: grid;
+  gap: 12px;
+}
+
+.shielded-note-list {
+  display: grid;
+  gap: 8px;
+}
+
+.shielded-note-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  padding: 10px 12px;
+}
+
+.shielded-note-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.shielded-note-row strong,
+.shielded-note-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shielded-note-row small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.shielded-note-row .ghost-button {
+  width: auto;
+  min-height: 38px;
+}
+
+.shielded-note-row a {
+  color: var(--accent);
+  font-weight: 900;
+  text-decoration: none;
+}
+
 .portfolio-content-grid,
 .market-detail-layout {
   display: grid;
@@ -2158,7 +2240,8 @@ a {
 }
 
 .trade-history-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  cursor: pointer;
 }
 
 .trade-history-row strong {
@@ -2209,9 +2292,18 @@ a {
 }
 
 .trade-status-pill.payout-pending,
-.trade-status-pill.payout-submitted {
+.trade-status-pill.payout-submitted,
+.trade-status-pill.payout-queued,
+.trade-status-pill.payout-retry,
+.trade-status-pill.payout-processing {
   background: rgba(255, 212, 71, 0.18);
   color: var(--yellow);
+}
+
+.trade-status-pill.payout-confirmed,
+.trade-status-pill.payout-sent {
+  background: rgba(22, 163, 127, 0.18);
+  color: var(--positive);
 }
 
 .drawer-backdrop {
@@ -2238,25 +2330,46 @@ a {
   box-shadow: var(--shadow-strong);
 }
 
+.private-proof-modal {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  width: min(760px, calc(100vw - 28px));
+  max-height: calc(100vh - 36px);
+  margin: 18px auto;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 16px;
+  box-shadow: var(--shadow-strong);
+}
+
 .trade-detail-drawer header,
 .trade-detail-drawer header span,
+.private-proof-modal header,
+.private-proof-modal header span,
 .copyable-hash,
 .trade-timeline div {
   display: flex;
   align-items: center;
 }
 
-.trade-detail-drawer header {
+.trade-detail-drawer header,
+.private-proof-modal header {
   justify-content: space-between;
   gap: 12px;
 }
 
-.trade-detail-drawer header span {
+.trade-detail-drawer header span,
+.private-proof-modal header span {
   gap: 8px;
   font-weight: 900;
 }
 
-.trade-detail-drawer header button {
+.trade-detail-drawer header button,
+.private-proof-modal header button {
   width: 38px;
   height: 38px;
   border: 1px solid var(--border);
@@ -2266,15 +2379,54 @@ a {
 }
 
 .trade-detail-title,
-.trade-detail-section {
+.trade-detail-section,
+.proof-market-title {
   display: grid;
   gap: 8px;
 }
 
 .trade-detail-title small,
-.trade-detail-section small {
+.trade-detail-section small,
+.proof-market-title small {
   color: var(--muted);
   font-weight: 800;
+}
+
+.proof-helper-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proof-helper-row .ghost-button {
+  width: auto;
+}
+
+.private-proof-modal label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.private-proof-modal textarea {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text);
+  padding: 11px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow: auto;
+}
+
+.private-proof-modal label:first-of-type textarea {
+  min-height: 150px;
 }
 
 .trade-detail-grid {

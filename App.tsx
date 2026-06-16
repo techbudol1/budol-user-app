@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useActiveAccount } from "thirdweb/react";
+import { useCreateWallet, usePrivy, useWallets } from "@privy-io/react-auth";
 import { CrowdMoodCard } from "./components/CrowdMoodCard";
 import { HeroPanel } from "./components/HeroPanel";
 import { HotRegionsCard } from "./components/HotRegionsCard";
@@ -16,7 +16,7 @@ import { SignalsCard } from "./components/SignalsCard";
 import { Topbar } from "./components/Topbar";
 import { TradeTicketCard } from "./components/TradeTicketCard";
 import { filters, headlines, markets, portfolio } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, removeWatchlist } from "./lib/api";
+import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadWatchlist, loginWithPrivyToken, logoutCurrentUser, markAllNotificationsRead, removeWatchlist } from "./lib/api";
 import type { AccountNotification, BudolUser, Market, Theme, UserPortfolio } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "logout";
@@ -55,8 +55,13 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
 }
 
 export default function App() {
-  const account = useActiveAccount();
+  const { authenticated, getAccessToken, logout: logoutPrivy, ready: privyReady, user: privyUser } = usePrivy();
+  const { createWallet } = useCreateWallet();
+  const { ready: walletsReady, wallets } = useWallets();
   const logoutRouteHandled = useRef(false);
+  const privyWalletCreateStarted = useRef(false);
+  const privySessionSyncKey = useRef("");
+  const lastPrivyLoginNotice = useRef("");
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [marketList, setMarketList] = useState<Market[]>(markets);
   const [selectedId, setSelectedId] = useState(markets[0].id);
@@ -81,7 +86,8 @@ export default function App() {
     }
   });
   const isDark = theme === "dark";
-  const accountAddress = account?.address ?? budolUser?.walletAddress;
+  const privyWallet = useMemo(() => wallets.find(wallet => wallet.walletClientType === "privy") ?? wallets[0], [wallets]);
+  const accountAddress = authenticated ? privyWallet?.address ?? walletAddressFromPrivyUser(privyUser) : undefined;
 
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
   const selectedMarket = useMemo(
@@ -192,6 +198,10 @@ export default function App() {
     if (!link) {
       return;
     }
+    if (/^https?:\/\//i.test(link)) {
+      window.open(link, "_blank", "noopener,noreferrer");
+      return;
+    }
     const next = routeFromPath(link);
     navigate(next.route, "push", next.marketSlug);
   };
@@ -237,7 +247,14 @@ export default function App() {
   };
 
   const logout = async () => {
-    await logoutCurrentUser();
+    try {
+      await logoutCurrentUser();
+    } catch {
+      // Local Privy logout should still continue if the legacy server session is unavailable.
+    }
+    if (authenticated) {
+      await logoutPrivy();
+    }
     setBudolUser(null);
     notify("Logged out.", "Your Budol session ended on this browser.", false);
     navigate("markets", "replace");
@@ -323,10 +340,87 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (account?.address && isLoginOpen) {
+    if (!privyReady || !walletsReady || !authenticated || accountAddress || privyWalletCreateStarted.current) {
+      return;
+    }
+    privyWalletCreateStarted.current = true;
+    createWallet()
+      .catch(error => {
+        privyWalletCreateStarted.current = false;
+        notify("Wallet creation failed.", errorMessage(error), false);
+      });
+  }, [accountAddress, authenticated, createWallet, privyReady, walletsReady]);
+
+  useEffect(() => {
+    if (!privyReady || !authenticated || !accountAddress) {
+      return;
+    }
+    const syncKey = `${privyUser?.id || "privy"}:${accountAddress}`;
+    if (privySessionSyncKey.current === syncKey) {
+      return;
+    }
+    privySessionSyncKey.current = syncKey;
+
+    let cancelled = false;
+    setIsAuthLoading(true);
+    getAccessToken()
+      .then(accessToken => {
+        if (!accessToken) {
+          throw new Error("Privy did not return an access token.");
+        }
+        return loginWithPrivyToken(accessToken);
+      })
+      .then(user => {
+        if (cancelled) {
+          return;
+        }
+        setBudolUser(user);
+        void refreshAccountNotifications();
+        notify("Login successful.", "Your Privy wallet is now connected to Budol.", false);
+      })
+      .catch(error => {
+        if (cancelled) {
+          return;
+        }
+        privySessionSyncKey.current = "";
+        setBudolUser(null);
+        notify("Budol account sync failed.", errorMessage(error), false);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsAuthLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountAddress, authenticated, getAccessToken, privyReady, privyUser?.id]);
+
+  useEffect(() => {
+    if (!privyReady || authenticated || !budolUser) {
+      return;
+    }
+    void logoutCurrentUser().catch(() => undefined);
+    setBudolUser(null);
+    setUserPortfolio(null);
+    setAccountNotifications([]);
+    localStorage.setItem("budol-account-notifications", "[]");
+  }, [authenticated, budolUser, privyReady]);
+
+  useEffect(() => {
+    if (accountAddress && isLoginOpen) {
       setIsLoginOpen(false);
     }
-  }, [account?.address, isLoginOpen]);
+  }, [accountAddress, isLoginOpen]);
+
+  useEffect(() => {
+    if (!privyReady || !authenticated || !accountAddress || lastPrivyLoginNotice.current === accountAddress) {
+      return;
+    }
+    lastPrivyLoginNotice.current = accountAddress;
+    notify("Login successful.", "Privy wallet connected. Backend account sync and token features are next.", false);
+  }, [accountAddress, authenticated, privyReady]);
 
   useEffect(() => {
     if (route !== "logout" || isAuthLoading || logoutRouteHandled.current) {
@@ -376,10 +470,6 @@ export default function App() {
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onLogin={user => {
-          setBudolUser(user);
-          notify("Login successful. Welcome tokens appear in your wallet activity after the grant confirms.");
-        }}
       />
       {toast ? <div className="toast-notice">{toast}</div> : null}
 
@@ -481,6 +571,18 @@ export default function App() {
   );
 }
 
+function walletAddressFromPrivyUser(user: unknown) {
+  const linkedAccounts = (user as { linkedAccounts?: Array<Record<string, unknown>> } | null)?.linkedAccounts ?? [];
+  for (const account of linkedAccounts) {
+    const address = account.address;
+    if (typeof address === "string" && /^0x[0-9a-fA-F]{40}$/.test(address)) {
+      return address;
+    }
+  }
+  const wallet = (user as { wallet?: { address?: string } } | null)?.wallet;
+  return wallet?.address;
+}
+
 function isClosingSoon(value: string) {
   if (!value) {
     return false;
@@ -498,4 +600,14 @@ function formatToken(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
   });
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+  return "Something went wrong. Please try again.";
 }
