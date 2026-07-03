@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "budolph-app",
+  "name": "budol-user-app",
   "compatibility_date": "2026-07-03",
   "workers_dev": true,
   "preview_urls": true,
