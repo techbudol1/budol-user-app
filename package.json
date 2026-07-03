@@ -5,7 +5,7 @@
     "sync-env": "bun ./scripts/write-client-env.ts",
     "dev": "bun run sync-env && bun ./index.html --console",
     "build": "bun run sync-env && rm -rf dist && bun build ./index.html --outdir=dist --minify && rm -rf dist/zk && cp -R public/zk dist/zk",
-    "deploy": "bun run build && bunx --bun wrangler deploy --config wrangler.user.jsonc",
+    "deploy": "bun run build && bunx --bun wrangler deploy",
     "typecheck": "bunx tsc --noEmit",
     "start": "bun run sync-env && bun ./index.html",
     "preview": "bun ./dist/index.html"
