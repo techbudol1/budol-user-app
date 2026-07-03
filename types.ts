@@ -13,6 +13,10 @@ export type Market = {
   visibility: string;
   outcomeA: string;
   outcomeB: string;
+  marketGroupId?: string;
+  marketGroupTitle?: string;
+  marketChoiceLabel?: string;
+  marketChoiceIndex?: number;
   yes: number;
   no: number;
   volume: string;
@@ -54,10 +58,13 @@ export type PortfolioItem = {
 export type BudolUser = {
   id: string;
   walletAddress: string;
+  publicAlias: string;
   thirdwebUserId?: string;
   authProvider?: string;
+  authType?: string;
   email?: string;
   phone?: string;
+  walletCustody?: "managed" | "external" | string;
   createdAt: string;
   lastLoginAt: string;
   loginCount: number;
@@ -76,6 +83,10 @@ export type PublicPoll = {
   visibility: string;
   outcomeA: string;
   outcomeB: string;
+  marketGroupId?: string;
+  marketGroupTitle?: string;
+  marketChoiceLabel?: string;
+  marketChoiceIndex?: number;
   yesPercent: number;
   noPercent: number;
   volume: string;
@@ -257,6 +268,50 @@ export type TradeQuote = {
   newNoPercent: number;
   priceImpactCents: number;
   liquidity: number;
+  collateralized: boolean;
+  collateralRequired: number;
+  collateralAvailable: number;
+  collateralCoverage: number;
+};
+
+export type CollateralStatus = {
+  availableCollateral: number;
+  bufferBps: number;
+  collateralized: boolean;
+  coveragePercent: number;
+  enabled: boolean;
+  freeCollateral: number;
+  markets?: Array<{
+    pollId: string;
+    pollSlug: string;
+    pollTitle: string;
+    yesLiability: number;
+    noLiability: number;
+    refundLiability: number;
+    fixedPayouts: number;
+    requiredCollateral: number;
+  }>;
+  requiredCollateral: number;
+  requiredWithBuffer: number;
+  tokenAddress: string;
+  walletAddress: string;
+  walletBalance: number;
+  fetchedAt: string;
+};
+
+export type TradeConfig = {
+  chainId: number;
+  collateral: CollateralStatus;
+  collateralGuaranteeEnabled: boolean;
+  engineGasFreeEnabled: boolean;
+  gasPayerBalance?: string;
+  gasPayerBalanceRaw?: string;
+  gaslessSpenderAddress: string;
+  networkName: string;
+  tokenAddress: string;
+  tokenDecimals: number;
+  tokenSymbol: string;
+  escrowWalletAddress: string;
 };
 
 export type CashoutQuote = {
@@ -320,8 +375,11 @@ export type Position = {
   pollId: string;
   pollSlug: string;
   pollTitle: string;
+  pollStatus: string;
   category: string;
   region: string;
+  endsAt: string;
+  tradingFrozen: boolean;
   side: TradeSide;
   outcomeLabel: string;
   amount: number;
@@ -362,6 +420,20 @@ export type AccountNotification = {
   link?: string;
   readAt?: string;
   createdAt: string;
+};
+
+export type MarketAlert = {
+  pollId?: string;
+  slug: string;
+  title?: string;
+  enabled: boolean;
+  priceEnabled: boolean;
+  priceDirection: "above" | "below";
+  priceThreshold: number;
+  closingEnabled: boolean;
+  resolutionEnabled: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type WatchlistItem = {

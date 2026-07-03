@@ -1,5 +1,6 @@
 import { buildPoseidon } from "circomlibjs";
 import type { ShieldedPayoutNote, ShieldedWithdrawalCircuitInput } from "../types";
+import { apiBaseURL } from "./runtimeConfig";
 
 const FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 const NOTE_STORAGE_PREFIX = "budol.shieldedPayoutNote.";
@@ -34,7 +35,7 @@ export class ShieldedWithdrawalArtifactError extends Error {
 let poseidonPromise: Promise<PoseidonInstance> | null = null;
 
 function artifactBaseURL() {
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:8082" : "";
+  return apiBaseURL();
 }
 
 function artifactURL(file: string) {
@@ -129,7 +130,15 @@ export function saveShieldedPayoutNote(note: ShieldedPayoutNote) {
     window.localStorage.setItem(storageKey(note.tradeId), JSON.stringify(note));
   } catch {
     // A shielded payout note is required to withdraw from the pool later.
-  }
+	}
+}
+
+export function removeShieldedPayoutNote(tradeId: string) {
+	try {
+		window.localStorage.removeItem(storageKey(tradeId));
+	} catch {
+		// A missing local note does not affect a direct payout.
+	}
 }
 
 export async function createShieldedPayoutNote(tradeId: string, config: ShieldedPayoutConfig): Promise<ShieldedPayoutNote> {

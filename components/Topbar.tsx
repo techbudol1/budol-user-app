@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet } from "lucide-react";
+import { Bell, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AccountNotification } from "../types";
 import { formatDate } from "../lib/format";
@@ -6,6 +6,7 @@ import { shortAddress } from "../lib/format";
 import budolLogoImage from "../../public/assets/budol-politics-market.png";
 
 type TopbarProps = {
+  activePage?: "markets" | "portfolio";
   accountAddress?: string;
   isAuthLoading: boolean;
   isDark: boolean;
@@ -13,7 +14,8 @@ type TopbarProps = {
   onLoginClick: () => void;
   onLogout: () => Promise<void>;
   notifications: AccountNotification[];
-  onNotificationOpen: (link?: string) => void;
+  onNotificationOpen: (notification: AccountNotification) => void;
+  onMarketsClick: () => void;
   onNotificationsReadAll: () => Promise<void>;
   onNotificationsPageClick: () => void;
   onPortfolioClick: () => void;
@@ -23,6 +25,7 @@ type TopbarProps = {
 };
 
 export function Topbar({
+  activePage,
   accountAddress,
   isAuthLoading,
   isDark,
@@ -30,6 +33,7 @@ export function Topbar({
   onLoginClick,
   onLogout,
   notifications,
+  onMarketsClick,
   onNotificationOpen,
   onNotificationsReadAll,
   onNotificationsPageClick,
@@ -41,6 +45,7 @@ export function Topbar({
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const walletLabel = accountAddress ? shortAddress(accountAddress) : isAuthLoading ? "Checking" : "Login";
@@ -91,15 +96,18 @@ export function Topbar({
     setIsNotificationsOpen(open => !open);
   };
 
+  const updateSearch = (value: string) => {
+    setSearchValue(value);
+    onSearchChange(value);
+  };
+
   const markAllRead = async () => {
     await onNotificationsReadAll();
   };
 
   const openNotification = (notification: AccountNotification) => {
-    if (notification.link) {
-      onNotificationOpen(notification.link);
-      setIsNotificationsOpen(false);
-    }
+    onNotificationOpen(notification);
+    setIsNotificationsOpen(false);
   };
 
   const closeAccountMenu = () => {
@@ -128,25 +136,47 @@ export function Topbar({
 
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label="Budol home">
+      <a className="brand" href="/markets" aria-label="BudolPH markets">
         <span className="brand-mark">
           <img src={budolLogoImage} alt="" className="brand-logo-image" />
         </span>
         <span>
-          <strong>Budol</strong>
+          <strong>BudolPH</strong>
           <small>PH politics markets</small>
         </span>
       </a>
 
-      <div className="search-box">
-        <Search size={18} />
-        <input placeholder="Search Senate, LGU, budget, Comelec..." onChange={event => onSearchChange(event.target.value)} />
+      <div className="search-box" role="search">
+        <Search className="search-icon" size={18} />
+        <input
+          aria-label="Search markets"
+          placeholder="Search markets, topics, or regions"
+          value={searchValue}
+          onChange={event => updateSearch(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === "Escape") {
+              updateSearch("");
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        {searchValue ? (
+          <button
+            aria-label="Clear search"
+            className="search-clear"
+            onClick={() => updateSearch("")}
+            type="button"
+          >
+            <X size={15} />
+          </button>
+        ) : (
+          <span className="search-hint">Markets</span>
+        )}
       </div>
 
       <nav className="desktop-nav" aria-label="Main navigation">
-        <a href="#markets">Markets</a>
-        <a href="#signals">Signals</a>
-        <button onClick={onPortfolioClick}>Portfolio</button>
+        <button className={activePage === "markets" ? "active" : ""} onClick={onMarketsClick}>Markets</button>
+        <button className={activePage === "portfolio" ? "active" : ""} onClick={onPortfolioClick}>Portfolio</button>
       </nav>
 
       <div className="topbar-actions">

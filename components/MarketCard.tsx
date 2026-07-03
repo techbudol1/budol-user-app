@@ -19,9 +19,25 @@ export function MarketCard({ isSelected, market, onOpen, onSelect }: MarketCardP
     return `${x.toFixed(2)},${y.toFixed(2)}`;
   });
   const areaPoints = `0,40 ${chartPoints.join(" ")} 100,40`;
+  const openMarket = () => {
+    onSelect(market.id);
+    onOpen(market.slug);
+  };
 
   return (
-    <article className={`market-card ${isSelected ? "selected" : ""}`} onClick={() => onSelect(market.id)}>
+    <article
+      aria-label={`Open market: ${market.title}`}
+      className={`market-card ${isSelected ? "selected" : ""}`}
+      onClick={openMarket}
+      onKeyDown={event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMarket();
+        }
+      }}
+      role="link"
+      tabIndex={0}
+    >
       <div className="market-card-top">
         <span className={`tag ${market.color}`}>{market.tag}</span>
         <span className="region">{market.region}</span>
@@ -52,15 +68,6 @@ export function MarketCard({ isSelected, market, onOpen, onSelect }: MarketCardP
         <span>{market.volume} vol</span>
         <strong className={market.change.startsWith("+") ? "positive" : "negative"}>{market.change}</strong>
       </div>
-      <button
-        className="market-detail-button"
-        onClick={event => {
-          event.stopPropagation();
-          onOpen(market.slug);
-        }}
-      >
-        {tradeable ? "Open market" : "View market"}
-      </button>
     </article>
   );
 }

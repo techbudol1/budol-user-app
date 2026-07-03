@@ -1,33 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useCreateWallet, usePrivy, useWallets } from "@privy-io/react-auth";
+import { useCreateWallet, usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
+import { MousePointerClick } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdMoodCard } from "./components/CrowdMoodCard";
 import { HeroPanel } from "./components/HeroPanel";
-import { HotRegionsCard } from "./components/HotRegionsCard";
+import { PrivacyPage, TermsPage } from "./components/LegalPages";
 import { LoginModal } from "./components/LoginModal";
 import { MarketBoard } from "./components/MarketBoard";
 import { MarketDetailPage } from "./components/MarketDetailPage";
 import { MyAccountPage } from "./components/MyAccountPage";
 import { MyWalletPage } from "./components/MyWalletPage";
 import { NotificationsPage } from "./components/NotificationsPage";
-import { PortfolioCard } from "./components/PortfolioCard";
 import { PortfolioPage } from "./components/PortfolioPage";
-import { ProfileCard } from "./components/ProfileCard";
-import { SignalsCard } from "./components/SignalsCard";
+import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { TradeTicketCard } from "./components/TradeTicketCard";
-import { filters, headlines, markets, portfolio } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadWatchlist, loginWithPrivyToken, logoutCurrentUser, markAllNotificationsRead, removeWatchlist } from "./lib/api";
-import type { AccountNotification, BudolUser, Market, Theme, UserPortfolio } from "./types";
+import { filters } from "./data/budol";
+import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, loginWithPrivyToken, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
+import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
+import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
 
-type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "logout";
+type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "privacy" | "terms" | "logout";
 
 const routePaths: Record<AppRoute, string> = {
-  markets: "/",
+  markets: "/markets",
   account: "/account",
   wallet: "/wallet",
   portfolio: "/portfolio",
   notifications: "/notifications",
   marketDetail: "/markets",
+  privacy: "/privacy",
+  terms: "/terms",
   logout: "/logout",
 };
 
@@ -45,6 +47,12 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
   if (normalizedPath === "/notifications") {
     return { route: "notifications", marketSlug: "" };
   }
+  if (normalizedPath === "/privacy") {
+    return { route: "privacy", marketSlug: "" };
+  }
+  if (normalizedPath === "/terms") {
+    return { route: "terms", marketSlug: "" };
+  }
   if (normalizedPath.startsWith("/markets/")) {
     return { route: "marketDetail", marketSlug: decodeURIComponent(normalizedPath.replace("/markets/", "")) };
   }
@@ -57,14 +65,15 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
 export default function App() {
   const { authenticated, getAccessToken, logout: logoutPrivy, ready: privyReady, user: privyUser } = usePrivy();
   const { createWallet } = useCreateWallet();
+  const { sendTransaction } = useSendTransaction();
   const { ready: walletsReady, wallets } = useWallets();
   const logoutRouteHandled = useRef(false);
   const privyWalletCreateStarted = useRef(false);
   const privySessionSyncKey = useRef("");
   const lastPrivyLoginNotice = useRef("");
   const [activeFilter, setActiveFilter] = useState("Trending");
-  const [marketList, setMarketList] = useState<Market[]>(markets);
-  const [selectedId, setSelectedId] = useState(markets[0].id);
+  const [marketList, setMarketList] = useState<Market[]>([]);
+  const [selectedId, setSelectedId] = useState("");
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [budolUser, setBudolUser] = useState<BudolUser | null>(null);
@@ -87,35 +96,24 @@ export default function App() {
   });
   const isDark = theme === "dark";
   const privyWallet = useMemo(() => wallets.find(wallet => wallet.walletClientType === "privy") ?? wallets[0], [wallets]);
-  const accountAddress = authenticated ? privyWallet?.address ?? walletAddressFromPrivyUser(privyUser) : undefined;
+  const privyAccountAddress = authenticated ? privyWallet?.address ?? walletAddressFromPrivyUser(privyUser) : undefined;
+  const accountAddress = budolUser?.walletAddress || privyAccountAddress;
 
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
   const selectedMarket = useMemo(
-    () => marketList.find(market => market.id === selectedId) ?? marketList[0] ?? markets[0],
+    () => marketList.find(market => market.id === selectedId) ?? marketList[0] ?? null,
     [marketList, selectedId],
   );
   const visibleMarkets = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     return marketList.filter(market => {
       const categoryMatches = activeFilter === "Trending" || market.tag === activeFilter;
-      const queryMatches = !normalizedQuery || `${market.title} ${market.region} ${market.tag} ${market.type}`.toLowerCase().includes(normalizedQuery);
+      const queryMatches = !normalizedQuery || `${market.title} ${market.marketGroupTitle ?? ""} ${market.marketChoiceLabel ?? ""} ${market.region} ${market.tag} ${market.type}`.toLowerCase().includes(normalizedQuery);
       const closingMatches = !showClosingSoon || isClosingSoon(market.endsAt);
       const watchlistMatches = !showWatchlistOnly || watchlist.includes(market.slug);
       return categoryMatches && queryMatches && closingMatches && watchlistMatches;
     });
   }, [activeFilter, marketList, searchQuery, showClosingSoon, showWatchlistOnly, watchlist]);
-  const portfolioItems = useMemo(
-    () =>
-      userPortfolio
-        ? [
-            { label: "Open positions", value: userPortfolio.summary.openPositions.toString(), accent: "green" as const },
-            { label: "Exposure", value: `${formatToken(userPortfolio.summary.totalExposure)} BUDOL`, accent: "blue" as const },
-            { label: "Potential", value: `${formatToken(userPortfolio.summary.potentialPayout)} BUDOL`, accent: "coral" as const },
-          ]
-        : portfolio,
-    [userPortfolio],
-  );
-
   const applyTheme = (nextTheme: Theme) => {
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
@@ -132,8 +130,13 @@ export default function App() {
     }
   };
 
-  const notify = (message: string, detail = message, syncFromServer = true) => {
+  const showToast = (message: string) => {
     setToast(message);
+    window.setTimeout(() => setToast(""), 3200);
+  };
+
+  const notify = (message: string, detail = message, syncFromServer = true) => {
+    showToast(message);
     setAccountNotifications(current => {
       const next = [
         {
@@ -152,7 +155,6 @@ export default function App() {
         void refreshAccountNotifications();
       }, 450);
     }
-    window.setTimeout(() => setToast(""), 3200);
   };
 
   const markNotificationsRead = async () => {
@@ -206,10 +208,57 @@ export default function App() {
     navigate(next.route, "push", next.marketSlug);
   };
 
+  const openNotification = (notification: AccountNotification) => {
+    if (!notification.readAt) {
+      const readAt = new Date().toISOString();
+      setAccountNotifications(current => {
+        const next = current.map(item => (item.id === notification.id ? { ...item, readAt } : item));
+        localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+        return next;
+      });
+      if (budolUser && notification.userId) {
+        void markNotificationRead(notification.id)
+          .then(updatedNotification => {
+            setAccountNotifications(current => {
+              const next = current.map(item => (item.id === updatedNotification.id ? updatedNotification : item));
+              localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+              return next;
+            });
+          })
+          .catch(() => undefined);
+      }
+    }
+    openNotificationLink(notification.link);
+  };
+
   const updateMarket = (nextMarket: Market) => {
     setMarketList(current => current.map(market => (market.id === nextMarket.id ? nextMarket : market)));
     setSelectedId(nextMarket.id);
   };
+
+  const sendEscrowTransfer = useCallback(async (amount: string, pollId: string, side: TradeSide) => {
+    if (!accountAddress) {
+      throw new Error("Wallet is not ready. Reconnect and try again.");
+    }
+    await loadTradeQuote(pollId, side, Number(amount));
+    if (budolUser?.walletCustody === "managed") {
+      const result = await submitManagedEscrowTransfer({ amount, pollId, side });
+      return result.escrowTxHash;
+    }
+    if (!privyWallet) {
+      throw new Error("Wallet is not ready. Reconnect and try again.");
+    }
+    const tradeConfig = await loadTradeConfig();
+    return sendBudolEscrowTransfer({
+      amount,
+      config: tradeConfig,
+      from: accountAddress,
+      pollId,
+      sendTransaction,
+      side,
+      wallet: privyWallet,
+    });
+  }, [accountAddress, budolUser?.walletCustody, privyWallet, sendTransaction]);
 
   const recordPortfolioSettlements = (nextPortfolio: UserPortfolio | null) => {
     if (!nextPortfolio) {
@@ -256,12 +305,12 @@ export default function App() {
       await logoutPrivy();
     }
     setBudolUser(null);
-    notify("Logged out.", "Your Budol session ended on this browser.", false);
+    notify("Logged out.", "Your BudolPH session ended on this browser.", false);
     navigate("markets", "replace");
   };
 
   useEffect(() => {
-    document.title = "Budol | PH Politics Markets";
+    document.title = "BudolPH | PH Politics Markets";
     const savedTheme = localStorage.getItem("budol-theme");
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     applyTheme(savedTheme === "dark" || savedTheme === "light" ? savedTheme : prefersDark ? "dark" : "light");
@@ -289,14 +338,17 @@ export default function App() {
 
     loadPublicMarkets()
       .then(nextMarkets => {
-        if (!isMounted || nextMarkets.length === 0) {
+        if (!isMounted) {
           return;
         }
         setMarketList(nextMarkets);
-        setSelectedId(nextMarkets[0].id);
+        setSelectedId(nextMarkets[0]?.id ?? "");
       })
       .catch(() => {
-        setMarketList(markets);
+        if (isMounted) {
+          setMarketList([]);
+          setSelectedId("");
+        }
       });
 
     loadPortfolio()
@@ -315,6 +367,29 @@ export default function App() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get("login");
+    if (!provider) {
+      return;
+    }
+    const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+    setIsAuthLoading(true);
+    loadCurrentUser()
+      .then(user => {
+        setBudolUser(user);
+        localStorage.setItem("budol-last-login-provider", provider);
+        showToast(`${label} login successful.`);
+        void refreshAccountNotifications();
+      })
+      .catch(() => {
+        setBudolUser(null);
+        notify(`${label} login sync failed.`, "BudolPH could not load the new session yet. Try refreshing once.", false);
+      })
+      .finally(() => setIsAuthLoading(false));
+    window.history.replaceState(window.history.state, "", window.location.pathname || "/");
   }, []);
 
   useEffect(() => {
@@ -340,7 +415,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!privyReady || !walletsReady || !authenticated || accountAddress || privyWalletCreateStarted.current) {
+    if (!privyReady || !walletsReady || !authenticated || privyAccountAddress || privyWalletCreateStarted.current) {
       return;
     }
     privyWalletCreateStarted.current = true;
@@ -349,13 +424,13 @@ export default function App() {
         privyWalletCreateStarted.current = false;
         notify("Wallet creation failed.", errorMessage(error), false);
       });
-  }, [accountAddress, authenticated, createWallet, privyReady, walletsReady]);
+  }, [authenticated, createWallet, privyAccountAddress, privyReady, walletsReady]);
 
   useEffect(() => {
-    if (!privyReady || !authenticated || !accountAddress) {
+    if (!privyReady || !authenticated || !privyAccountAddress) {
       return;
     }
-    const syncKey = `${privyUser?.id || "privy"}:${accountAddress}`;
+    const syncKey = `${privyUser?.id || "privy"}:${privyAccountAddress}`;
     if (privySessionSyncKey.current === syncKey) {
       return;
     }
@@ -376,7 +451,7 @@ export default function App() {
         }
         setBudolUser(user);
         void refreshAccountNotifications();
-        notify("Login successful.", "Your Privy wallet is now connected to Budol.", false);
+        showToast("Login successful.");
       })
       .catch(error => {
         if (cancelled) {
@@ -384,7 +459,7 @@ export default function App() {
         }
         privySessionSyncKey.current = "";
         setBudolUser(null);
-        notify("Budol account sync failed.", errorMessage(error), false);
+        notify("BudolPH account sync failed.", errorMessage(error), false);
       })
       .finally(() => {
         if (!cancelled) {
@@ -395,10 +470,10 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [accountAddress, authenticated, getAccessToken, privyReady, privyUser?.id]);
+  }, [authenticated, getAccessToken, privyAccountAddress, privyReady, privyUser?.id]);
 
   useEffect(() => {
-    if (!privyReady || authenticated || !budolUser) {
+    if (!privyReady || authenticated || !budolUser || budolUser.authType !== "privy_oauth") {
       return;
     }
     void logoutCurrentUser().catch(() => undefined);
@@ -415,12 +490,12 @@ export default function App() {
   }, [accountAddress, isLoginOpen]);
 
   useEffect(() => {
-    if (!privyReady || !authenticated || !accountAddress || lastPrivyLoginNotice.current === accountAddress) {
+    if (!privyReady || !authenticated || !privyAccountAddress || lastPrivyLoginNotice.current === privyAccountAddress) {
       return;
     }
-    lastPrivyLoginNotice.current = accountAddress;
-    notify("Login successful.", "Privy wallet connected. Backend account sync and token features are next.", false);
-  }, [accountAddress, authenticated, privyReady]);
+    lastPrivyLoginNotice.current = privyAccountAddress;
+    showToast("Wallet connected.");
+  }, [authenticated, privyAccountAddress, privyReady]);
 
   useEffect(() => {
     if (route !== "logout" || isAuthLoading || logoutRouteHandled.current) {
@@ -446,9 +521,20 @@ export default function App() {
     }
   }, [budolUser?.id, isAuthLoading]);
 
+  useEffect(() => {
+    if (!budolUser) return;
+    const interval = window.setInterval(() => {
+      if (!document.hidden) {
+        void refreshAccountNotifications();
+      }
+    }, 15_000);
+    return () => window.clearInterval(interval);
+  }, [budolUser?.id]);
+
   return (
     <main className="app-shell">
       <Topbar
+        activePage={route === "markets" || route === "marketDetail" ? "markets" : route === "portfolio" ? "portfolio" : undefined}
         accountAddress={accountAddress}
         isAuthLoading={isAuthLoading && !accountAddress}
         isDark={isDark}
@@ -458,7 +544,8 @@ export default function App() {
           navigate("logout");
         }}
         notifications={accountNotifications}
-        onNotificationOpen={openNotificationLink}
+        onMarketsClick={() => navigate("markets")}
+        onNotificationOpen={openNotification}
         onNotificationsReadAll={markNotificationsRead}
         onNotificationsPageClick={() => navigate("notifications")}
         onPortfolioClick={() => navigate("portfolio")}
@@ -470,13 +557,19 @@ export default function App() {
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
+        onLoggedIn={user => {
+          setBudolUser(user);
+          setIsAuthLoading(false);
+          void refreshAccountNotifications();
+          showToast("Login successful.");
+        }}
       />
       {toast ? <div className="toast-notice">{toast}</div> : null}
 
       {route === "logout" ? (
         <section className="simple-page">
           <h1>Logging out</h1>
-          <p>Ending your Budol session on this browser.</p>
+          <p>Ending your BudolPH session on this browser.</p>
         </section>
       ) : route === "account" ? (
         <MyAccountPage
@@ -484,6 +577,7 @@ export default function App() {
           notifications={accountNotifications}
           onBack={() => navigate("markets")}
           onLogout={logout}
+          onUserChange={setBudolUser}
           onWalletClick={() => navigate("wallet")}
           user={budolUser}
         />
@@ -510,16 +604,23 @@ export default function App() {
           notifications={accountNotifications}
           onBack={() => navigate("markets")}
           onMarkRead={markNotificationsRead}
-          onOpen={openNotificationLink}
+          onOpen={openNotification}
         />
+      ) : route === "terms" ? (
+        <TermsPage onBack={() => navigate("markets")} />
+      ) : route === "privacy" ? (
+        <PrivacyPage onBack={() => navigate("markets")} />
       ) : route === "marketDetail" ? (
         <MarketDetailPage
           accountAddress={accountAddress}
           isLoggedIn={Boolean(accountAddress)}
           market={marketList.find(market => market.slug === marketSlug) ?? null}
+          markets={marketList}
           onBack={() => navigate("markets")}
+          onEscrowTransfer={sendEscrowTransfer}
           onLoginClick={() => setIsLoginOpen(true)}
           onMarketChange={updateMarket}
+          onMarketOpen={slug => navigate("marketDetail", "push", slug)}
           onPortfolioChange={setUserPortfolio}
           onToast={notify}
           onWatchlistToggle={toggleWatchlist}
@@ -528,15 +629,9 @@ export default function App() {
         />
       ) : (
         <>
-          <HeroPanel />
+          <HeroPanel marketCount={marketList.length} />
 
           <section className="market-layout" id="markets">
-            <aside className="sidebar">
-              <ProfileCard />
-              <PortfolioCard items={portfolioItems} onOpen={() => navigate("portfolio")} />
-              <HotRegionsCard />
-            </aside>
-
             <MarketBoard
               activeFilter={activeFilter}
               filters={filtersWithTrending.length > 1 ? filtersWithTrending : filters}
@@ -552,21 +647,41 @@ export default function App() {
             />
 
             <aside className="trade-panel">
-              <TradeTicketCard
-                accountAddress={accountAddress}
-                isLoggedIn={Boolean(accountAddress)}
-                market={selectedMarket}
-                onLoginClick={() => setIsLoginOpen(true)}
-                onMarketChange={updateMarket}
-                onPortfolioChange={setUserPortfolio}
-                onTradePlaced={() => notify("Trade placed. Portfolio updated.")}
-              />
-              <SignalsCard headlines={headlines} />
+              {selectedMarket ? (
+                <TradeTicketCard
+                  accountAddress={accountAddress}
+                  isLoggedIn={Boolean(accountAddress)}
+                  market={selectedMarket}
+                  onEscrowTransfer={sendEscrowTransfer}
+                  onLoginClick={() => setIsLoginOpen(true)}
+                  onMarketChange={updateMarket}
+                  onPortfolioChange={setUserPortfolio}
+                  onTradePlaced={() => notify("Trade placed. Portfolio updated.")}
+                />
+              ) : (
+                <div className="panel empty-market-panel">
+                  <span className="empty-state-icon">
+                    <MousePointerClick size={22} />
+                  </span>
+                  <div>
+                    <h2>No market selected</h2>
+                    <p>Select a market to see its price and place a trade.</p>
+                  </div>
+                </div>
+              )}
               <CrowdMoodCard />
             </aside>
           </section>
         </>
       )}
+      <SiteFooter
+        onAccountClick={() => navigate("account")}
+        onMarketsClick={() => navigate("markets")}
+        onPortfolioClick={() => navigate("portfolio")}
+        onPrivacyClick={() => navigate("privacy")}
+        onTermsClick={() => navigate("terms")}
+        onWalletClick={() => navigate("wallet")}
+      />
     </main>
   );
 }

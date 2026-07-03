@@ -23,7 +23,7 @@ type MyWalletPageProps = {
 };
 
 const arbitrumSepoliaChainId = 421614;
-const fallbackBudolTokenAddress = "0x4f1211149760079b1dea3717d806467c2f744468";
+const fallbackBudolTokenAddress = "0x12fF5d28F93c1CABDA4Bd0ddf8906FF7E4Df1c4e";
 
 export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyWalletPageProps) {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -33,6 +33,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [walletError, setWalletError] = useState("");
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
+  const walletDescription = user?.walletCustody === "external" ? "External EVM wallet connected for BudolPH." : "BudolPH-managed wallet connected.";
   const tokenAddress = balance?.tokenAddress || fallbackBudolTokenAddress;
   const explorerURL = displayAddress ? `https://sepolia.arbiscan.io/token/${tokenAddress}?a=${displayAddress}#transactions` : "";
   const receiveQRCode = useMemo(() => {
@@ -89,7 +90,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     return (
       <section className="simple-page">
         <h1>My Wallet</h1>
-        <p>Log in with Google to create and connect your Budol wallet.</p>
+        <p>Log in with Google to create and connect your BudolPH wallet.</p>
         <button className="primary-button" onClick={onLoginClick}>
           <Wallet size={18} />
           Login
@@ -108,7 +109,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <div>
           <span className="eyebrow">My Wallet</span>
           <h1>{shortAddress(displayAddress)}</h1>
-          <p>Privy wallet connected for Budol.</p>
+          <p>{walletDescription}</p>
         </div>
       </div>
 
@@ -116,7 +117,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <section className="panel wallet-balance-card">
           <div className="panel-title">
             <Wallet size={19} />
-            <h2>Budol balance</h2>
+            <h2>BUDOL balance</h2>
           </div>
           <strong>{balance ? `${formatTokenAmount(balance.formatted)} BUDOL` : isLoadingWallet ? "Loading..." : "0 BUDOL"}</strong>
           <div className="wallet-address-box">

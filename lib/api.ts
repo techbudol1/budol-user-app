@@ -1,9 +1,17 @@
-import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
+import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
 import { createPrivateClaimNote, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
-import { createShieldedPayoutNote, fieldPublicSignalToBytes32, type ShieldedPayoutConfig } from "./shieldedPayouts";
+import { apiBaseURL } from "./runtimeConfig";
+import { createShieldedPayoutNote, fieldPublicSignalToBytes32, removeShieldedPayoutNote, type ShieldedPayoutConfig } from "./shieldedPayouts";
 
 type AuthResponse = {
   user: BudolUser;
+};
+
+type WalletNonceResponse = {
+  address: string;
+  expiresAt: string;
+  message: string;
+  nonce: string;
 };
 
 type PollsResponse = {
@@ -37,6 +45,7 @@ type PrivateClaimResponse = {
   portfolio: UserPortfolio;
   payoutStatus: string;
   payoutError: string;
+  payoutMode?: "direct" | "direct_fallback" | "shielded";
   shieldedPayout?: boolean;
   shieldedPayoutNote?: ShieldedPayoutNote;
   transactionIds: string[];
@@ -114,6 +123,18 @@ type TradeQuoteResponse = {
   quote: TradeQuote;
 };
 
+type TradeConfigResponse = {
+  config: TradeConfig;
+};
+
+type GaslessEscrowResponse = {
+  escrowTxHash: string;
+  gasFree: boolean;
+  permitTransactionHash?: string;
+  transactionIds?: string[];
+  transferTransactionHash?: string;
+};
+
 type CashoutQuoteResponse = {
   quote: CashoutQuote;
 };
@@ -172,11 +193,9 @@ type WatchlistResponse = {
   watchlist: WatchlistItem[];
 };
 
-const localAPIBaseURL = "http://localhost:8082";
-
-function apiBaseURL() {
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? localAPIBaseURL : "";
-}
+type MarketAlertResponse = {
+  alert: MarketAlert;
+};
 
 export async function loginWithThirdwebToken(authToken: string): Promise<BudolUser> {
   const baseURL = apiBaseURL();
@@ -190,7 +209,7 @@ export async function loginWithThirdwebToken(authToken: string): Promise<BudolUs
   });
 
   if (!response.ok) {
-    throw new Error("Budol login failed. Please try again.");
+    throw new Error("BudolPH login failed. Please try again.");
   }
 
   const payload = (await response.json()) as AuthResponse;
@@ -210,7 +229,57 @@ export async function loginWithPrivyToken(accessToken: string): Promise<BudolUse
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || "Budol Privy login failed. Please try again.");
+    throw new Error(message || "BudolPH Privy login failed. Please try again.");
+  }
+
+  const payload = (await response.json()) as AuthResponse;
+  return payload.user;
+}
+
+export function googleManagedLoginURL(): string {
+  return `${apiBaseURL()}/api/auth/google/start`;
+}
+
+export function facebookManagedLoginURL(): string {
+  return `${apiBaseURL()}/api/auth/facebook/start`;
+}
+
+export async function createWalletLoginChallenge(address: string): Promise<WalletNonceResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/auth/wallet/nonce`, {
+    body: JSON.stringify({ address }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Unable to create wallet login challenge.");
+  }
+
+  return (await response.json()) as WalletNonceResponse;
+}
+
+export async function verifyWalletLogin(input: {
+  address: string;
+  message: string;
+  nonce: string;
+  signature: string;
+}): Promise<BudolUser> {
+  const response = await fetch(`${apiBaseURL()}/api/auth/wallet/verify`, {
+    body: JSON.stringify(input),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || "Wallet login failed. Please try again.");
   }
 
   const payload = (await response.json()) as AuthResponse;
@@ -228,11 +297,27 @@ export async function loadCurrentUser(): Promise<BudolUser | null> {
   }
 
   if (!response.ok) {
-    throw new Error("Unable to restore Budol session.");
+    throw new Error("Unable to restore BudolPH session.");
   }
 
   const payload = (await response.json()) as AuthResponse;
   return payload.user;
+}
+
+export async function updateAccountDisplayName(displayName: string): Promise<BudolUser> {
+  const response = await fetch(`${apiBaseURL()}/api/account/profile`, {
+    body: JSON.stringify({ displayName }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "PATCH",
+  });
+  const payload = (await response.json().catch(() => null)) as (AuthResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to update display name.");
+  }
+  return (payload as AuthResponse).user;
 }
 
 export async function logoutCurrentUser(): Promise<void> {
@@ -346,6 +431,45 @@ export async function removeWatchlist(slug: string): Promise<WatchlistItem[]> {
   return payload.watchlist;
 }
 
+export async function loadMarketAlert(slug: string): Promise<MarketAlert | null> {
+  const response = await fetch(`${apiBaseURL()}/api/market-alerts/${encodeURIComponent(slug)}`, {
+    credentials: "include",
+  });
+  if (response.status === 401) return null;
+  if (!response.ok) {
+    throw new Error("Unable to load market alerts.");
+  }
+  return ((await response.json()) as MarketAlertResponse).alert;
+}
+
+export async function saveMarketAlert(slug: string, alert: Pick<MarketAlert, "closingEnabled" | "priceDirection" | "priceEnabled" | "priceThreshold" | "resolutionEnabled">): Promise<MarketAlert> {
+  const response = await fetch(`${apiBaseURL()}/api/market-alerts/${encodeURIComponent(slug)}`, {
+    body: JSON.stringify(alert),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    method: "PUT",
+  });
+  const payload = (await response.json().catch(() => null)) as (MarketAlertResponse & { error?: string }) | null;
+  if (response.status === 401) {
+    throw new Error("Log in before configuring alerts.");
+  }
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to save market alerts.");
+  }
+  return (payload as MarketAlertResponse).alert;
+}
+
+export async function deleteMarketAlert(slug: string): Promise<void> {
+  const response = await fetch(`${apiBaseURL()}/api/market-alerts/${encodeURIComponent(slug)}`, {
+    credentials: "include",
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to disable market alerts.");
+  }
+}
+
 export async function loadPublicMarkets(): Promise<Market[]> {
   const baseURL = apiBaseURL();
   const response = await fetch(`${baseURL}/api/polls`, {
@@ -353,7 +477,7 @@ export async function loadPublicMarkets(): Promise<Market[]> {
   });
 
   if (!response.ok) {
-    throw new Error("Unable to load Budol markets.");
+    throw new Error("Unable to load BudolPH markets.");
   }
 
   const payload = (await response.json()) as PollsResponse;
@@ -366,7 +490,7 @@ export async function loadPublicMarket(slug: string): Promise<Market> {
   });
 
   if (!response.ok) {
-    throw new Error("Unable to load Budol market.");
+    throw new Error("Unable to load BudolPH market.");
   }
 
   const payload = (await response.json()) as PollResponse;
@@ -532,7 +656,13 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
   if (!response.ok) {
     throw new Error(payload?.error || "Unable to claim private payout.");
   }
-  return { ...(payload as PrivateClaimResponse), shieldedPayoutNote: shieldedPayoutNote || undefined };
+  if (!payload?.shieldedPayout) {
+    removeShieldedPayoutNote(tradeId);
+  }
+  return {
+    ...(payload as PrivateClaimResponse),
+    shieldedPayoutNote: payload?.shieldedPayout ? shieldedPayoutNote || undefined : undefined,
+  };
 }
 
 export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigResponse> {
@@ -710,6 +840,83 @@ export async function loadTradeQuote(pollId: string, side: TradeSide, amount: nu
   return payload.quote;
 }
 
+export async function loadTradeConfig(): Promise<TradeConfig> {
+  const response = await fetch(`${apiBaseURL()}/api/trade-config`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to load trade configuration.");
+  }
+
+  const payload = (await response.json()) as TradeConfigResponse;
+  return payload.config;
+}
+
+export async function submitGaslessEscrowTransfer(input: {
+  amount: string;
+  deadline: string;
+  owner: string;
+  pollId: string;
+  r: string;
+  s: string;
+  side: TradeSide;
+  v: number;
+}): Promise<GaslessEscrowResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/gasless-escrow`, {
+    body: JSON.stringify(input),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (response.status === 401) {
+    throw new Error("Log in before placing a trade.");
+  }
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to submit gas-free escrow transfer.");
+  }
+
+  const payload = (await response.json()) as GaslessEscrowResponse;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(payload.escrowTxHash)) {
+    throw new Error("BudolPH API did not return a valid escrow transaction hash.");
+  }
+  return payload;
+}
+
+export async function submitManagedEscrowTransfer(input: {
+  amount: string;
+  pollId: string;
+  side: TradeSide;
+}): Promise<GaslessEscrowResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/managed-escrow`, {
+    body: JSON.stringify(input),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  if (response.status === 401) {
+    throw new Error("Log in before placing a trade.");
+  }
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to submit managed escrow transfer.");
+  }
+
+  const payload = (await response.json()) as GaslessEscrowResponse;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(payload.escrowTxHash)) {
+    throw new Error("BudolPH API did not return a valid managed escrow transaction hash.");
+  }
+  return payload;
+}
+
 export async function loadCashoutQuote(pollId: string, side: TradeSide, amount = 0): Promise<CashoutQuote> {
   const params = new URLSearchParams({ pollId, side });
   if (amount > 0) {
@@ -800,6 +1007,10 @@ function pollToMarket(poll: PublicPoll): Market {
     visibility: poll.visibility,
     outcomeA: poll.outcomeA,
     outcomeB: poll.outcomeB,
+    marketGroupId: poll.marketGroupId ?? "",
+    marketGroupTitle: poll.marketGroupTitle ?? "",
+    marketChoiceLabel: poll.marketChoiceLabel ?? "",
+    marketChoiceIndex: poll.marketChoiceIndex ?? 0,
     yes: poll.yesPercent,
     no: poll.noPercent,
     volume: poll.volume,

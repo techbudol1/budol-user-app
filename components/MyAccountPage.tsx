@@ -2,7 +2,9 @@ import {
   ArrowLeft,
   Bell,
   Eye,
+  LoaderCircle,
   LogOut,
+  Save,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
@@ -11,6 +13,7 @@ import {
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { formatDate, shortAddress } from "../lib/format";
+import { updateAccountDisplayName } from "../lib/api";
 import type { AccountNotification, BudolUser } from "../types";
 
 type MyAccountPageProps = {
@@ -18,6 +21,7 @@ type MyAccountPageProps = {
   notifications: AccountNotification[];
   onBack: () => void;
   onLogout: () => Promise<void>;
+  onUserChange: (user: BudolUser) => void;
   onWalletClick: () => void;
   user: BudolUser | null;
 };
@@ -45,8 +49,12 @@ const defaultPreferences: AccountPreferences = {
   maxMarketExposure: "5000",
 };
 
-export function MyAccountPage({ accountAddress, notifications, onBack, onLogout, onWalletClick, user }: MyAccountPageProps) {
+export function MyAccountPage({ accountAddress, notifications, onBack, onLogout, onUserChange, onWalletClick, user }: MyAccountPageProps) {
+  const [displayNameDraft, setDisplayNameDraft] = useState(user?.publicAlias ?? "");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileMessageTone, setProfileMessageTone] = useState<"error" | "success">("success");
   const [preferences, setPreferences] = useState<AccountPreferences>(() => {
     const stored = localStorage.getItem("budol-account-preferences");
     if (!stored) {
@@ -61,7 +69,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
   });
 
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
-  const displayName = user?.email || (displayAddress ? shortAddress(displayAddress) : "Budol trader");
+  const displayName = user?.publicAlias || user?.email || (displayAddress ? shortAddress(displayAddress) : "BudolPH trader");
   const provider = user?.authProvider ? titleCase(user.authProvider) : "Privy social wallet";
   const preferenceSummary = useMemo(
     () => `${preferences.riskMode} risk / ${preferences.oddsFormat} odds / P${Number(preferences.defaultOrderSize || 0).toLocaleString()}`,
@@ -71,6 +79,10 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
   useEffect(() => {
     localStorage.setItem("budol-account-preferences", JSON.stringify(preferences));
   }, [preferences]);
+
+  useEffect(() => {
+    setDisplayNameDraft(user?.publicAlias ?? "");
+  }, [user?.publicAlias]);
 
   const toggleCategory = (category: string) => {
     setPreferences(current => ({
@@ -91,6 +103,24 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
     }
   };
 
+  const saveDisplayName = async () => {
+    if (!user || isSavingProfile) return;
+    setIsSavingProfile(true);
+    setProfileMessage("");
+    try {
+      const updatedUser = await updateAccountDisplayName(displayNameDraft);
+      onUserChange(updatedUser);
+      setDisplayNameDraft(updatedUser.publicAlias);
+      setProfileMessageTone("success");
+      setProfileMessage("Display name updated.");
+    } catch (error) {
+      setProfileMessageTone("error");
+      setProfileMessage(error instanceof Error ? error.message : "Unable to update display name.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   return (
     <section className="account-page">
       <div className="account-hero">
@@ -101,7 +131,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
         <div>
           <span className="eyebrow">My Account</span>
           <h1>{displayName}</h1>
-          <p>Manage your Budol profile, Privy wallet, trading defaults, and alerts.</p>
+          <p>Manage your BudolPH profile, wallet, trading defaults, and alerts.</p>
         </div>
       </div>
 
@@ -133,8 +163,44 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
               <UserRound size={19} />
               <h2>Profile</h2>
             </div>
+            <form
+              className="account-profile-form"
+              onSubmit={event => {
+                event.preventDefault();
+                void saveDisplayName();
+              }}
+            >
+              <label htmlFor="account-display-name">Display name</label>
+              <div className="account-profile-input-row">
+                <input
+                  autoComplete="nickname"
+                  disabled={!user || isSavingProfile}
+                  id="account-display-name"
+                  maxLength={40}
+                  minLength={3}
+                  onChange={event => {
+                    setDisplayNameDraft(event.target.value);
+                    setProfileMessage("");
+                  }}
+                  placeholder="Choose a public display name"
+                  value={displayNameDraft}
+                />
+                <button
+                  className="primary-button"
+                  disabled={!user || isSavingProfile || displayNameDraft.trim() === user.publicAlias}
+                  type="submit"
+                >
+                  {isSavingProfile ? <LoaderCircle className="spin-icon" size={17} /> : <Save size={17} />}
+                  {isSavingProfile ? "Saving" : "Save"}
+                </button>
+              </div>
+              <div className="account-profile-help">
+                <small>This public name appears in market activity and comments. Use 3–40 characters.</small>
+                <small>{displayNameDraft.length}/40</small>
+              </div>
+              {profileMessage ? <p className={`account-profile-message ${profileMessageTone}`} aria-live="polite">{profileMessage}</p> : null}
+            </form>
             <div className="account-detail-grid">
-              <Detail label="Display name" value={displayName} />
               <Detail label="Social provider" value={provider} />
               <Detail label="Email" value={user?.email || "Not provided"} />
               <Detail label="Joined" value={formatDate(user?.createdAt)} />

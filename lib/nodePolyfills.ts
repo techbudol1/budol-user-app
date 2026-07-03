@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 
-const runtime = globalThis as typeof globalThis & {
+const runtime = globalThis as unknown as {
   Buffer?: typeof Buffer;
   global?: typeof globalThis;
   process?: {

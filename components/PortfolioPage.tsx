@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivateClaimTree, loadShieldedWithdrawals, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout } from "../lib/api";
 import { formatDate } from "../lib/format";
 import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, generatePrivateClaimProof, importEncryptedPrivateClaimNotes, listPrivateClaimNotes, loadPrivateClaimNote, PrivateClaimArtifactError, sideToPrivateClaimOutcome, type PrivateClaimCircuitInput } from "../lib/privateClaims";
-import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
-import type { Market, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
+import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, removeShieldedPayoutNote, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
+import type { Market, Position, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
 
 type PortfolioPageProps = {
   onBack: () => void;
@@ -29,6 +29,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
   const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
+  const [, setShieldedNotesRevision] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,11 +74,24 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     };
   }, []);
 
+  useEffect(() => {
+    if (!portfolio) return;
+    const directPayoutTradeIds = new Set(
+      portfolio.trades
+        .filter(trade => ["sent", "confirmed"].includes(trade.payoutStatus) && trade.payoutTransactionIds.length === 1)
+        .map(trade => trade.id),
+    );
+    const staleNotes = listShieldedPayoutNotes().filter(note => directPayoutTradeIds.has(note.tradeId));
+    if (staleNotes.length === 0) return;
+    staleNotes.forEach(note => removeShieldedPayoutNote(note.tradeId));
+    setShieldedNotesRevision(revision => revision + 1);
+  }, [portfolio]);
+
   if (!portfolio && !isLoading) {
     return (
       <section className="simple-page">
         <h1>Portfolio</h1>
-        <p>Log in to see your Budol positions, exposure, and trade history.</p>
+        <p>Log in to see your BudolPH positions, exposure, and trade history.</p>
         <button className="primary-button" onClick={onLoginClick}>
           Login
         </button>
@@ -96,6 +110,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     netPnl: 0,
   };
   const shieldedNotes = listShieldedPayoutNotes();
+  const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
 
   const cashout = async (pollId: string, side: TradeSide, amount = 0) => {
     const key = `${pollId}-${side}`;
@@ -146,6 +161,8 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           "Private claim submitted.",
           result.shieldedPayout
             ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
+            : result.payoutMode === "direct_fallback"
+              ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL was paid directly because no private pool supports that exact amount.`
             : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
         );
         return;
@@ -188,6 +205,8 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
         "Private claim submitted.",
         result.shieldedPayout
           ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
+          : result.payoutMode === "direct_fallback"
+            ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL was paid directly because no private pool supports that exact amount.`
           : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
       );
     } catch (err) {
@@ -202,11 +221,11 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     setError("");
     try {
       const user = await loadCurrentUser();
-      const recipient = window.prompt("Recipient wallet for this shielded withdrawal. For better privacy, use a fresh wallet that has not interacted with Budol.", "");
+      const recipient = window.prompt("Recipient wallet for this shielded withdrawal. For better privacy, use a fresh wallet that has not interacted with BudolPH.", "");
       if (!recipient) return;
       const cleanRecipient = recipient.trim();
       if (user?.walletAddress && cleanRecipient.toLowerCase() === user.walletAddress.toLowerCase()) {
-        const proceed = window.confirm("This recipient is your connected Budol wallet. The withdrawal will still work, but it makes the payout easier to link to your account. Continue?");
+        const proceed = window.confirm("This recipient is your connected BudolPH wallet. The withdrawal will still work, but it makes the payout easier to link to your account. Continue?");
         if (!proceed) return;
       }
       const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
@@ -235,7 +254,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
         setShieldedWithdrawals(await loadShieldedWithdrawals());
       }
       const executeAfter = withdrawal.withdrawal?.executeAfter ? ` Scheduled after ${formatDate(withdrawal.withdrawal.executeAfter)}.` : "";
-      onToast("Shielded withdrawal queued.", `Budol will relay this withdrawal in a delayed batch.${executeAfter}`);
+      onToast("Shielded withdrawal queued.", `BudolPH will relay this withdrawal in a delayed batch.${executeAfter}`);
     } catch (err) {
       if (err instanceof ShieldedWithdrawalArtifactError) {
         setError("Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.");
@@ -317,7 +336,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
         </button>
         <div>
           <span className="eyebrow">Portfolio</span>
-          <h1>Your Budol book</h1>
+          <h1>Your BudolPH book</h1>
           <p>Track open positions, total exposure, possible payout, settled results, and recent trades.</p>
         </div>
       </div>
@@ -333,6 +352,32 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
       </div>
 
       {error ? <div className="login-error">{error}</div> : null}
+
+      {claimableTrades.length > 0 ? (
+        <section className="panel portfolio-action-card">
+          <div>
+            <div className="panel-title">
+              <Trophy size={19} />
+              <h2>Payouts ready to claim</h2>
+            </div>
+            <p>{claimableTrades.length} resolved position{claimableTrades.length === 1 ? "" : "s"} need a private ZK claim or payout retry.</p>
+          </div>
+          <div className="portfolio-action-list">
+            {claimableTrades.slice(0, 3).map(trade => (
+              <button
+                className="ghost-button"
+                disabled={pendingClaim === trade.id}
+                key={trade.id}
+                onClick={() => void claimPayout(trade)}
+                type="button"
+              >
+                {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+                {trade.payoutStatus === "claim_failed" ? "Retry" : "Claim"} {formatToken(trade.settlementPayout)} BUDOL
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="panel claim-note-backup-card">
         <div>
@@ -433,38 +478,59 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           <div className="position-list">
             {portfolio?.positions.map(position => (
               <article className="position-row" key={`${position.pollId}-${position.side}`}>
-                <span>
+                <div className="position-identity">
+                  <div className="position-outcome">
+                    <i className={`position-side-pill ${position.side}`}>{position.side === "yes" ? "YES" : "NO"}</i>
+                    <span>{position.outcomeLabel}</span>
+                  </div>
                   <strong>{position.pollTitle}</strong>
-                  <small>{position.category} / {position.region} / {position.outcomeLabel}</small>
-                </span>
-                <span>
+                  <small>{position.category} / {position.region}</small>
+                </div>
+                <div className="position-metric">
+                  <small>Invested</small>
                   <strong>{formatToken(position.amount)} BUDOL</strong>
-                  <small>Avg {Math.round(position.averagePrice)}c / now {position.currentPrice}c / {position.unrealizedPnl >= 0 ? "+" : ""}{formatToken(position.unrealizedPnl)} P/L</small>
-                </span>
-                <span>
+                  <span>Avg {Math.round(position.averagePrice)}¢ · now {position.currentPrice}¢</span>
+                </div>
+                <div className="position-metric">
+                  <small>Current value</small>
                   <strong>{formatToken(position.currentValue)} BUDOL</strong>
-                  <small>Current value / {formatToken(position.potentialPayout)} max payout</small>
-                </span>
-                <span className="position-actions">
-                  <button onClick={() => onMarketOpen(position.pollSlug)}>Open</button>
-                  <input
-                    min="0"
-                    max={position.amount}
-                    placeholder="Reduce BUDOL"
-                    type="number"
-                    value={sellAmounts[`${position.pollId}-${position.side}`] ?? ""}
-                    onChange={event => setSellAmounts(current => ({ ...current, [`${position.pollId}-${position.side}`]: event.currentTarget.value }))}
-                  />
-                  <button
-                    disabled={pendingCashout === `${position.pollId}-${position.side}`}
-                    onClick={() => void cashout(position.pollId, position.side, Number(sellAmounts[`${position.pollId}-${position.side}`] || 0))}
-                  >
-                    {pendingCashout === `${position.pollId}-${position.side}` ? <LoaderCircle className="spin-icon" size={16} /> : "Reduce"}
-                  </button>
-                  <button disabled={pendingCashout === `${position.pollId}-${position.side}`} onClick={() => void cashout(position.pollId, position.side)}>
-                    Sell all
-                  </button>
-                </span>
+                  <span className={position.unrealizedPnl >= 0 ? "positive" : "negative"}>
+                    {position.unrealizedPnl >= 0 ? "+" : ""}{formatToken(position.unrealizedPnl)} P/L · {formatToken(position.potentialPayout)} max
+                  </span>
+                </div>
+                <div className="position-actions">
+                  <button className="position-open-button" onClick={() => onMarketOpen(position.pollSlug)}>View market</button>
+                  {isPositionTradeable(position) ? (
+                    <>
+                      <label>
+                        <span>Amount to sell</span>
+                        <input
+                          min="0"
+                          max={position.amount}
+                          placeholder="0.00"
+                          type="number"
+                          value={sellAmounts[`${position.pollId}-${position.side}`] ?? ""}
+                          onChange={event => setSellAmounts(current => ({ ...current, [`${position.pollId}-${position.side}`]: event.currentTarget.value }))}
+                        />
+                      </label>
+                      <button
+                        className="position-reduce-button"
+                        disabled={pendingCashout === `${position.pollId}-${position.side}`}
+                        onClick={() => void cashout(position.pollId, position.side, Number(sellAmounts[`${position.pollId}-${position.side}`] || 0))}
+                      >
+                        {pendingCashout === `${position.pollId}-${position.side}` ? <LoaderCircle className="spin-icon" size={16} /> : "Reduce"}
+                      </button>
+                      <button className="position-sell-all-button" disabled={pendingCashout === `${position.pollId}-${position.side}`} onClick={() => void cashout(position.pollId, position.side)}>
+                        Sell all
+                      </button>
+                    </>
+                  ) : (
+                    <span className="position-closed-note">
+                      <Clock3 size={15} />
+                      Trading closed · Awaiting resolution
+                    </span>
+                  )}
+                </div>
               </article>
             ))}
           </div>
@@ -479,23 +545,27 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           <div className="trade-history-list">
             {portfolio?.trades.map(trade => (
               <div className="trade-history-row" key={trade.id} role="button" tabIndex={0} onClick={() => setSelectedTrade(trade)} onKeyDown={event => event.key === "Enter" ? setSelectedTrade(trade) : undefined}>
-                <span>
-                  <strong>
-                    Buy {trade.outcomeLabel}
+                <div className="trade-history-primary">
+                  <div className="trade-history-badges">
+                    <i className={`position-side-pill ${trade.side}`}>{trade.side === "yes" ? "YES" : "NO"}</i>
                     <i className={`trade-status-pill ${trade.status}`}>{trade.status}</i>
                     {trade.payoutStatus ? <i className={`trade-status-pill payout-${trade.payoutStatus}`}>{trade.payoutStatus}</i> : null}
-                  </strong>
+                  </div>
+                  <strong>Bought {trade.side === "yes" ? "YES" : "NO"}</strong>
+                  <small className="trade-outcome-label">{trade.outcomeLabel}</small>
                   <small>{trade.pollTitle}</small>
-                </span>
-                <span>
+                  <TradeNextAction trade={trade} />
+                </div>
+                <div className="trade-history-value">
+                  <small>{trade.status === "open" ? "Invested" : "Payout"}</small>
                   <strong>{formatToken(trade.settlementPayout || trade.amount)} BUDOL</strong>
-                  <small>
+                  <span>
                     {trade.status === "open"
-                      ? `${trade.priceCents}c / ${formatDate(trade.createdAt)}`
+                      ? `${trade.priceCents}¢ · ${formatDate(trade.createdAt)}`
                       : `settled ${formatDate(trade.settledAt)}`}
-                  </small>
-                </span>
-                {trade.payoutStatus === "claimable" ? (
+                  </span>
+                </div>
+                {["claimable", "claim_failed"].includes(trade.payoutStatus) ? (
                   <button
                     className="ghost-button"
                     disabled={pendingClaim === trade.id}
@@ -505,7 +575,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                     }}
                     type="button"
                   >
-                    {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : "Submit ZK claim"}
+                    {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
                   </button>
                 ) : null}
               </div>
@@ -543,6 +613,13 @@ function SummaryCard({ icon, label, value }: { icon: ReactNode; label: string; v
       <strong>{value}</strong>
     </div>
   );
+}
+
+function isPositionTradeable(position: Position) {
+  if (position.pollStatus !== "published" || position.tradingFrozen) {
+    return false;
+  }
+  return !position.endsAt || new Date(position.endsAt).getTime() > Date.now();
 }
 
 function formatToken(value: number) {
@@ -583,6 +660,7 @@ function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }
         <div className="trade-detail-title">
           <strong>{trade.pollTitle}</strong>
           <small>{trade.outcomeLabel} / {trade.priceCents}c / {formatDate(trade.createdAt)}</small>
+          <TradeNextAction trade={trade} />
         </div>
         <div className="trade-detail-grid">
           <DetailMetric label="Stake" value={`${formatToken(trade.amount)} BUDOL`} />
@@ -612,9 +690,9 @@ function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }
           <TimelineItem label="Settlement" value={trade.settlementStatus || trade.status} done={trade.status !== "open"} />
           <TimelineItem label="Payout" value={payoutStatus} done={["confirmed", "sent", "submitted", "none"].includes(payoutStatus)} />
         </div>
-        {trade.payoutStatus === "claimable" ? (
+        {["claimable", "claim_failed"].includes(trade.payoutStatus) ? (
           <button className="primary-button" disabled={isClaiming} onClick={onClaim}>
-            {isClaiming ? <LoaderCircle className="spin-icon" size={16} /> : "Submit ZK claim"}
+            {isClaiming ? <LoaderCircle className="spin-icon" size={16} /> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
           </button>
         ) : null}
         <button className="primary-button" onClick={onOpenMarket}>Open market</button>
@@ -630,6 +708,36 @@ function DetailMetric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function TradeNextAction({ trade }: { trade: Trade }) {
+  const copy = tradeNextAction(trade);
+  return <small className={`trade-next-action ${copy.tone}`}>{copy.label}</small>;
+}
+
+function tradeNextAction(trade: Trade) {
+  if (trade.payoutStatus === "claimable") {
+    return { label: `Action needed: submit ZK claim for ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "warning" };
+  }
+  if (["queued", "processing", "submitted", "retry", "claim_pending"].includes(trade.payoutStatus)) {
+    return { label: `Payout in progress: ${trade.payoutStatus}.`, tone: "pending" };
+  }
+  if (["confirmed", "sent"].includes(trade.payoutStatus)) {
+    return { label: "Payout completed.", tone: "success" };
+  }
+  if (["failed", "claim_failed"].includes(trade.payoutStatus)) {
+    return { label: "Payout needs attention. Open details or retry from admin tools.", tone: "danger" };
+  }
+  if (trade.status === "open") {
+    return { label: `Open position: possible payout ${formatToken(trade.potentialPayout)} BUDOL.`, tone: "pending" };
+  }
+  if (trade.status === "lost") {
+    return { label: "Resolved: this side did not win.", tone: "muted" };
+  }
+  if (trade.status === "cancelled") {
+    return { label: `Cancelled: refund ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "success" };
+  }
+  return { label: `Resolved: ${trade.status}.`, tone: "muted" };
 }
 
 function CopyableHash({ label, value }: { label: string; value: string }) {

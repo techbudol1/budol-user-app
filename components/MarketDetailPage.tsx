@@ -1,19 +1,22 @@
-import { ArrowLeft, CalendarClock, Flag, MessageCircle, Newspaper, ShieldCheck, Star, TrendingUp } from "lucide-react";
+import { ArrowLeft, BellRing, CalendarClock, Flag, LoaderCircle, MessageCircle, Newspaper, ShieldCheck, Star, TrendingUp, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { loadMarketActivity, loadMarketComments, loadMarketStats, loadPublicMarket, postMarketComment, reportMarketComment } from "../lib/api";
+import { deleteMarketAlert, loadMarketActivity, loadMarketAlert, loadMarketComments, loadMarketStats, loadPublicMarket, postMarketComment, reportMarketComment, saveMarketAlert } from "../lib/api";
 import { formatDate } from "../lib/format";
 import { closesSoon, marketStateLabel } from "../lib/marketState";
-import type { Market, MarketActivity, MarketComment, MarketStats, UserPortfolio } from "../types";
+import type { Market, MarketActivity, MarketAlert, MarketComment, MarketStats, TradeSide, UserPortfolio } from "../types";
 import { TradeTicketCard } from "./TradeTicketCard";
 
 type MarketDetailPageProps = {
   accountAddress?: string;
   isLoggedIn: boolean;
   market: Market | null;
+  markets: Market[];
   onBack: () => void;
+  onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<string>;
   onLoginClick: () => void;
   onMarketChange: (market: Market) => void;
+  onMarketOpen: (slug: string) => void;
   onPortfolioChange: (portfolio: UserPortfolio) => void;
   onToast: (message: string, detail?: string) => void;
   onWatchlistToggle: (slug: string) => void;
@@ -23,7 +26,7 @@ type MarketDetailPageProps = {
 
 type MarketDetailTab = "overview" | "activity" | "comments" | "rules" | "holders";
 
-export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, onLoginClick, onMarketChange, onPortfolioChange, onToast, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
+export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
   const [loadedMarket, setLoadedMarket] = useState<Market | null>(market);
   const [activity, setActivity] = useState<MarketActivity[]>([]);
   const [comments, setComments] = useState<MarketComment[]>([]);
@@ -35,12 +38,27 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [reportingCommentId, setReportingCommentId] = useState("");
+  const [marketAlert, setMarketAlert] = useState<MarketAlert | null>(null);
+  const [alertDraft, setAlertDraft] = useState<MarketAlert | null>(null);
+  const [alertError, setAlertError] = useState("");
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [activeTab, setActiveTab] = useState<MarketDetailTab>("overview");
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
   const activeMarket = loadedMarket ?? market;
   const activeMarketState = activeMarket ? marketStateLabel(activeMarket) : "Open";
   const activeMarketClosingSoon = activeMarket ? closesSoon(activeMarket) : false;
+  const commentsReadOnly = activeMarketState !== "Open" || Boolean(activeMarket?.commentsDisabled);
+  const groupChoices = useMemo(() => {
+    const groupId = activeMarket?.marketGroupId?.trim();
+    if (!groupId) {
+      return [];
+    }
+    return markets
+      .filter(item => item.marketGroupId === groupId)
+      .sort((a, b) => (a.marketChoiceIndex ?? 0) - (b.marketChoiceIndex ?? 0));
+  }, [activeMarket?.marketGroupId, markets]);
   const buzzItems = useMemo(() => marketBuzz(activeMarket), [activeMarket]);
 
   useEffect(() => {
@@ -111,6 +129,16 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
   }, [slug]);
 
   useEffect(() => {
+    if (!isLoggedIn) {
+      setMarketAlert(null);
+      return;
+    }
+    loadMarketAlert(slug)
+      .then(setMarketAlert)
+      .catch(() => setMarketAlert(null));
+  }, [isLoggedIn, slug]);
+
+  useEffect(() => {
     const interval = window.setInterval(() => {
       if (document.hidden) {
         return;
@@ -130,8 +158,8 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
       setCommentError("Write something first.");
       return;
     }
-    if (activeMarket?.commentsDisabled) {
-      setCommentError("Comments are disabled for this market.");
+    if (commentsReadOnly) {
+      setCommentError("Comments are read-only after a market closes.");
       return;
     }
     if (!isLoggedIn) {
@@ -162,7 +190,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
       onLoginClick();
       return;
     }
-    const reason = window.prompt("Why should Budol admins review this comment?", "Spam, abusive, or off-topic");
+    const reason = window.prompt("Why should BudolPH admins review this comment?", "Spam, abusive, or off-topic");
     if (reason === null) {
       return;
     }
@@ -176,6 +204,55 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
       setCommentError(err instanceof Error ? err.message : "Unable to report comment.");
     } finally {
       setReportingCommentId("");
+    }
+  };
+
+  const openAlertSettings = () => {
+    if (!isLoggedIn) {
+      onLoginClick();
+      return;
+    }
+    setAlertError("");
+    setAlertDraft(marketAlert?.enabled ? marketAlert : {
+      slug,
+      enabled: false,
+      priceEnabled: activeMarketState === "Open",
+      priceDirection: "above",
+      priceThreshold: activeMarket?.yes ?? 50,
+      closingEnabled: activeMarketState === "Open",
+      resolutionEnabled: true,
+    });
+    setIsAlertOpen(true);
+  };
+
+  const persistAlert = async () => {
+    if (!alertDraft) return;
+    setIsSavingAlert(true);
+    setAlertError("");
+    try {
+      const saved = await saveMarketAlert(slug, alertDraft);
+      setMarketAlert(saved);
+      setIsAlertOpen(false);
+      onToast("Market alerts saved.", "BudolPH will notify you when your selected conditions are met.");
+    } catch (err) {
+      setAlertError(err instanceof Error ? err.message : "Unable to save market alerts.");
+    } finally {
+      setIsSavingAlert(false);
+    }
+  };
+
+  const disableAlert = async () => {
+    setIsSavingAlert(true);
+    setAlertError("");
+    try {
+      await deleteMarketAlert(slug);
+      setMarketAlert(null);
+      setIsAlertOpen(false);
+      onToast("Market alerts disabled.");
+    } catch (err) {
+      setAlertError(err instanceof Error ? err.message : "Unable to disable market alerts.");
+    } finally {
+      setIsSavingAlert(false);
     }
   };
 
@@ -195,28 +272,66 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
     );
   }
 
+  const chart = sparklineGeometry(activeMarket.spark);
+
   return (
     <section className="market-detail-page">
-      <div className="account-hero market-detail-hero">
-        <button className="ghost-button account-back-button" onClick={onBack}>
-          <ArrowLeft size={18} />
-          Back to markets
-        </button>
-        <div>
-          <span className={`tag ${activeMarket.color}`}>{activeMarket.tag}</span>
-          <span className={`market-state-chip detail-state ${activeMarketState.toLowerCase()}`}>{activeMarketState}</span>
-          {activeMarketClosingSoon ? <span className="market-state-chip closing detail-state">Closing soon</span> : null}
-          <h1>{activeMarket.title}</h1>
-          <p>{activeMarket.region} / {activeMarket.callName} / {activeMarket.type.replaceAll("_", " ")}</p>
-          <button className="watchlist-button" onClick={() => onWatchlistToggle(activeMarket.slug)}>
-            <Star size={17} />
-            {watchlisted ? "Watching" : "Watchlist"}
-          </button>
-        </div>
-      </div>
+      <button className="market-detail-back" onClick={onBack}>
+        <ArrowLeft size={17} />
+        Markets
+      </button>
 
-      <div className="market-detail-layout">
-        <div className="market-detail-main">
+      <div className="market-detail-shell">
+        <main className="market-detail-main">
+          <header className="market-detail-header">
+            <div className="market-detail-heading">
+              <span className={`market-detail-category-icon ${activeMarket.color}`}>
+                <TrendingUp size={24} />
+              </span>
+              <div>
+                <div className="market-detail-labels">
+                  <span className={`tag ${activeMarket.color}`}>{activeMarket.tag}</span>
+                  <span className="region">{activeMarket.region}</span>
+                  <span className={`market-state-chip ${activeMarketState.toLowerCase()}`}>{activeMarketState}</span>
+                  {activeMarketClosingSoon ? <span className="market-state-chip closing">Closing soon</span> : null}
+                </div>
+                <h1>{activeMarket.title}</h1>
+              </div>
+            </div>
+
+            <div className="market-detail-actions">
+              <span>
+                <CalendarClock size={15} />
+                {activeMarket.endsAt
+                  ? `${activeMarketState === "Closed" || activeMarketState === "Resolved" || activeMarketState === "Cancelled" ? "Closed" : "Closes"} ${displayDate(activeMarket.endsAt, "on schedule")}`
+                  : "No close date"}
+              </span>
+              <button className={watchlisted ? "watchlist-button active" : "watchlist-button"} onClick={() => onWatchlistToggle(activeMarket.slug)}>
+                <Star size={16} fill={watchlisted ? "currentColor" : "none"} />
+                {watchlisted ? "Watching" : "Watchlist"}
+              </button>
+              <button className={marketAlert?.enabled ? "watchlist-button active" : "watchlist-button"} onClick={openAlertSettings}>
+                <BellRing size={16} />
+                {marketAlert?.enabled ? "Alerts on" : "Alerts"}
+              </button>
+            </div>
+
+            <div className="market-detail-quote-strip">
+              <div>
+                <span>{activeMarket.outcomeA}</span>
+                <strong>{activeMarket.yes}¢</strong>
+              </div>
+              <div>
+                <span>{activeMarket.outcomeB}</span>
+                <strong>{activeMarket.no}¢</strong>
+              </div>
+              <span>
+                {activeMarket.volume} volume
+                <small>{activeMarket.callName} · {activeMarket.type.replaceAll("_", " ")}</small>
+              </span>
+            </div>
+          </header>
+
           <div className="market-detail-tabs" role="tablist" aria-label="Market detail sections">
             {(["overview", "activity", "comments", "rules", "holders"] satisfies MarketDetailTab[]).map(tab => (
               <button className={activeTab === tab ? "active" : ""} key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={activeTab === tab}>
@@ -228,23 +343,48 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
           </div>
 
           {activeTab === "overview" ? (
-          <section className="panel detail-chart-card">
-            <div className="panel-title">
-              <TrendingUp size={19} />
-              <h2>Price movement</h2>
-            </div>
-            <div className="detail-price-row">
-              <span>{activeMarket.outcomeA}</span>
-              <strong>{activeMarket.yes}c</strong>
-              <span>{activeMarket.outcomeB}</span>
-              <strong>{activeMarket.no}c</strong>
-            </div>
-            <div className="detail-chart" aria-hidden="true">
-              {activeMarket.spark.map((point, index) => (
-                <i key={`${activeMarket.id}-detail-${index}`} style={{ height: `${point}%` }} />
-              ))}
-            </div>
-          </section>
+          <>
+            {groupChoices.length > 1 ? (
+              <section className="panel multi-choice-detail-card">
+                <div className="panel-title">
+                  <TrendingUp size={19} />
+                  <h2>{activeMarket.marketGroupTitle || "Choices"}</h2>
+                </div>
+                <div className="choice-market-list detail-choice-list">
+                  {groupChoices.map(choice => (
+                    <button
+                      className={choice.id === activeMarket.id ? "active" : ""}
+                      key={choice.id}
+                      type="button"
+                      onClick={() => onMarketOpen(choice.slug)}
+                    >
+                      <span>{choice.marketChoiceLabel || choice.title}</span>
+                      <strong>Yes {choice.yes}c</strong>
+                      <small>No {choice.no}c</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+            <section className="panel detail-chart-card">
+              <div className="panel-title">
+                <TrendingUp size={19} />
+                <h2>Price movement</h2>
+              </div>
+              <div className="detail-price-row">
+                <span>{activeMarket.outcomeA} probability</span>
+                <strong>{activeMarket.yes}%</strong>
+                <span>{activeMarket.outcomeB}</span>
+                <strong>{activeMarket.no}%</strong>
+              </div>
+              <div className="detail-chart" aria-hidden="true">
+                <svg viewBox="0 0 100 44" preserveAspectRatio="none">
+                  <polygon points={chart.area} />
+                  <polyline points={chart.line} />
+                </svg>
+              </div>
+            </section>
+          </>
           ) : null}
 
           {activeTab === "rules" ? (
@@ -327,11 +467,11 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
                   setCommentDraft(event.currentTarget.value);
                   setCommentError("");
                 }}
-                placeholder={isLoggedIn ? "Add a Marites note..." : "Log in to add a Marites note..."}
-                disabled={activeMarket.commentsDisabled}
+                placeholder={commentsReadOnly ? "Comments are read-only for this market." : isLoggedIn ? "Add a Marites note..." : "Log in to add a Marites note..."}
+                disabled={commentsReadOnly}
                 value={commentDraft}
               />
-              <button disabled={isPostingComment || activeMarket.commentsDisabled}>{activeMarket.commentsDisabled ? "Disabled" : isPostingComment ? "Posting..." : "Post"}</button>
+              <button disabled={isPostingComment || commentsReadOnly}>{commentsReadOnly ? "Read only" : isPostingComment ? "Posting..." : "Post"}</button>
               {commentError ? <small className="comment-error">{commentError}</small> : null}
             </form>
           </section>
@@ -344,7 +484,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
               <h2>Market activity</h2>
             </div>
             {isActivityLoading ? <div className="empty-state">Loading activity...</div> : null}
-            {!isActivityLoading && activity.length === 0 ? <div className="empty-state">No trades yet. First budol move is still open.</div> : null}
+            {!isActivityLoading && activity.length === 0 ? <div className="empty-state">No trades yet. The first market move is still open.</div> : null}
             {activity.map(item => (
               <div className="detail-feed-item market-activity-item" key={item.id}>
                 <Newspaper size={17} />
@@ -357,13 +497,14 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
             ))}
           </section>
           ) : null}
-        </div>
+        </main>
 
-        <aside className="market-detail-side">
+        <aside className="market-detail-ticket">
           <TradeTicketCard
             accountAddress={accountAddress}
             isLoggedIn={isLoggedIn}
             market={activeMarket}
+            onEscrowTransfer={onEscrowTransfer}
             onLoginClick={onLoginClick}
             onMarketChange={onMarketChange}
             onPortfolioChange={onPortfolioChange}
@@ -373,15 +514,82 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, onBack, o
               reloadStats();
             }}
           />
-          <section className="panel detail-calendar-card">
-            <div className="panel-title">
-              <CalendarClock size={19} />
-              <h2>Timing</h2>
-            </div>
-            <p>{activeMarket.endsAt ? `Trading view closes on ${displayDate(activeMarket.endsAt, "the configured end date")}.` : "This market stays open until an admin sets a close date."}</p>
-          </section>
         </aside>
       </div>
+      {isAlertOpen && alertDraft ? (
+        <div className="market-alert-backdrop" role="presentation" onMouseDown={() => setIsAlertOpen(false)}>
+          <section className="market-alert-modal" role="dialog" aria-modal="true" aria-label="Market alerts" onMouseDown={event => event.stopPropagation()}>
+            <header>
+              <div>
+                <span className="eyebrow">Notifications</span>
+                <h2>Market alerts</h2>
+                <p>{activeMarket.title}</p>
+              </div>
+              <button aria-label="Close alerts" onClick={() => setIsAlertOpen(false)}><X size={18} /></button>
+            </header>
+            <label className="market-alert-toggle">
+              <span><strong>Price threshold</strong><small>Notify when the Yes price crosses your target.</small></span>
+              <input
+                checked={alertDraft.priceEnabled}
+                disabled={activeMarketState !== "Open"}
+                onChange={event => setAlertDraft(current => current ? { ...current, priceEnabled: event.target.checked } : current)}
+                type="checkbox"
+              />
+            </label>
+            {alertDraft.priceEnabled ? (
+              <div className="market-alert-price-row">
+                <select
+                  value={alertDraft.priceDirection}
+                  onChange={event => setAlertDraft(current => current ? { ...current, priceDirection: event.target.value as "above" | "below" } : current)}
+                >
+                  <option value="above">Yes rises to</option>
+                  <option value="below">Yes falls to</option>
+                </select>
+                <label>
+                  <input
+                    inputMode="numeric"
+                    max={99}
+                    min={1}
+                    onChange={event => setAlertDraft(current => current ? { ...current, priceThreshold: Number(event.target.value) } : current)}
+                    type="number"
+                    value={alertDraft.priceThreshold}
+                  />
+                  <span>¢</span>
+                </label>
+              </div>
+            ) : null}
+            <label className="market-alert-toggle">
+              <span><strong>Closing reminder</strong><small>Notify once when fewer than 24 hours remain.</small></span>
+              <input
+                checked={alertDraft.closingEnabled}
+                disabled={activeMarketState !== "Open"}
+                onChange={event => setAlertDraft(current => current ? { ...current, closingEnabled: event.target.checked } : current)}
+                type="checkbox"
+              />
+            </label>
+            <label className="market-alert-toggle">
+              <span><strong>Resolution</strong><small>Notify when the market is resolved or cancelled.</small></span>
+              <input
+                checked={alertDraft.resolutionEnabled}
+                onChange={event => setAlertDraft(current => current ? { ...current, resolutionEnabled: event.target.checked } : current)}
+                type="checkbox"
+              />
+            </label>
+            {alertError ? <p className="comment-error">{alertError}</p> : null}
+            <footer>
+              {marketAlert?.enabled ? <button className="ghost-button market-alert-disable" disabled={isSavingAlert} onClick={() => void disableAlert()}>Disable alerts</button> : <span />}
+              <button
+                className="primary-button"
+                disabled={isSavingAlert || (!alertDraft.priceEnabled && !alertDraft.closingEnabled && !alertDraft.resolutionEnabled)}
+                onClick={() => void persistAlert()}
+              >
+                {isSavingAlert ? <LoaderCircle className="spin-icon" size={17} /> : <BellRing size={17} />}
+                {isSavingAlert ? "Saving" : "Save alerts"}
+              </button>
+            </footer>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -410,7 +618,7 @@ function marketBuzz(market: Market | null) {
     },
     {
       title: "Resolution watch",
-      copy: market.resolutionSource || "Budol admins will use public, timestamped sources before resolving this market.",
+      copy: market.resolutionSource || "BudolPH admins will use public, timestamped sources before resolving this market.",
     },
   ];
 }
@@ -452,4 +660,17 @@ function formatToken(value: number) {
 
 function titleCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function sparklineGeometry(points: number[]) {
+  const normalized = points.length > 1 ? points : [50, 50];
+  const line = normalized.map((point, index) => {
+    const x = (index / (normalized.length - 1)) * 100;
+    const y = 40 - (Math.max(0, Math.min(point, 100)) / 100) * 34;
+    return `${x.toFixed(2)},${y.toFixed(2)}`;
+  });
+  return {
+    area: `0,44 ${line.join(" ")} 100,44`,
+    line: line.join(" "),
+  };
 }

@@ -1,5 +1,6 @@
 import { buildPoseidon } from "circomlibjs";
 import type { PrivateClaimNote, ShieldedPayoutNote, TradeSide } from "../types";
+import { apiBaseURL } from "./runtimeConfig";
 import { listShieldedPayoutNotes, saveShieldedPayoutNote } from "./shieldedPayouts";
 
 const FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
@@ -72,7 +73,7 @@ export class PrivateClaimArtifactError extends Error {
 }
 
 function artifactBaseURL() {
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? "http://localhost:8082" : "";
+  return apiBaseURL();
 }
 
 function artifactURL(file: string) {
@@ -150,6 +151,10 @@ function bytesFromBase64(value: string): Uint8Array {
   return bytes;
 }
 
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  return new Uint8Array(bytes).buffer as ArrayBuffer;
+}
+
 async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations = NOTE_BACKUP_KDF_ITERATIONS): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(passphrase), "PBKDF2", false, ["deriveKey"]);
   return crypto.subtle.deriveKey(
@@ -157,7 +162,7 @@ async function deriveBackupKey(passphrase: string, salt: Uint8Array, iterations 
       hash: "SHA-256",
       iterations,
       name: "PBKDF2",
-      salt,
+      salt: arrayBufferFromBytes(salt),
     },
     material,
     { length: 256, name: "AES-GCM" },
@@ -293,7 +298,11 @@ export async function exportEncryptedPrivateClaimNotes(passphrase: string): Prom
     shieldedPayoutNotes,
     version: NOTE_BACKUP_VERSION,
   };
-  const ciphertext = await crypto.subtle.encrypt({ iv, name: "AES-GCM" }, key, new TextEncoder().encode(JSON.stringify(payload)));
+  const ciphertext = await crypto.subtle.encrypt(
+    { iv: arrayBufferFromBytes(iv), name: "AES-GCM" },
+    key,
+    arrayBufferFromBytes(new TextEncoder().encode(JSON.stringify(payload))),
+  );
   return {
     cipher: {
       ciphertext: base64FromBytes(new Uint8Array(ciphertext)),
@@ -320,12 +329,16 @@ export async function importEncryptedPrivateClaimNotes(input: string | PrivateCl
   }
   const backup = typeof input === "string" ? JSON.parse(input) as PrivateClaimNoteBackup : input;
   if (![NOTE_BACKUP_VERSION, LEGACY_NOTE_BACKUP_VERSION].includes(backup.version) || backup.cipher?.name !== "AES-GCM" || backup.kdf?.name !== "PBKDF2") {
-    throw new Error("This is not a valid Budol private claim backup.");
+    throw new Error("This is not a valid BudolPH private claim backup.");
   }
   const key = await deriveBackupKey(cleanPassphrase, bytesFromBase64(backup.kdf.salt), backup.kdf.iterations);
   let plaintext: ArrayBuffer;
   try {
-    plaintext = await crypto.subtle.decrypt({ iv: bytesFromBase64(backup.cipher.iv), name: "AES-GCM" }, key, bytesFromBase64(backup.cipher.ciphertext));
+    plaintext = await crypto.subtle.decrypt(
+      { iv: arrayBufferFromBytes(bytesFromBase64(backup.cipher.iv)), name: "AES-GCM" },
+      key,
+      arrayBufferFromBytes(bytesFromBase64(backup.cipher.ciphertext)),
+    );
   } catch {
     throw new Error("Unable to decrypt backup. Check the passphrase and file.");
   }

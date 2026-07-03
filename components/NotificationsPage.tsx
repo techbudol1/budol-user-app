@@ -7,7 +7,7 @@ type NotificationsPageProps = {
   notifications: AccountNotification[];
   onBack: () => void;
   onMarkRead: () => Promise<void>;
-  onOpen: (link?: string) => void;
+  onOpen: (notification: AccountNotification) => void;
 };
 
 export function NotificationsPage({ notifications, onBack, onMarkRead, onOpen }: NotificationsPageProps) {
@@ -27,7 +27,7 @@ export function NotificationsPage({ notifications, onBack, onMarkRead, onOpen }:
         </button>
         <div>
           <span className="eyebrow">Notifications</span>
-          <h1>Budol inbox</h1>
+          <h1>BudolPH inbox</h1>
           <p>Market alerts, payouts, trades, comments, and account updates.</p>
         </div>
       </div>
@@ -52,7 +52,7 @@ export function NotificationsPage({ notifications, onBack, onMarkRead, onOpen }:
         </div>
         <div className="notification-page-list">
           {filtered.map(notification => (
-            <button className={`notification-item ${notification.readAt ? "" : "unread"}`} key={notification.id} onClick={() => onOpen(notification.link)}>
+            <button className={`notification-item ${notification.readAt ? "" : "unread"}`} key={notification.id} onClick={() => onOpen(notification)}>
               <strong>{notification.title}</strong>
               <span>{notification.detail}</span>
               <small>{formatDate(notification.createdAt)}</small>

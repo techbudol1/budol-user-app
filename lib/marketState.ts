@@ -12,14 +12,14 @@ export function marketStateLabel(market: Market, now = new Date()): MarketStateL
   if (market.visibility !== "public") {
     return "Hidden";
   }
-  if (market.status === "paused") {
-    return "Paused";
-  }
   if (market.startsAt && new Date(market.startsAt) > now) {
     return "Upcoming";
   }
   if (market.endsAt && new Date(market.endsAt) <= now) {
     return "Closed";
+  }
+  if (market.status === "paused") {
+    return "Paused";
   }
   if (market.tradingFrozen) {
     return "Frozen";
