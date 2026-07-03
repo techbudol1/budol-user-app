@@ -1,0 +1,35 @@
+{
+  "name": "budol-user-app",
+  "type": "module",
+  "scripts": {
+    "sync-env": "bun ./scripts/write-client-env.ts",
+    "dev": "bun run sync-env && bun ./index.html --console",
+    "build": "bun run sync-env && rm -rf dist && bun build ./index.html --outdir=dist --minify && rm -rf dist/zk && cp -R public/zk dist/zk",
+    "deploy": "bun run build && bunx --bun wrangler deploy --config wrangler.user.jsonc",
+    "typecheck": "bunx tsc --noEmit",
+    "start": "bun run sync-env && bun ./index.html",
+    "preview": "bun ./dist/index.html"
+  },
+  "dependencies": {
+    "@alchemy/wallet-apis": "^5.0.6",
+    "@privy-io/react-auth": "^3.29.2",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
+    "lucide-react": "^1.17.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "snarkjs": "^0.7.6",
+    "uqr": "0.1.2",
+    "viem": "^2.52.2",
+    "zkverifyjs": "^3.1.0"
+  },
+  "engines": {
+    "bun": ">=1.3.13"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "wrangler": "^4.107.0"
+  }
+}

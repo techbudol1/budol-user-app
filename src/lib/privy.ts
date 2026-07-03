@@ -9,4 +9,4 @@ export const ARBITRUM_SEPOLIA_RPC_URL = CLIENT_RUNTIME_ENV.VITE_ARBITRUM_SEPOLIA
 export function isPrivyConfigured() {
   return Boolean(PRIVY_APP_ID && PRIVY_APP_ID !== "replace-with-privy-app-id");
 }
-// 
+//

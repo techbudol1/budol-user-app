@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "budolph-app",
+  "compatibility_date": "2026-07-03",
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+
+  // After budolph.xyz is active in this Cloudflare account, add:
+  // "routes": [
+  //   { "pattern": "budolph.xyz", "custom_domain": true },
+  //   { "pattern": "www.budolph.xyz", "custom_domain": true }
+  // ]
+}
