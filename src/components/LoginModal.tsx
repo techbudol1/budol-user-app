@@ -52,14 +52,11 @@ type WalletOption = {
 
 const lastLoginProviderKey = "budol-last-login-provider";
 const supportedWallets: WalletOption[] = [
-  { id: "metamask", installed: false, name: "MetaMask" },
-  { id: "rabby", installed: false, name: "Rabby" },
   { id: "trust-wallet", installed: false, name: "Trust Wallet" },
   { id: "okx-wallet", installed: false, name: "OKX Wallet" },
-  { id: "phantom", installed: false, name: "Phantom" },
   { id: "subwallet", installed: false, name: "SubWallet" },
+  { id: "phantom", installed: false, name: "Phantom" },
   { id: "talisman", installed: false, name: "Talisman" },
-  { id: "base-wallet", installed: false, name: "Base Wallet" },
 ];
 
 export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
@@ -102,6 +99,9 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
     setWalletOptions(Array.from(found.values()));
     const addWallet = (wallet: WalletOption) => {
       const key = walletKey(wallet.name);
+      if (!found.has(key)) {
+        return;
+      }
       const existing = found.get(key);
       if (existing?.installed && wallet.installed) {
         return;
