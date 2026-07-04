@@ -52,7 +52,7 @@ export function PrivacyPage({ onBack }: LegalPageProps) {
       updated="Effective July 1, 2026"
     >
       <LegalSection title="1. Information we collect">
-        <p>BudolPH stores account identifiers supplied by Facebook or Google, such as provider user ID and email when available; your BudolPH-managed or connected wallet address; your chosen public display name; login timestamps; and account status. We also store trades, positions, comments, watchlists, notifications, claims, payout status, and administrative audit records.</p>
+        <p>BudolPH stores account identifiers supplied by Google, such as provider user ID and email when available; your BudolPH-managed or connected wallet address; your chosen public display name; login timestamps; and account status. We also store trades, positions, comments, watchlists, notifications, claims, payout status, and administrative audit records.</p>
       </LegalSection>
       <LegalSection title="2. Technical information">
         <p>The service may process IP address, user agent, request timing, error information, and security events to operate and protect the platform. Your browser stores theme, preferences, watchlist state, and private claim notes locally. Claim-note backups are encrypted in your browser using the passphrase you provide.</p>

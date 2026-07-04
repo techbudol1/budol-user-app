@@ -1,8 +1,8 @@
 import { LoaderCircle, Wallet, X } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
-import { FacebookIcon, GoogleIcon } from "./SocialIcons";
-import { createWalletLoginChallenge, facebookManagedLoginURL, googleManagedLoginURL, verifyWalletLogin } from "../lib/api";
+import { GoogleIcon } from "./SocialIcons";
+import { createWalletLoginChallenge, googleManagedLoginURL, verifyWalletLogin } from "../lib/api";
 import type { BudolUser } from "../types";
 import budolLogoImage from "../../public/assets/budol-politics-market.png";
 import baseWalletLogo from "../../public/assets/wallets/base-wallet.webp";
@@ -153,12 +153,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
     window.location.href = googleManagedLoginURL();
   };
 
-  const loginWithFacebook = async () => {
-    setServerError("");
-    setPendingProvider("facebook");
-    window.location.href = facebookManagedLoginURL();
-  };
-
   const loginWithExternalWallet = async (provider?: EthereumProvider, walletId = "wallet") => {
     setServerError("");
     setPendingProvider(walletId);
@@ -265,10 +259,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
             ) : (
               <div className="login-social-panel">
                 <div className="login-social-actions">
-                  <button className="login-social-action facebook-action" disabled={isLoading} onClick={() => void loginWithFacebook()}>
-                    {lastUsedProvider === "facebook" ? <span className="login-last-used">Last used</span> : null}
-                    {pendingProvider === "facebook" ? <LoaderCircle className="spin-icon" size={22} /> : <FacebookIcon />}
-                  </button>
                   <button className="login-social-action" disabled={isLoading} onClick={() => void loginWithGoogle()} aria-label="Continue with Google">
                     {lastUsedProvider === "google" ? <span className="login-last-used">Last used</span> : null}
                     {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={22} /> : <GoogleIcon />}
@@ -294,7 +284,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
 
 function storedSocialProvider() {
   const provider = localStorage.getItem(lastLoginProviderKey) ?? "";
-  return provider === "facebook" || provider === "google" ? provider : "";
+  return provider === "google" ? provider : "";
 }
 
 function WalletLogo({ icon, name }: { icon?: string; name: string }) {

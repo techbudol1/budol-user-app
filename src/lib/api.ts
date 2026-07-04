@@ -240,10 +240,6 @@ export function googleManagedLoginURL(): string {
   return `${apiBaseURL()}/api/auth/google/start`;
 }
 
-export function facebookManagedLoginURL(): string {
-  return `${apiBaseURL()}/api/auth/facebook/start`;
-}
-
 export async function createWalletLoginChallenge(address: string): Promise<WalletNonceResponse> {
   const response = await fetch(`${apiBaseURL()}/api/auth/wallet/nonce`, {
     body: JSON.stringify({ address }),
