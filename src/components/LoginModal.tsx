@@ -51,10 +51,20 @@ type WalletOption = {
 };
 
 const lastLoginProviderKey = "budol-last-login-provider";
+const supportedWallets: WalletOption[] = [
+  { id: "metamask", installed: false, name: "MetaMask" },
+  { id: "rabby", installed: false, name: "Rabby" },
+  { id: "trust-wallet", installed: false, name: "Trust Wallet" },
+  { id: "okx-wallet", installed: false, name: "OKX Wallet" },
+  { id: "phantom", installed: false, name: "Phantom" },
+  { id: "subwallet", installed: false, name: "SubWallet" },
+  { id: "talisman", installed: false, name: "Talisman" },
+  { id: "base-wallet", installed: false, name: "Base Wallet" },
+];
 
 export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
   const [serverError, setServerError] = useState("");
-  const [walletOptions, setWalletOptions] = useState<WalletOption[]>([]);
+  const [walletOptions, setWalletOptions] = useState<WalletOption[]>(supportedWallets);
   const [pendingProvider, setPendingProvider] = useState("");
   const [selectedWalletId, setSelectedWalletId] = useState("");
   const [lastUsedProvider, setLastUsedProvider] = useState(storedSocialProvider);
@@ -86,7 +96,10 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
       return;
     }
 
-    const found = new Map<string, WalletOption>();
+    const found = new Map<string, WalletOption>(
+      supportedWallets.map(wallet => [walletKey(wallet.name), wallet]),
+    );
+    setWalletOptions(Array.from(found.values()));
     const addWallet = (wallet: WalletOption) => {
       const key = walletKey(wallet.name);
       const existing = found.get(key);
@@ -124,15 +137,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
         provider,
       });
     });
-
-    if (providers.length === 0) {
-      setWalletOptions([
-        { id: "metamask", installed: false, name: "MetaMask" },
-        { id: "rabby", installed: false, name: "Rabby" },
-        { id: "trust", installed: false, name: "Trust Wallet" },
-        { id: "okx", installed: false, name: "OKX Wallet" },
-      ]);
-    }
 
     return () => {
       window.removeEventListener("eip6963:announceProvider", onAnnounce);
