@@ -16,7 +16,7 @@ function isLocalBrowser(): boolean {
 }
 
 export function apiBaseURL(): string {
-  return configuredBaseURL("VITE_API_BASE_URL") || (isLocalBrowser() ? "http://localhost:8082" : "");
+  return configuredBaseURL("VITE_API_BASE_URL") || (isLocalBrowser() ? "http://localhost:8082" : "https://api.budolph.xyz");
 }
 
 export function gmrEngineBaseURL(): string {
