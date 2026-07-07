@@ -1463,7 +1463,7 @@ a {
 
 .market-layout {
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) 330px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
   margin-top: 18px;
@@ -3909,7 +3909,7 @@ a {
 
 @media (max-width: 1180px) {
   .market-layout {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .trade-panel {
@@ -4837,7 +4837,7 @@ select:focus-visible {
 }
 
 .market-layout {
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 22px;
   margin-top: 28px;
   scroll-margin-top: 110px;
@@ -5746,7 +5746,7 @@ select:focus-visible {
 
 @media (max-width: 1180px) {
   .market-layout {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .market-grid {
@@ -5855,10 +5855,6 @@ select:focus-visible {
   .market-layout {
     grid-template-columns: 1fr;
     margin-top: 22px;
-  }
-
-  .market-layout > .trade-panel {
-    display: none;
   }
 
   .market-grid {

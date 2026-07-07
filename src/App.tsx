@@ -1,6 +1,4 @@
-import { MousePointerClick } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CrowdMoodCard } from "./components/CrowdMoodCard";
 import { HeroPanel } from "./components/HeroPanel";
 import { PrivacyPage, TermsPage } from "./components/LegalPages";
 import { LoginModal } from "./components/LoginModal";
@@ -12,7 +10,6 @@ import { NotificationsPage } from "./components/NotificationsPage";
 import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
-import { TradeTicketCard } from "./components/TradeTicketCard";
 import { filters } from "./data/budol";
 import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
 import { sendBudolEscrowTransfer, type ConnectedWallet } from "./lib/erc20Transfer";
@@ -90,10 +87,6 @@ export default function App() {
   const accountAddress = budolUser?.walletAddress;
 
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
-  const selectedMarket = useMemo(
-    () => marketList.find(market => market.id === selectedId) ?? marketList[0] ?? null,
-    [marketList, selectedId],
-  );
   const visibleMarkets = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
     return marketList.filter(market => {
@@ -556,31 +549,6 @@ export default function App() {
               selectedId={selectedId}
             />
 
-            <aside className="trade-panel">
-              {selectedMarket ? (
-                <TradeTicketCard
-                  accountAddress={accountAddress}
-                  isLoggedIn={Boolean(accountAddress)}
-                  market={selectedMarket}
-                  onEscrowTransfer={sendEscrowTransfer}
-                  onLoginClick={() => setIsLoginOpen(true)}
-                  onMarketChange={updateMarket}
-                  onPortfolioChange={setUserPortfolio}
-                  onTradePlaced={() => notify("Trade placed. Portfolio updated.")}
-                />
-              ) : (
-                <div className="panel empty-market-panel">
-                  <span className="empty-state-icon">
-                    <MousePointerClick size={22} />
-                  </span>
-                  <div>
-                    <h2>No market selected</h2>
-                    <p>Select a market to see its price and place a trade.</p>
-                  </div>
-                </div>
-              )}
-              <CrowdMoodCard />
-            </aside>
           </section>
         </>
       )}
