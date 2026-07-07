@@ -3995,7 +3995,9 @@ a {
 
 @media (max-width: 560px) {
   .login-modal-backdrop {
-    padding: 14px;
+    align-items: start;
+    padding: 8px;
+    overflow: hidden;
   }
 
   .login-modal {
@@ -4006,20 +4008,47 @@ a {
   .login-modal-wide {
     padding: 0;
     border-radius: 16px;
+    max-height: calc(100dvh - 16px);
   }
 
   .login-modal-wide .login-modal-close {
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .login-picker-layout {
+    max-height: calc(100dvh - 16px);
+    overflow: hidden;
   }
 
   .login-picker-sidebar {
-    padding: 10px;
+    max-height: none;
+    padding: 8px 10px 6px;
+    overflow: hidden;
+  }
+
+  .login-wallet-list {
+    gap: 2px;
+    overflow: hidden;
   }
 
   .login-picker-option {
-    min-height: 56px;
-    grid-template-columns: 44px minmax(0, 1fr) auto;
+    min-height: 42px;
+    padding: 4px 8px;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .login-picker-option strong {
+    font-size: 0.9rem;
+    line-height: 1.02;
+  }
+
+  .login-picker-option small {
+    margin-top: 1px;
+    font-size: 0.74rem;
   }
 
   .wallet-logo-image,
@@ -4027,14 +4056,58 @@ a {
   .wallet-logo-transparent,
   .wallet-logo-generic,
   .stacked-provider-mark {
-    width: 40px;
-    height: 40px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .login-picker-main {
+    padding: 18px 22px 20px;
   }
 
   .login-header.compact {
-    padding-right: 36px;
+    justify-content: start;
+    padding: 0 36px 12px 26px;
     padding-left: 0;
     text-align: left;
+  }
+
+  .login-header.compact .login-brand-mark {
+    width: 58px;
+    height: 58px;
+  }
+
+  .login-header.compact h2 {
+    font-size: 1.18rem;
+  }
+
+  .login-header.compact span {
+    font-size: 0.82rem;
+  }
+
+  .login-picker-main .login-copy {
+    padding: 10px 0 9px;
+  }
+
+  .login-social-panel {
+    gap: 10px;
+    padding-top: 2px;
+  }
+
+  .login-social-action {
+    width: 74px;
+    height: 56px;
+    min-height: 56px;
+  }
+
+  .login-divider.compact {
+    gap: 10px;
+  }
+
+  .login-legal {
+    margin-top: 12px;
+    padding-top: 12px;
+    font-size: 0.74rem;
+    line-height: 1.45;
   }
 
   .login-social-grid {
