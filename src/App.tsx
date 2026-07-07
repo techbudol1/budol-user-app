@@ -1,4 +1,3 @@
-import { useCreateWallet, usePrivy, useSendTransaction, useWallets } from "@privy-io/react-auth";
 import { MousePointerClick } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CrowdMoodCard } from "./components/CrowdMoodCard";
@@ -15,8 +14,8 @@ import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { TradeTicketCard } from "./components/TradeTicketCard";
 import { filters } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, loginWithPrivyToken, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
-import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
+import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
+import { sendBudolEscrowTransfer, type ConnectedWallet } from "./lib/erc20Transfer";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "privacy" | "terms" | "logout";
@@ -63,14 +62,7 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
 }
 
 export default function App() {
-  const { authenticated, getAccessToken, logout: logoutPrivy, ready: privyReady, user: privyUser } = usePrivy();
-  const { createWallet } = useCreateWallet();
-  const { sendTransaction } = useSendTransaction();
-  const { ready: walletsReady, wallets } = useWallets();
   const logoutRouteHandled = useRef(false);
-  const privyWalletCreateStarted = useRef(false);
-  const privySessionSyncKey = useRef("");
-  const lastPrivyLoginNotice = useRef("");
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [marketList, setMarketList] = useState<Market[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -95,9 +87,7 @@ export default function App() {
     }
   });
   const isDark = theme === "dark";
-  const privyWallet = useMemo(() => wallets.find(wallet => wallet.walletClientType === "privy") ?? wallets[0], [wallets]);
-  const privyAccountAddress = authenticated ? privyWallet?.address ?? walletAddressFromPrivyUser(privyUser) : undefined;
-  const accountAddress = budolUser?.walletAddress || privyAccountAddress;
+  const accountAddress = budolUser?.walletAddress;
 
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
   const selectedMarket = useMemo(
@@ -245,7 +235,8 @@ export default function App() {
       const result = await submitManagedEscrowTransfer({ amount, pollId, side });
       return result.escrowTxHash;
     }
-    if (!privyWallet) {
+    const browserWallet = browserWalletForAddress(accountAddress);
+    if (!browserWallet) {
       throw new Error("Wallet is not ready. Reconnect and try again.");
     }
     const tradeConfig = await loadTradeConfig();
@@ -254,11 +245,10 @@ export default function App() {
       config: tradeConfig,
       from: accountAddress,
       pollId,
-      sendTransaction,
       side,
-      wallet: privyWallet,
+      wallet: browserWallet,
     });
-  }, [accountAddress, budolUser?.walletCustody, privyWallet, sendTransaction]);
+  }, [accountAddress, budolUser?.walletCustody]);
 
   const recordPortfolioSettlements = (nextPortfolio: UserPortfolio | null) => {
     if (!nextPortfolio) {
@@ -299,10 +289,7 @@ export default function App() {
     try {
       await logoutCurrentUser();
     } catch {
-      // Local Privy logout should still continue if the legacy server session is unavailable.
-    }
-    if (authenticated) {
-      await logoutPrivy();
+      // Local state is cleared even if the server session is unavailable.
     }
     setBudolUser(null);
     notify("Logged out.", "Your BudolPH session ended on this browser.", false);
@@ -415,87 +402,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!privyReady || !walletsReady || !authenticated || privyAccountAddress || privyWalletCreateStarted.current) {
-      return;
-    }
-    privyWalletCreateStarted.current = true;
-    createWallet()
-      .catch(error => {
-        privyWalletCreateStarted.current = false;
-        notify("Wallet creation failed.", errorMessage(error), false);
-      });
-  }, [authenticated, createWallet, privyAccountAddress, privyReady, walletsReady]);
-
-  useEffect(() => {
-    if (!privyReady || !authenticated || !privyAccountAddress) {
-      return;
-    }
-    const syncKey = `${privyUser?.id || "privy"}:${privyAccountAddress}`;
-    if (privySessionSyncKey.current === syncKey) {
-      return;
-    }
-    privySessionSyncKey.current = syncKey;
-
-    let cancelled = false;
-    setIsAuthLoading(true);
-    getAccessToken()
-      .then(accessToken => {
-        if (!accessToken) {
-          throw new Error("Privy did not return an access token.");
-        }
-        return loginWithPrivyToken(accessToken);
-      })
-      .then(user => {
-        if (cancelled) {
-          return;
-        }
-        setBudolUser(user);
-        void refreshAccountNotifications();
-        showToast("Login successful.");
-      })
-      .catch(error => {
-        if (cancelled) {
-          return;
-        }
-        privySessionSyncKey.current = "";
-        setBudolUser(null);
-        notify("BudolPH account sync failed.", errorMessage(error), false);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsAuthLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [authenticated, getAccessToken, privyAccountAddress, privyReady, privyUser?.id]);
-
-  useEffect(() => {
-    if (!privyReady || authenticated || !budolUser || budolUser.authType !== "privy_oauth") {
-      return;
-    }
-    void logoutCurrentUser().catch(() => undefined);
-    setBudolUser(null);
-    setUserPortfolio(null);
-    setAccountNotifications([]);
-    localStorage.setItem("budol-account-notifications", "[]");
-  }, [authenticated, budolUser, privyReady]);
-
-  useEffect(() => {
     if (accountAddress && isLoginOpen) {
       setIsLoginOpen(false);
     }
   }, [accountAddress, isLoginOpen]);
-
-  useEffect(() => {
-    if (!privyReady || !authenticated || !privyAccountAddress || lastPrivyLoginNotice.current === privyAccountAddress) {
-      return;
-    }
-    lastPrivyLoginNotice.current = privyAccountAddress;
-    showToast("Wallet connected.");
-  }, [authenticated, privyAccountAddress, privyReady]);
 
   useEffect(() => {
     if (route !== "logout" || isAuthLoading || logoutRouteHandled.current) {
@@ -686,16 +596,21 @@ export default function App() {
   );
 }
 
-function walletAddressFromPrivyUser(user: unknown) {
-  const linkedAccounts = (user as { linkedAccounts?: Array<Record<string, unknown>> } | null)?.linkedAccounts ?? [];
-  for (const account of linkedAccounts) {
-    const address = account.address;
-    if (typeof address === "string" && /^0x[0-9a-fA-F]{40}$/.test(address)) {
-      return address;
-    }
+function browserWalletForAddress(address: string): ConnectedWallet | null {
+  const ethereum = (window as Window & { ethereum?: ConnectedWallet["provider"] }).ethereum;
+  if (!ethereum) {
+    return null;
   }
-  const wallet = (user as { wallet?: { address?: string } } | null)?.wallet;
-  return wallet?.address;
+  return {
+    address,
+    getEthereumProvider: async () => ethereum,
+    switchChain: async (chainId: number) => {
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: `0x${chainId.toString(16)}` }],
+      });
+    },
+  };
 }
 
 function isClosingSoon(value: string) {

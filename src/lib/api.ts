@@ -216,26 +216,6 @@ export async function loginWithThirdwebToken(authToken: string): Promise<BudolUs
   return payload.user;
 }
 
-export async function loginWithPrivyToken(accessToken: string): Promise<BudolUser> {
-  const baseURL = apiBaseURL();
-  const response = await fetch(`${baseURL}/api/auth/privy`, {
-    body: JSON.stringify({ accessToken }),
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || "BudolPH Privy login failed. Please try again.");
-  }
-
-  const payload = (await response.json()) as AuthResponse;
-  return payload.user;
-}
-
 export function googleManagedLoginURL(): string {
   return `${apiBaseURL()}/api/auth/google/start`;
 }

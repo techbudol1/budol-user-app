@@ -1,15 +1,18 @@
-import { alchemyWalletTransport } from "../../node_modules/@alchemy/wallet-apis/dist/esm/transport.js";
-import { smartWalletActions } from "../../node_modules/@alchemy/wallet-apis/dist/esm/decorators/smartWalletActions.js";
-import type { CreateEvmSmartWalletClientParams, SmartWalletClient } from "@alchemy/wallet-apis";
-import { toViemAccount, type ConnectedWallet, type UnsignedTransactionRequest } from "@privy-io/react-auth";
-import { createClient, createPublicClient, http, parseAbi, type Address, type Hex } from "viem";
+import { createPublicClient, http, parseAbi, type Address, type Hex } from "viem";
 import { arbitrumSepolia } from "viem/chains";
 import type { TradeConfig, TradeSide } from "../types";
 import { submitGaslessEscrowTransfer } from "./api";
-import { ALCHEMY_API_KEY, ALCHEMY_GAS_POLICY_ID, ARBITRUM_SEPOLIA_RPC_URL } from "./privy";
+import { ARBITRUM_SEPOLIA_RPC_URL } from "./walletConfig";
 
 type EthereumProvider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
+export type ConnectedWallet = {
+  address?: string;
+  provider?: EthereumProvider;
+  getEthereumProvider: () => Promise<EthereumProvider>;
+  switchChain: (chainId: number) => Promise<void>;
 };
 
 type TransactionReceipt = {
@@ -27,7 +30,6 @@ export async function sendBudolEscrowTransfer(input: {
   config: TradeConfig;
   from: string;
   pollId: string;
-  sendTransaction?: PrivySendTransaction;
   side: TradeSide;
   wallet: ConnectedWallet;
 }): Promise<string> {
@@ -41,32 +43,11 @@ export async function sendBudolEscrowTransfer(input: {
       wallet: input.wallet,
     });
   }
-  if (input.sendTransaction) {
-    return sendPrivySponsoredBudolTransfer({
-      ...normalized,
-      sendTransaction: input.sendTransaction,
-      wallet: input.wallet,
-    });
-  }
-  if (ALCHEMY_API_KEY && ALCHEMY_GAS_POLICY_ID) {
-    return sendSponsoredBudolTransfer({
-      ...normalized,
-      wallet: input.wallet,
-    });
-  }
   return sendDirectBudolTransfer({
     ...normalized,
     wallet: input.wallet,
   });
 }
-
-type PrivySendTransaction = (
-  input: UnsignedTransactionRequest,
-  options?: {
-    address?: string;
-    sponsor?: boolean;
-  },
-) => Promise<{ hash: `0x${string}` }>;
 
 async function sendEngineGasFreePermitTransfer(input: NormalizedTransferInput & {
   amount: string;
@@ -164,112 +145,6 @@ async function sendEngineGasFreePermitTransfer(input: NormalizedTransferInput & 
   }
 }
 
-async function sendPrivySponsoredBudolTransfer(input: NormalizedTransferInput & {
-  sendTransaction: PrivySendTransaction;
-  wallet: ConnectedWallet;
-}) {
-  try {
-    await input.wallet.switchChain(input.chainId);
-  } catch (error) {
-    throw normalizeWalletError(error, "Switch your wallet to Arbitrum Sepolia, then try again.");
-  }
-
-  try {
-    const result = await input.sendTransaction(
-      {
-        chainId: input.chainId,
-        data: encodeERC20Transfer(input.escrowWalletAddress, input.amountRaw),
-        from: input.from,
-        to: input.tokenAddress,
-        value: "0x0",
-      },
-      {
-        address: input.from,
-        sponsor: true,
-      },
-    );
-    if (!/^0x[0-9a-fA-F]{64}$/.test(result.hash)) {
-      throw new Error("Privy did not return a valid transaction hash.");
-    }
-    const provider = await input.wallet.getEthereumProvider();
-    await waitForTransactionReceipt(provider, result.hash);
-    return result.hash;
-  } catch (error) {
-    throw normalizeSponsoredTransferError(error);
-  }
-}
-
-async function sendSponsoredBudolTransfer(input: NormalizedTransferInput & {
-  wallet: ConnectedWallet;
-}) {
-  if (input.chainId !== arbitrumSepolia.id) {
-    throw new Error("Gas-free trading is currently configured for Arbitrum Sepolia only.");
-  }
-
-  try {
-    await input.wallet.switchChain(input.chainId);
-  } catch (error) {
-    throw normalizeWalletError(error, "Switch your wallet to Arbitrum Sepolia, then try again.");
-  }
-
-  const signer = await toViemAccount({ wallet: input.wallet });
-  if (signer.address.toLowerCase() !== input.from.toLowerCase()) {
-    throw new Error("The active Privy wallet does not match the connected BudolPH account.");
-  }
-
-  const policyIds: string[] = [ALCHEMY_GAS_POLICY_ID];
-  const client = createClient({
-    account: input.from,
-    chain: arbitrumSepolia,
-    name: "budolAlchemySponsoredWallet",
-    transport: alchemyWalletTransport({
-      apiKey: ALCHEMY_API_KEY,
-    }),
-  })
-    .extend(() => ({
-      internal: undefined,
-      owner: signer as unknown as CreateEvmSmartWalletClientParams["signer"],
-      policyIds,
-    }))
-    .extend(smartWalletActions as any) as SmartWalletClient;
-
-  try {
-    const result = await client.sendCalls({
-      account: input.from,
-      calls: [
-        {
-          data: encodeERC20Transfer(input.escrowWalletAddress, input.amountRaw),
-          to: input.tokenAddress,
-          value: 0n,
-        },
-      ],
-      capabilities: {
-        paymaster: {
-          policyId: ALCHEMY_GAS_POLICY_ID,
-        },
-      },
-      chain: arbitrumSepolia,
-    });
-
-    const status = await client.waitForCallsStatus({
-      id: result.id,
-      pollingInterval: 1500,
-      throwOnFailure: true,
-      timeout: 90000,
-    });
-
-    if (status.status === "failure") {
-      throw new Error("Gas-free escrow transfer failed.");
-    }
-    const txHash = status.receipts?.[0]?.transactionHash;
-    if (typeof txHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
-      throw new Error("Alchemy did not return a valid transaction hash for the sponsored transfer.");
-    }
-    return txHash;
-  } catch (error) {
-    throw normalizeSponsoredTransferError(error);
-  }
-}
 
 async function sendDirectBudolTransfer(input: NormalizedTransferInput & {
   wallet: ConnectedWallet;
@@ -438,7 +313,7 @@ function normalizeSponsoredTransferError(error: unknown) {
     return new Error("Wallet confirmation was cancelled.");
   }
   if (normalized.includes("failed to fetch")) {
-    return new Error("Gas sponsorship request failed. Check Privy gas sponsorship or Alchemy gas policy settings for Arbitrum Sepolia.");
+    return new Error("Gas sponsorship request failed. Check the gas policy settings for Arbitrum Sepolia.");
   }
   if (normalized.includes("sponsor") || normalized.includes("paymaster") || normalized.includes("policy")) {
     return new Error(message || "Gas sponsorship is not configured for this transaction.");

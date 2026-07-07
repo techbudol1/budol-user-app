@@ -38,13 +38,9 @@ const frontendEnv = loadEnvFile(".env.frontend");
 const env = (key: string, fallback = "") => frontendEnv[key] ?? Bun.env[key] ?? fallback;
 
 const clientEnv = {
-  VITE_ALCHEMY_API_KEY: env("VITE_ALCHEMY_API_KEY"),
-  VITE_ALCHEMY_GAS_POLICY_ID: env("VITE_ALCHEMY_GAS_POLICY_ID"),
   VITE_API_BASE_URL: env("VITE_API_BASE_URL"),
   VITE_ARBITRUM_SEPOLIA_RPC_URL: env("VITE_ARBITRUM_SEPOLIA_RPC_URL", env("ARBITRUM_SEPOLIA_RPC_URL")),
   VITE_GMR_ENGINE_BASE_URL: env("VITE_GMR_ENGINE_BASE_URL"),
-  VITE_PRIVY_APP_ID: env("VITE_PRIVY_APP_ID"),
-  VITE_PRIVY_CLIENT_ID: env("VITE_PRIVY_CLIENT_ID"),
 };
 
 mkdirSync("public", { recursive: true });
