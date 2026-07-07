@@ -5867,6 +5867,46 @@ select:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .notification-panel {
+    position: fixed;
+    top: 92px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100dvh - 112px);
+    padding: 12px;
+    border-radius: 18px;
+    transform: none;
+  }
+
+  .notification-panel::before {
+    display: none;
+  }
+
+  .notification-panel-head {
+    padding-bottom: 8px;
+  }
+
+  .notification-panel-head strong {
+    font-size: 1.15rem;
+  }
+
+  .notification-view-all {
+    min-height: 40px;
+    border-radius: 10px;
+  }
+
+  .notification-list {
+    max-height: calc(100dvh - 260px);
+    gap: 7px;
+    overflow: auto;
+  }
+
+  .notification-item {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
