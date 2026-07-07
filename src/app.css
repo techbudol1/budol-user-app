@@ -6099,7 +6099,7 @@ select:focus-visible {
 .market-detail-page {
   width: min(1240px, 100%);
   gap: 12px;
-  margin: 22px auto 0;
+  margin: 22px auto 72px;
 }
 
 .market-detail-back {
@@ -6565,6 +6565,7 @@ select:focus-visible {
 @media (max-width: 760px) {
   .market-detail-page {
     margin-top: 16px;
+    margin-bottom: 56px;
   }
 
   .market-detail-shell {
