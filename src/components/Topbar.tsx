@@ -43,16 +43,18 @@ export function Topbar({
   onWalletClick,
 }: TopbarProps) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const accountMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const walletLabel = accountAddress ? shortAddress(accountAddress) : isAuthLoading ? "Checking" : "Login";
   const unreadCount = notifications.filter(notification => !notification.readAt).length;
 
   useEffect(() => {
-    if (!isAccountMenuOpen && !isNotificationsOpen) {
+    if (!isAccountMenuOpen && !isMobileMenuOpen && !isNotificationsOpen) {
       return;
     }
 
@@ -63,10 +65,14 @@ export function Topbar({
       if (!notificationsRef.current?.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
       }
+      if (!mobileMenuRef.current?.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
     };
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsAccountMenuOpen(false);
+        setIsMobileMenuOpen(false);
         setIsNotificationsOpen(false);
       }
     };
@@ -78,9 +84,10 @@ export function Topbar({
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [isAccountMenuOpen, isNotificationsOpen]);
+  }, [isAccountMenuOpen, isMobileMenuOpen, isNotificationsOpen]);
 
   const handleWalletClick = () => {
+    setIsMobileMenuOpen(false);
     if (accountAddress) {
       setIsNotificationsOpen(false);
       setIsAccountMenuOpen(open => !open);
@@ -93,7 +100,16 @@ export function Topbar({
 
   const handleNotificationsClick = () => {
     setIsAccountMenuOpen(false);
+    setIsMobileMenuOpen(false);
     setIsNotificationsOpen(open => !open);
+  };
+
+  const openMobileDestination = (destination: "markets" | "portfolio" | "account" | "wallet") => {
+    setIsMobileMenuOpen(false);
+    if (destination === "markets") onMarketsClick();
+    if (destination === "portfolio") onPortfolioClick();
+    if (destination === "account") onAccountClick();
+    if (destination === "wallet") onWalletClick();
   };
 
   const updateSearch = (value: string) => {
@@ -264,9 +280,43 @@ export function Topbar({
             </div>
           ) : null}
         </div>
-        <button className="icon-button mobile-only" aria-label="Open menu">
-          <Menu size={20} />
-        </button>
+        <div className="mobile-menu-wrap mobile-only" ref={mobileMenuRef}>
+          <button
+            className="icon-button"
+            aria-expanded={isMobileMenuOpen}
+            aria-haspopup="menu"
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            onClick={() => {
+              setIsAccountMenuOpen(false);
+              setIsNotificationsOpen(false);
+              setIsMobileMenuOpen(open => !open);
+            }}
+          >
+            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          {isMobileMenuOpen ? (
+            <nav className="mobile-nav-menu" aria-label="Mobile navigation">
+              <button className={activePage === "markets" ? "active" : ""} onClick={() => openMobileDestination("markets")}>Markets</button>
+              <button className={activePage === "portfolio" ? "active" : ""} onClick={() => openMobileDestination("portfolio")}>Portfolio</button>
+              {accountAddress ? (
+                <>
+                  <button onClick={() => openMobileDestination("account")}>My Account</button>
+                  <button onClick={() => openMobileDestination("wallet")}>My Wallet</button>
+                </>
+              ) : (
+                <button
+                  disabled={isAuthLoading}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onLoginClick();
+                  }}
+                >
+                  Login
+                </button>
+              )}
+            </nav>
+          ) : null}
+        </div>
       </div>
     </header>
   );

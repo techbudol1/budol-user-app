@@ -347,6 +347,45 @@ a {
   position: relative;
 }
 
+.mobile-menu-wrap {
+  position: relative;
+}
+
+.mobile-nav-menu {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 36;
+  display: grid;
+  gap: 6px;
+  width: min(220px, calc(100vw - 24px));
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  background: var(--glass-strong);
+  box-shadow: 0 24px 70px rgba(4, 12, 16, 0.2);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  animation: menu-enter 180ms var(--ease-out) both;
+}
+
+.mobile-nav-menu button {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-weight: 850;
+  text-align: left;
+}
+
+.mobile-nav-menu button:hover,
+.mobile-nav-menu button:focus-visible,
+.mobile-nav-menu button.active {
+  background: var(--surface-soft);
+}
+
 .account-dropdown {
   position: absolute;
   top: calc(100% + 10px);
@@ -5625,7 +5664,13 @@ select:focus-visible {
 
   .topbar {
     top: 8px;
+    min-width: 0;
     border-radius: 16px;
+  }
+
+  .brand,
+  .topbar-actions {
+    min-width: 0;
   }
 
   .brand-mark {
@@ -5644,7 +5689,13 @@ select:focus-visible {
     background: linear-gradient(180deg, rgba(3, 9, 12, 0.92), rgba(3, 9, 12, 0.57) 70%, rgba(3, 9, 12, 0.4));
   }
 
+  .hero-panel img {
+    object-position: 62% center;
+  }
+
   .hero-copy {
+    grid-column: 1;
+    min-width: 0;
     max-width: none;
     padding: 42px 30px 28px;
   }
@@ -5654,6 +5705,8 @@ select:focus-visible {
   }
 
   .ticker-card {
+    grid-column: 1;
+    min-width: 0;
     width: auto;
     margin: 16px 24px 24px;
   }
@@ -5673,13 +5726,42 @@ select:focus-visible {
 }
 
 @media (max-width: 560px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 8px;
+  }
+
   .topbar-actions {
+    flex: 0 0 auto;
     gap: 5px;
   }
 
+  .brand {
+    gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .brand-mark {
-    width: 48px;
-    height: 48px;
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+  }
+
+  .brand > span:last-child {
+    min-width: 0;
+  }
+
+  .brand strong {
+    overflow: hidden;
+    font-size: 0.98rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .brand small {
+    display: none;
   }
 
   .wallet-button {
@@ -5698,8 +5780,8 @@ select:focus-visible {
 
   .hero-copy h1 {
     margin-top: 18px;
-    font-size: clamp(2.8rem, 15vw, 4.1rem);
-    line-height: 0.92;
+    font-size: clamp(2.55rem, 12.5vw, 3.4rem);
+    line-height: 0.94;
   }
 
   .hero-copy p {
@@ -5711,6 +5793,11 @@ select:focus-visible {
     align-items: flex-start;
     flex-direction: column;
     margin-top: 24px;
+  }
+
+  .hero-primary-action {
+    width: 100%;
+    max-width: 310px;
   }
 
   .hero-trust-note {
@@ -5730,6 +5817,7 @@ select:focus-visible {
   }
 
   .ticker-card {
+    box-sizing: border-box;
     margin: 14px 14px 14px;
     border-radius: 18px;
   }
@@ -5765,6 +5853,21 @@ select:focus-visible {
 
   .empty-market-panel {
     min-height: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .theme-toggle {
+    display: none;
+  }
+
+  .hero-copy {
+    padding-inline: 18px;
+  }
+
+  .status-pill {
+    max-width: 100%;
+    font-size: 0.75rem;
   }
 }
 
