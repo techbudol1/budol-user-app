@@ -5876,6 +5876,9 @@ select:focus-visible {
     max-height: calc(100dvh - 112px);
     padding: 12px;
     border-radius: 18px;
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     transform: none;
   }
 
