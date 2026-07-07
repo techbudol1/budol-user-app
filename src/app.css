@@ -4363,14 +4363,14 @@ select:focus-visible {
 }
 
 .brand {
-  gap: 11px;
-  min-width: 174px;
+  gap: 14px;
+  min-width: 220px;
 }
 
 .brand-mark {
-  width: 62px;
-  height: 62px;
-  border-radius: 14px;
+  width: 78px;
+  height: 78px;
+  border-radius: 18px;
   transition: transform 420ms var(--ease-spring);
 }
 
@@ -4379,18 +4379,18 @@ select:focus-visible {
 }
 
 .brand-logo-image {
-  border-radius: 14px;
-  filter: drop-shadow(0 8px 14px rgba(8, 18, 22, 0.16));
+  border-radius: 18px;
+  filter: drop-shadow(0 10px 18px rgba(8, 18, 22, 0.2));
 }
 
 .brand strong {
-  font-size: 1.08rem;
+  font-size: 1.32rem;
   letter-spacing: -0.02em;
 }
 
 .brand small {
   margin-top: 5px;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -5815,8 +5815,8 @@ select:focus-visible {
   }
 
   .brand-mark {
-    width: 54px;
-    height: 54px;
+    width: 64px;
+    height: 64px;
   }
 
   .hero-panel {
@@ -5926,15 +5926,16 @@ select:focus-visible {
   }
 
   .brand {
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
     overflow: hidden;
   }
 
   .brand-mark {
     flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
+    width: 56px;
+    height: 56px;
+    border-radius: 15px;
   }
 
   .brand > span:last-child {
@@ -5943,7 +5944,7 @@ select:focus-visible {
 
   .brand strong {
     overflow: hidden;
-    font-size: 0.98rem;
+    font-size: 1.14rem;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
