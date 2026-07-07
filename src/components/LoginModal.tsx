@@ -204,6 +204,19 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
         <div className="login-picker-layout">
           <aside className="login-picker-sidebar" aria-label="Login options">
             <div className="login-wallet-list">
+              <button
+                className={`login-picker-option social-option ${lastUsedProvider === "google" ? "active" : ""}`}
+                disabled={isLoading}
+                onClick={() => void loginWithGoogle()}
+              >
+                <span className="login-picker-google-icon">
+                  {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={22} /> : <GoogleIcon />}
+                </span>
+                <span>
+                  <strong>Google</strong>
+                  <small>{lastUsedProvider === "google" ? "Last used" : "OAuth login"}</small>
+                </span>
+              </button>
               {walletOptions.map(wallet => (
                 <button
                   className={`login-picker-option wallet-option ${selectedWalletId === wallet.id ? "active" : ""}`}
@@ -252,21 +265,10 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
                   {pendingProvider === selectedWallet.id ? <LoaderCircle className="spin-icon" size={18} /> : <Wallet size={18} />}
                   <span>{pendingProvider === selectedWallet.id ? "Connecting..." : `Connect ${selectedWallet.name}`}</span>
                 </button>
-                <button className="login-link-button" disabled={isLoading} onClick={() => setSelectedWalletId("")}>
-                  Use Google OAuth instead
-                </button>
               </div>
             ) : (
-              <div className="login-social-panel">
-                <div className="login-social-actions">
-                  <button className="login-social-action" disabled={isLoading} onClick={() => void loginWithGoogle()} aria-label="Continue with Google">
-                    {lastUsedProvider === "google" ? <span className="login-last-used">Last used</span> : null}
-                    {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={22} /> : <GoogleIcon />}
-                  </button>
-                </div>
-                <div className="login-divider compact">
-                  <span>or</span>
-                </div>
+              <div className="login-empty-choice">
+                <p>Choose Google or one of the supported wallets from the list.</p>
               </div>
             )}
 
