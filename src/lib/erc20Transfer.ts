@@ -2,6 +2,7 @@ import { createPublicClient, http, parseAbi, type Address, type Hex } from "viem
 import { arbitrumSepolia } from "viem/chains";
 import type { TradeConfig, TradeSide } from "../types";
 import { submitGaslessEscrowTransfer } from "./api";
+import { chainAddEthereumParams, chainMetadata, isArbitrumSepolia, numberToHex } from "./chains";
 import { ARBITRUM_SEPOLIA_RPC_URL } from "./walletConfig";
 
 type EthereumProvider = {
@@ -34,7 +35,7 @@ export async function sendBudolEscrowTransfer(input: {
   wallet: ConnectedWallet;
 }): Promise<string> {
   const normalized = normalizeTransferInput(input);
-  if (input.config.engineGasFreeEnabled) {
+  if (isArbitrumSepolia(normalized.chainId) && input.config.engineGasFreeEnabled) {
     return sendEngineGasFreePermitTransfer({
       ...normalized,
       amount: input.amount,
@@ -202,23 +203,12 @@ async function ensureWalletChain(wallet: ConnectedWallet, chainId: number) {
     return;
   } catch (switchError) {
     const provider = await wallet.getEthereumProvider();
-    if (chainId === 421614) {
+    const chain = chainMetadata(chainId);
+    if (chain) {
       try {
         await provider.request({
           method: "wallet_addEthereumChain",
-          params: [
-            {
-              blockExplorerUrls: ["https://sepolia.arbiscan.io"],
-              chainId: numberToHex(chainId),
-              chainName: "Arbitrum Sepolia",
-              nativeCurrency: {
-                decimals: 18,
-                name: "Ether",
-                symbol: "ETH",
-              },
-              rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
-            },
-          ],
+          params: [chainAddEthereumParams(chain)],
         });
         await wallet.switchChain(chainId);
         return;
@@ -290,13 +280,6 @@ function normalizeAddress(value: string, label: string): Address {
     throw new Error(`Invalid ${label}.`);
   }
   return address as Address;
-}
-
-function numberToHex(value: number) {
-  if (!Number.isInteger(value) || value <= 0) {
-    throw new Error("Invalid chain ID.");
-  }
-  return `0x${value.toString(16)}` as `0x${string}`;
 }
 
 function normalizeWalletError(error: unknown, fallback: string) {

@@ -1,6 +1,7 @@
 import { CircleDollarSign, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { loadTradeConfig, loadTradeQuote, placeTrade } from "../lib/api";
+import { isArbitrumSepolia, isHorizen } from "../lib/chains";
 import { isMarketTradeable, marketStateLabel } from "../lib/marketState";
 import type { Market, TradeConfig, TradeQuote, TradeSide, UserPortfolio } from "../types";
 
@@ -50,7 +51,8 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const yesPrice = quotes.yes?.averagePriceCents ?? market.yes;
   const noPrice = quotes.no?.averagePriceCents ?? market.no;
   const ticketMessage = message || quoteError || (!tradeable ? `Trading is ${marketState.toLowerCase()}. Review positions in Portfolio.` : "");
-  const gasPayerReady = !tradeConfig?.engineGasFreeEnabled || parseRawBalance(tradeConfig.gasPayerBalanceRaw) > 0n;
+  const arbitrumGasFreeEnabled = Boolean(tradeConfig?.engineGasFreeEnabled && isArbitrumSepolia(tradeConfig.chainId));
+  const gasPayerReady = !arbitrumGasFreeEnabled || parseRawBalance(tradeConfig?.gasPayerBalanceRaw) > 0n;
   const selectedPrice = selectedSide === "yes" ? yesPrice : noPrice;
   const selectedReturn = selectedSide === "yes" ? yesReturn : noReturn;
   const selectedShares = selectedSide === "yes" ? yesShares : noShares;
@@ -131,7 +133,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
       setMessage(`Trading is not available while this market is ${marketState.toLowerCase()}.`);
       return;
     }
-    if (tradeConfig?.engineGasFreeEnabled && !gasPayerReady) {
+    if (arbitrumGasFreeEnabled && !gasPayerReady) {
       setMessage("Gas-free trading is enabled, but the sponsor wallet needs Arbitrum Sepolia ETH for gas.");
       return;
     }
@@ -164,7 +166,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     setPendingSide(confirmOrder.side);
     try {
       setConfirmOrder(null);
-      setMessage("Authorizing the gas-free escrow for this trade amount.");
+      setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen testnet escrow transfer in your wallet." : "Authorizing the gas-free escrow for this trade amount.");
       const escrowTxHash = await onEscrowTransfer?.(confirmOrder.transferAmount, market.id, confirmOrder.side);
       if (!escrowTxHash) {
         throw new Error("Wallet transfer is not ready. Reconnect your wallet and try again.");
