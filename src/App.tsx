@@ -12,6 +12,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
 import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
+import { isArbitrumSepolia, isHorizen } from "./lib/chains";
 import { sendBudolEscrowTransfer, type ConnectedWallet } from "./lib/erc20Transfer";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
 
@@ -224,15 +225,18 @@ export default function App() {
       throw new Error("Wallet is not ready. Reconnect and try again.");
     }
     await loadTradeQuote(pollId, side, Number(amount));
-    if (budolUser?.walletCustody === "managed") {
+    const tradeConfig = await loadTradeConfig();
+    if (budolUser?.walletCustody === "managed" && isArbitrumSepolia(tradeConfig.chainId)) {
       const result = await submitManagedEscrowTransfer({ amount, pollId, side });
       return result.escrowTxHash;
+    }
+    if (budolUser?.walletCustody === "managed" && isHorizen(tradeConfig.chainId)) {
+      throw new Error("Horizen testnet trading requires logging in with an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
     }
     const browserWallet = browserWalletForAddress(accountAddress);
     if (!browserWallet) {
       throw new Error("Wallet is not ready. Reconnect and try again.");
     }
-    const tradeConfig = await loadTradeConfig();
     return sendBudolEscrowTransfer({
       amount,
       config: tradeConfig,

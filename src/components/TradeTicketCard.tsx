@@ -294,7 +294,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               <ShieldCheck size={13} />
               Fully backed
             </span>
-          ) : isLoggedIn && tradeConfig?.engineGasFreeEnabled ? (
+          ) : isLoggedIn && arbitrumGasFreeEnabled ? (
             <span className={gasPayerReady ? "positive" : "negative"}>
               <ShieldCheck size={13} />
               {gasPayerReady ? "Gas-free" : "Sponsor unavailable"}
