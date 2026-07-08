@@ -13,6 +13,7 @@ git switch horizen-testnet-adaptation
 This keeps the current Arbitrum Sepolia production branch intact and adds support for direct external-wallet transactions on Horizen testnet.
 
 No Alchemy, smart-wallet bundler, or paymaster is used for Horizen.
+Google/social login is disabled in this branch; users authenticate by signing a wallet message and trade by signing wallet transactions.
 
 ## Horizen Testnet
 

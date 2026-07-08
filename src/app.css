@@ -758,21 +758,6 @@ a {
   line-height: 1.1;
 }
 
-.login-picker-google-icon {
-  display: grid;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  border: 1px solid var(--login-border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-solid) 74%, transparent);
-}
-
-.login-picker-google-icon svg {
-  width: 28px;
-  height: 28px;
-}
-
 .login-wallet-list {
   display: grid;
   gap: 4px;
@@ -1020,12 +1005,6 @@ a {
 .login-action-button:disabled {
   cursor: wait;
   opacity: 0.76;
-}
-
-.login-action-button.google-action {
-  border-color: color-mix(in srgb, var(--yellow) 75%, transparent);
-  background: linear-gradient(135deg, var(--yellow), #ffe487);
-  color: #1f1a09;
 }
 
 .login-action-button svg {
@@ -1292,10 +1271,6 @@ a {
 .login-provider-button:disabled {
   cursor: wait;
   opacity: 0.78;
-}
-
-.login-provider-button.google {
-  background: var(--surface-solid);
 }
 
 .login-provider-button.wallet-login {
@@ -2077,41 +2052,6 @@ a {
   font-size: 0.9rem;
   line-height: 1;
   white-space: nowrap;
-}
-
-.gas-free-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 34px;
-  margin: 6px 0 10px;
-  border: 1px solid rgba(43, 212, 167, 0.24);
-  border-radius: 8px;
-  background: rgba(43, 212, 167, 0.08);
-  padding: 8px 10px;
-}
-
-.gas-free-status span {
-  color: var(--muted);
-  font-size: 0.74rem;
-  font-weight: 900;
-}
-
-.gas-free-status strong {
-  color: var(--positive);
-  font-size: 0.78rem;
-  line-height: 1.2;
-  text-align: right;
-}
-
-.gas-free-status.warning {
-  border-color: rgba(239, 91, 69, 0.28);
-  background: rgba(239, 91, 69, 0.08);
-}
-
-.gas-free-status.warning strong {
-  color: var(--negative);
 }
 
 .buy-buttons {
@@ -4080,15 +4020,9 @@ a {
   .wallet-logo-fallback,
   .wallet-logo-transparent,
   .wallet-logo-generic,
-  .login-picker-google-icon,
   .stacked-provider-mark {
     width: 34px;
     height: 34px;
-  }
-
-  .login-picker-google-icon svg {
-    width: 24px;
-    height: 24px;
   }
 
   .login-picker-main {

@@ -11,9 +11,9 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist, submitManagedEscrowTransfer } from "./lib/api";
-import { isArbitrumSepolia, isHorizen } from "./lib/chains";
-import { sendBudolEscrowTransfer, type ConnectedWallet } from "./lib/erc20Transfer";
+import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
+import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "privacy" | "terms" | "logout";
@@ -226,16 +226,9 @@ export default function App() {
     }
     await loadTradeQuote(pollId, side, Number(amount));
     const tradeConfig = await loadTradeConfig();
-    if (budolUser?.walletCustody === "managed" && isArbitrumSepolia(tradeConfig.chainId)) {
-      const result = await submitManagedEscrowTransfer({ amount, pollId, side });
-      return result.escrowTxHash;
-    }
-    if (budolUser?.walletCustody === "managed" && isHorizen(tradeConfig.chainId)) {
-      throw new Error("Horizen testnet trading requires logging in with an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
-    }
     const browserWallet = browserWalletForAddress(accountAddress);
     if (!browserWallet) {
-      throw new Error("Wallet is not ready. Reconnect and try again.");
+      throw new Error("Self-custody trading requires an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
     }
     return sendBudolEscrowTransfer({
       amount,
@@ -245,7 +238,7 @@ export default function App() {
       side,
       wallet: browserWallet,
     });
-  }, [accountAddress, budolUser?.walletCustody]);
+  }, [accountAddress]);
 
   const recordPortfolioSettlements = (nextPortfolio: UserPortfolio | null) => {
     if (!nextPortfolio) {
@@ -306,7 +299,12 @@ export default function App() {
     loadCurrentUser()
       .then(user => {
         if (isMounted) {
-          setBudolUser(user);
+          if (user && isSelfCustodyUser(user)) {
+            setBudolUser(user);
+          } else {
+            void logoutCurrentUser().catch(() => undefined);
+            setBudolUser(null);
+          }
         }
       })
       .catch(() => {
@@ -351,29 +349,6 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const provider = params.get("login");
-    if (!provider) {
-      return;
-    }
-    const label = provider.charAt(0).toUpperCase() + provider.slice(1);
-    setIsAuthLoading(true);
-    loadCurrentUser()
-      .then(user => {
-        setBudolUser(user);
-        localStorage.setItem("budol-last-login-provider", provider);
-        showToast(`${label} login successful.`);
-        void refreshAccountNotifications();
-      })
-      .catch(() => {
-        setBudolUser(null);
-        notify(`${label} login sync failed.`, "BudolPH could not load the new session yet. Try refreshing once.", false);
-      })
-      .finally(() => setIsAuthLoading(false));
-    window.history.replaceState(window.history.state, "", window.location.pathname || "/");
   }, []);
 
   useEffect(() => {
@@ -465,6 +440,13 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onLoggedIn={user => {
+          if (!isSelfCustodyUser(user)) {
+            void logoutCurrentUser().catch(() => undefined);
+            setBudolUser(null);
+            setIsAuthLoading(false);
+            notify("External wallet required.", "This Horizen testnet build only supports self-custodial wallet login.", false);
+            return;
+          }
           setBudolUser(user);
           setIsAuthLoading(false);
           void refreshAccountNotifications();
@@ -568,23 +550,6 @@ export default function App() {
   );
 }
 
-function browserWalletForAddress(address: string): ConnectedWallet | null {
-  const ethereum = (window as Window & { ethereum?: ConnectedWallet["provider"] }).ethereum;
-  if (!ethereum) {
-    return null;
-  }
-  return {
-    address,
-    getEthereumProvider: async () => ethereum,
-    switchChain: async (chainId: number) => {
-      await ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: `0x${chainId.toString(16)}` }],
-      });
-    },
-  };
-}
-
 function isClosingSoon(value: string) {
   if (!value) {
     return false;
@@ -595,6 +560,10 @@ function isClosingSoon(value: string) {
   }
   const now = Date.now();
   return end >= now && end <= now + 7 * 24 * 60 * 60 * 1000;
+}
+
+function isSelfCustodyUser(user: BudolUser) {
+  return user.walletCustody === "external" || user.authProvider === "wallet" || user.authType === "wallet";
 }
 
 function formatToken(value: number) {

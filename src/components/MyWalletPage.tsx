@@ -33,7 +33,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [walletError, setWalletError] = useState("");
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
-  const walletDescription = user?.walletCustody === "external" ? "External EVM wallet connected for BudolPH." : "BudolPH-managed wallet connected.";
+  const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
   const tokenAddress = balance?.tokenAddress || fallbackBudolTokenAddress;
   const explorerURL = displayAddress ? `https://sepolia.arbiscan.io/token/${tokenAddress}?a=${displayAddress}#transactions` : "";
   const receiveQRCode = useMemo(() => {
@@ -90,7 +90,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     return (
       <section className="simple-page">
         <h1>My Wallet</h1>
-        <p>Log in with Google to create and connect your BudolPH wallet.</p>
+        <p>Connect a self-custodial wallet to use BudolPH.</p>
         <button className="primary-button" onClick={onLoginClick}>
           <Wallet size={18} />
           Login

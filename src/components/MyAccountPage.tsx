@@ -70,7 +70,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
 
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const displayName = user?.publicAlias || user?.email || (displayAddress ? shortAddress(displayAddress) : "BudolPH trader");
-  const provider = user?.authProvider ? titleCase(user.authProvider) : "BudolPH-managed wallet";
+  const provider = user?.authProvider ? titleCase(user.authProvider) : "Self-custodial wallet";
   const preferenceSummary = useMemo(
     () => `${preferences.riskMode} risk / ${preferences.oddsFormat} odds / P${Number(preferences.defaultOrderSize || 0).toLocaleString()}`,
     [preferences.defaultOrderSize, preferences.oddsFormat, preferences.riskMode],

@@ -127,14 +127,6 @@ type TradeConfigResponse = {
   config: TradeConfig;
 };
 
-type GaslessEscrowResponse = {
-  escrowTxHash: string;
-  gasFree: boolean;
-  permitTransactionHash?: string;
-  transactionIds?: string[];
-  transferTransactionHash?: string;
-};
-
 type CashoutQuoteResponse = {
   quote: CashoutQuote;
 };
@@ -214,10 +206,6 @@ export async function loginWithThirdwebToken(authToken: string): Promise<BudolUs
 
   const payload = (await response.json()) as AuthResponse;
   return payload.user;
-}
-
-export function googleManagedLoginURL(): string {
-  return `${apiBaseURL()}/api/auth/google/start`;
 }
 
 export async function createWalletLoginChallenge(address: string): Promise<WalletNonceResponse> {
@@ -828,69 +816,6 @@ export async function loadTradeConfig(): Promise<TradeConfig> {
 
   const payload = (await response.json()) as TradeConfigResponse;
   return payload.config;
-}
-
-export async function submitGaslessEscrowTransfer(input: {
-  amount: string;
-  deadline: string;
-  owner: string;
-  pollId: string;
-  r: string;
-  s: string;
-  side: TradeSide;
-  v: number;
-}): Promise<GaslessEscrowResponse> {
-  const response = await fetch(`${apiBaseURL()}/api/trades/gasless-escrow`, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  if (response.status === 401) {
-    throw new Error("Log in before placing a trade.");
-  }
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || "Unable to submit gas-free escrow transfer.");
-  }
-
-  const payload = (await response.json()) as GaslessEscrowResponse;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(payload.escrowTxHash)) {
-    throw new Error("BudolPH API did not return a valid escrow transaction hash.");
-  }
-  return payload;
-}
-
-export async function submitManagedEscrowTransfer(input: {
-  amount: string;
-  pollId: string;
-  side: TradeSide;
-}): Promise<GaslessEscrowResponse> {
-  const response = await fetch(`${apiBaseURL()}/api/trades/managed-escrow`, {
-    body: JSON.stringify(input),
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  if (response.status === 401) {
-    throw new Error("Log in before placing a trade.");
-  }
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error || "Unable to submit managed escrow transfer.");
-  }
-
-  const payload = (await response.json()) as GaslessEscrowResponse;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(payload.escrowTxHash)) {
-    throw new Error("BudolPH API did not return a valid managed escrow transaction hash.");
-  }
-  return payload;
 }
 
 export async function loadCashoutQuote(pollId: string, side: TradeSide, amount = 0): Promise<CashoutQuote> {

@@ -1,8 +1,8 @@
 import { LoaderCircle, Wallet, X } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
-import { GoogleIcon } from "./SocialIcons";
-import { createWalletLoginChallenge, googleManagedLoginURL, verifyWalletLogin } from "../lib/api";
+import { createWalletLoginChallenge, verifyWalletLogin } from "../lib/api";
+import { rememberExternalWallet, type EthereumProvider } from "../lib/externalWallet";
 import type { BudolUser } from "../types";
 import budolLogoImage from "../../public/assets/budol-politics-market.png";
 import baseWalletLogo from "../../public/assets/wallets/base-wallet.webp";
@@ -18,18 +18,6 @@ type LoginModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onLoggedIn: (user: BudolUser) => void;
-};
-
-type EthereumProvider = {
-  isCoinbaseWallet?: boolean;
-  isMetaMask?: boolean;
-  isOkxWallet?: boolean;
-  isPhantom?: boolean;
-  isRabby?: boolean;
-  isSubWallet?: boolean;
-  isTrust?: boolean;
-  providers?: EthereumProvider[];
-  request: (input: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
 type EIP6963Provider = {
@@ -50,7 +38,6 @@ type WalletOption = {
   provider?: EthereumProvider;
 };
 
-const lastLoginProviderKey = "budol-last-login-provider";
 const supportedWallets: WalletOption[] = [
   { id: "trust-wallet", installed: false, name: "Trust Wallet" },
   { id: "okx-wallet", installed: false, name: "OKX Wallet" },
@@ -64,15 +51,12 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
   const [walletOptions, setWalletOptions] = useState<WalletOption[]>(supportedWallets);
   const [pendingProvider, setPendingProvider] = useState("");
   const [selectedWalletId, setSelectedWalletId] = useState("");
-  const [lastUsedProvider, setLastUsedProvider] = useState(storedSocialProvider);
   const isLoading = Boolean(pendingProvider);
 
   useEffect(() => {
     if (!isOpen) {
       return;
     }
-    setLastUsedProvider(storedSocialProvider());
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         onClose();
@@ -147,12 +131,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
     return null;
   }
 
-  const loginWithGoogle = async () => {
-    setServerError("");
-    setPendingProvider("google");
-    window.location.href = googleManagedLoginURL();
-  };
-
   const loginWithExternalWallet = async (provider?: EthereumProvider, walletId = "wallet") => {
     setServerError("");
     setPendingProvider(walletId);
@@ -177,6 +155,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
         nonce: challenge.nonce,
         signature,
       });
+      rememberExternalWallet(challenge.address, ethereum);
       onLoggedIn(user);
       onClose();
     } catch (loginError) {
@@ -204,19 +183,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
         <div className="login-picker-layout">
           <aside className="login-picker-sidebar" aria-label="Login options">
             <div className="login-wallet-list">
-              <button
-                className={`login-picker-option social-option ${lastUsedProvider === "google" ? "active" : ""}`}
-                disabled={isLoading}
-                onClick={() => void loginWithGoogle()}
-              >
-                <span className="login-picker-google-icon">
-                  {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={22} /> : <GoogleIcon />}
-                </span>
-                <span>
-                  <strong>Google</strong>
-                  <small>{lastUsedProvider === "google" ? "Last used" : "OAuth login"}</small>
-                </span>
-              </button>
               {walletOptions.map(wallet => (
                 <button
                   className={`login-picker-option wallet-option ${selectedWalletId === wallet.id ? "active" : ""}`}
@@ -250,7 +216,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
             </div>
 
             <div className="login-copy">
-              <h3>Login using:</h3>
+              <h3>Connect wallet:</h3>
             </div>
 
             {selectedWallet ? (
@@ -268,7 +234,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
               </div>
             ) : (
               <div className="login-empty-choice">
-                <p>Choose Google or one of the supported wallets from the list.</p>
+                <p>Choose one of the supported wallets from the list. You will sign a message to log in.</p>
               </div>
             )}
 
@@ -282,11 +248,6 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
       </section>
     </div>
   );
-}
-
-function storedSocialProvider() {
-  const provider = localStorage.getItem(lastLoginProviderKey) ?? "";
-  return provider === "google" ? provider : "";
 }
 
 function WalletLogo({ icon, name }: { icon?: string; name: string }) {

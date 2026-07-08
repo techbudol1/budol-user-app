@@ -52,13 +52,13 @@ export function PrivacyPage({ onBack }: LegalPageProps) {
       updated="Effective July 1, 2026"
     >
       <LegalSection title="1. Information we collect">
-        <p>BudolPH stores account identifiers supplied by Google, such as provider user ID and email when available; your BudolPH-managed or connected wallet address; your chosen public display name; login timestamps; and account status. We also store trades, positions, comments, watchlists, notifications, claims, payout status, and administrative audit records.</p>
+        <p>BudolPH stores your connected wallet address, chosen public display name, login timestamps, and account status. We also store trades, positions, comments, watchlists, notifications, claims, payout status, and administrative audit records.</p>
       </LegalSection>
       <LegalSection title="2. Technical information">
         <p>The service may process IP address, user agent, request timing, error information, and security events to operate and protect the platform. Your browser stores theme, preferences, watchlist state, and private claim notes locally. Claim-note backups are encrypted in your browser using the passphrase you provide.</p>
       </LegalSection>
       <LegalSection title="3. How information is used">
-        <p>We use information to authenticate users, create managed wallets, provide grants, execute and display trades, resolve markets, process claims, prevent abuse, investigate failures, support users, and improve reliability. We do not use private claim secrets to create public activity labels.</p>
+        <p>We use information to authenticate wallet signatures, execute and display trades, resolve markets, process claims, prevent abuse, investigate failures, support users, and improve reliability. We do not use private claim secrets to create public activity labels.</p>
       </LegalSection>
       <LegalSection title="4. Public and blockchain data">
         <p>Your display name, comments, and market activity may be visible to other users. Wallet transfers and smart-contract interactions are recorded on public blockchains. Replacing a wallet address with a display name in the interface does not remove the underlying public blockchain record.</p>

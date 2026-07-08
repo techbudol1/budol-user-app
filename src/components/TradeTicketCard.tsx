@@ -1,7 +1,7 @@
 import { CircleDollarSign, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { loadTradeConfig, loadTradeQuote, placeTrade } from "../lib/api";
-import { isArbitrumSepolia, isHorizen } from "../lib/chains";
+import { isHorizen } from "../lib/chains";
 import { isMarketTradeable, marketStateLabel } from "../lib/marketState";
 import type { Market, TradeConfig, TradeQuote, TradeSide, UserPortfolio } from "../types";
 
@@ -51,8 +51,6 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const yesPrice = quotes.yes?.averagePriceCents ?? market.yes;
   const noPrice = quotes.no?.averagePriceCents ?? market.no;
   const ticketMessage = message || quoteError || (!tradeable ? `Trading is ${marketState.toLowerCase()}. Review positions in Portfolio.` : "");
-  const arbitrumGasFreeEnabled = Boolean(tradeConfig?.engineGasFreeEnabled && isArbitrumSepolia(tradeConfig.chainId));
-  const gasPayerReady = !arbitrumGasFreeEnabled || parseRawBalance(tradeConfig?.gasPayerBalanceRaw) > 0n;
   const selectedPrice = selectedSide === "yes" ? yesPrice : noPrice;
   const selectedReturn = selectedSide === "yes" ? yesReturn : noReturn;
   const selectedShares = selectedSide === "yes" ? yesShares : noShares;
@@ -133,10 +131,6 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
       setMessage(`Trading is not available while this market is ${marketState.toLowerCase()}.`);
       return;
     }
-    if (arbitrumGasFreeEnabled && !gasPayerReady) {
-      setMessage("Gas-free trading is enabled, but the sponsor wallet needs Arbitrum Sepolia ETH for gas.");
-      return;
-    }
     if (!onEscrowTransfer || !accountAddress) {
       setMessage("Wallet transfer is not ready. Reconnect your wallet and try again.");
       return;
@@ -166,7 +160,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     setPendingSide(confirmOrder.side);
     try {
       setConfirmOrder(null);
-      setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen testnet escrow transfer in your wallet." : "Authorizing the gas-free escrow for this trade amount.");
+      setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen testnet escrow transfer in your wallet." : "Confirm the escrow transfer in your wallet.");
       const escrowTxHash = await onEscrowTransfer?.(confirmOrder.transferAmount, market.id, confirmOrder.side);
       if (!escrowTxHash) {
         throw new Error("Wallet transfer is not ready. Reconnect your wallet and try again.");
@@ -294,11 +288,6 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               <ShieldCheck size={13} />
               Fully backed
             </span>
-          ) : isLoggedIn && arbitrumGasFreeEnabled ? (
-            <span className={gasPayerReady ? "positive" : "negative"}>
-              <ShieldCheck size={13} />
-              {gasPayerReady ? "Gas-free" : "Sponsor unavailable"}
-            </span>
           ) : null}
         </div>
         {ticketMessage ? <p className="simple-trade-message" aria-live="polite">{ticketMessage}</p> : null}
@@ -362,14 +351,6 @@ function formatToken(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
   });
-}
-
-function parseRawBalance(value?: string) {
-  try {
-    return BigInt(value || "0");
-  } catch {
-    return 0n;
-  }
 }
 
 function normalizeTradeAmount(value: string): { ok: true; tradeAmount: number; transferAmount: string } | { ok: false; error: string } {
