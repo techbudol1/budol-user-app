@@ -57,3 +57,4 @@ Use either:
 - a Cloudflare preview deployment for `horizen-testnet-adaptation`, or
 - a separate Worker/Pages project/domain like `horizen-testnet.budolph.xyz`.
 
+Last Cloudflare rebuild trigger: 2026-07-09.
