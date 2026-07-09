@@ -635,7 +635,7 @@ export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigRe
   });
   if (!response.ok) {
     return {
-      chainId: 421614,
+      chainId: 2651420,
       denomination: "",
       enabled: false,
       poolAddress: "",
@@ -645,7 +645,7 @@ export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigRe
   }
   const payload = (await response.json()) as ShieldedPayoutConfigResponse;
   return {
-    chainId: Number(payload.chainId || 421614),
+    chainId: Number(payload.chainId || 2651420),
     denomination: String(payload.denomination || ""),
     enabled: Boolean(payload.enabled),
     poolAddress: String(payload.poolAddress || ""),

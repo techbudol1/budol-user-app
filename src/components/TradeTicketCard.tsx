@@ -170,7 +170,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
       onMarketChange?.(result.market);
       onPortfolioChange?.(result.portfolio);
       onTradePlaced?.();
-      setMessage(`Bought ${result.trade.outcomeLabel} for ${formatToken(result.trade.amount)} BUDOL.`);
+      setMessage(`Bought ${result.trade.outcomeLabel} for ${formatToken(result.trade.amount)} tZEN.`);
     } catch (error) {
       setMessage(normalizeTradeError(error));
     } finally {
@@ -229,7 +229,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               value={amount}
               onChange={event => setAmount(event.target.value)}
             />
-            <strong>BUDOL</strong>
+            <strong>tZEN</strong>
           </div>
         </label>
         <div className="simple-amount-presets" aria-label="Quick amount selection">
@@ -243,11 +243,11 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
         <div className="simple-ticket-summary">
           <div>
             <span>Cost</span>
-            <strong>{formatToken(numericAmount || 0)} BUDOL</strong>
+            <strong>{formatToken(numericAmount || 0)} tZEN</strong>
           </div>
           <div>
             <span>Potential payout</span>
-            <strong className="positive">{formatToken(selectedReturn)} BUDOL</strong>
+            <strong className="positive">{formatToken(selectedReturn)} tZEN</strong>
           </div>
         </div>
 
@@ -307,7 +307,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
             <div className="order-confirm-grid">
               <div>
                 <span>You spend</span>
-                <strong>{formatToken(confirmOrder.amount)} BUDOL</strong>
+                <strong>{formatToken(confirmOrder.amount)} tZEN</strong>
               </div>
               <div>
                 <span>Outcome price</span>
@@ -319,10 +319,10 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               </div>
               <div>
                 <span>If correct</span>
-                <strong>{formatToken(confirmOrder.expectedPayout)} BUDOL</strong>
+                <strong>{formatToken(confirmOrder.expectedPayout)} tZEN</strong>
               </div>
             </div>
-            <p className="order-confirm-note">BudolPH will escrow only this BUDOL amount when you confirm.</p>
+            <p className="order-confirm-note">BudolPH will escrow only this tZEN amount when you confirm.</p>
             <div className="order-confirm-actions">
               <button className="ghost-button" onClick={() => setConfirmOrder(null)}>Cancel</button>
               <button className="primary-button" onClick={() => void confirmTrade()}>Confirm trade</button>
@@ -356,7 +356,7 @@ function formatToken(value: number) {
 function normalizeTradeAmount(value: string): { ok: true; tradeAmount: number; transferAmount: string } | { ok: false; error: string } {
   const trimmed = value.trim();
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
-    return { ok: false, error: "Enter a BUDOL amount with up to 2 decimals." };
+    return { ok: false, error: "Enter a tZEN amount with up to 2 decimals." };
   }
   const tradeAmount = Number(trimmed);
   if (!Number.isFinite(tradeAmount) || tradeAmount <= 0) {
@@ -383,7 +383,7 @@ function normalizeTradeError(error: unknown) {
     return "Wallet confirmation was cancelled.";
   }
   if (message.toLowerCase().includes("insufficient")) {
-    return "Not enough BUDOL or gas for this order.";
+    return "Not enough tZEN or gas for this order.";
   }
   return message;
 }

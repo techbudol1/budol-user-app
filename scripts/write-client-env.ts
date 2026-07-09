@@ -39,7 +39,6 @@ const env = (key: string, fallback = "") => frontendEnv[key] ?? Bun.env[key] ?? 
 
 const clientEnv = {
   VITE_API_BASE_URL: env("VITE_API_BASE_URL"),
-  VITE_ARBITRUM_SEPOLIA_RPC_URL: env("VITE_ARBITRUM_SEPOLIA_RPC_URL", env("ARBITRUM_SEPOLIA_RPC_URL")),
   VITE_GMR_ENGINE_BASE_URL: env("VITE_GMR_ENGINE_BASE_URL"),
 };
 

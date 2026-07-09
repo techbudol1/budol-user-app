@@ -412,11 +412,11 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
             </div>
             {isStatsLoading ? <div className="empty-state">Loading depth...</div> : null}
             <div className="detail-rule-grid">
-              <DetailFact label="Open interest" value={`${formatToken(stats?.openInterest ?? 0)} BUDOL`} />
+              <DetailFact label="Open interest" value={`${formatToken(stats?.openInterest ?? 0)} tZEN`} />
               <DetailFact label="Holders" value={`${stats?.holderCount ?? 0} total / ${stats?.yesHolderCount ?? 0} ${activeMarket.outcomeA} / ${stats?.noHolderCount ?? 0} ${activeMarket.outcomeB}`} />
               <DetailFact label={`${activeMarket.outcomeA} shares`} value={formatToken(stats?.yesShares ?? activeMarket.yesShares)} />
               <DetailFact label={`${activeMarket.outcomeB} shares`} value={formatToken(stats?.noShares ?? activeMarket.noShares)} />
-              <DetailFact label="AMM liquidity" value={`${formatToken(stats?.liquidity ?? activeMarket.liquidity)} BUDOL`} />
+              <DetailFact label="AMM liquidity" value={`${formatToken(stats?.liquidity ?? activeMarket.liquidity)} tZEN`} />
               <DetailFact label="Trades" value={`${stats?.tradeCount ?? 0} open trades`} />
             </div>
           </section>
@@ -639,12 +639,12 @@ function activityTitle(item: MarketActivity) {
 
 function activityCopy(item: MarketActivity) {
   if (item.kind === "cashout") {
-    return `${formatToken(item.payout)} BUDOL paid back / impact ${formatImpact(item.priceImpactCents)}`;
+    return `${formatToken(item.payout)} tZEN paid back / impact ${formatImpact(item.priceImpactCents)}`;
   }
   if (item.kind === "settlement") {
-    return `${item.status} / payout ${formatToken(item.payout)} BUDOL`;
+    return `${item.status} / payout ${formatToken(item.payout)} tZEN`;
   }
-  return `${formatToken(item.amount)} BUDOL at ${item.priceCents}c / impact ${formatImpact(item.priceImpactCents)}`;
+  return `${formatToken(item.amount)} tZEN at ${item.priceCents}c / impact ${formatImpact(item.priceImpactCents)}`;
 }
 
 function formatImpact(value: number) {

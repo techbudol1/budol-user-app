@@ -118,14 +118,14 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     setError("");
     try {
       const quote = await loadCashoutQuote(pollId, side, amount);
-      const confirmed = window.confirm(`${amount > 0 ? "Reduce" : "Cash out"} ${quote.outcomeLabel} for about ${formatToken(quote.proceeds)} BUDOL?`);
+      const confirmed = window.confirm(`${amount > 0 ? "Reduce" : "Cash out"} ${quote.outcomeLabel} for about ${formatToken(quote.proceeds)} tZEN?`);
       if (!confirmed) {
         return;
       }
       const result = await cashoutPosition(pollId, side, amount);
       setPortfolio(result.portfolio);
       onMarketChange(result.market);
-      const message = `Cashed out ${result.cashout.outcomeLabel} for ${formatToken(result.cashout.proceeds)} BUDOL.`;
+      const message = `Cashed out ${result.cashout.outcomeLabel} for ${formatToken(result.cashout.proceeds)} tZEN.`;
       setError(`${message} Payout status: ${result.payoutStatus}.`);
       onToast("Cashout submitted.", `${message} Payout status: ${result.payoutStatus}.`);
     } catch (err) {
@@ -162,7 +162,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           result.shieldedPayout
             ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
             : result.payoutMode === "direct_fallback"
-              ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL was paid directly because no private pool supports that exact amount.`
+              ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} tZEN was paid directly because no private pool supports that exact amount.`
             : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
         );
         return;
@@ -206,7 +206,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
         result.shieldedPayout
           ? `${trade.pollTitle}: shielded payout note credited. Keep this browser available for withdrawal.`
           : result.payoutMode === "direct_fallback"
-            ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL was paid directly because no private pool supports that exact amount.`
+            ? `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} tZEN was paid directly because no private pool supports that exact amount.`
           : `${trade.pollTitle}: payout status is ${result.payoutStatus}.`,
       );
     } catch (err) {
@@ -343,12 +343,12 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
 
       <div className="portfolio-summary-grid">
         <SummaryCard icon={<BriefcaseBusiness size={20} />} label="Open positions" value={summary.openPositions.toString()} />
-        <SummaryCard icon={<TrendingUp size={20} />} label="Total exposure" value={`${formatToken(summary.totalExposure)} BUDOL`} />
-        <SummaryCard icon={<ExternalLink size={20} />} label="Current value" value={`${formatToken(summary.currentValue)} BUDOL`} />
-        <SummaryCard icon={<Clock3 size={20} />} label="Potential payout" value={`${formatToken(summary.potentialPayout)} BUDOL`} />
-        <SummaryCard icon={<Trophy size={20} />} label="Realized P/L" value={`${summary.realizedPnl >= 0 ? "+" : ""}${formatToken(summary.realizedPnl)} BUDOL`} />
-        <SummaryCard icon={<TrendingUp size={20} />} label="Unrealized P/L" value={`${summary.unrealizedPnl >= 0 ? "+" : ""}${formatToken(summary.unrealizedPnl)} BUDOL`} />
-        <SummaryCard icon={<Trophy size={20} />} label="Net P/L" value={`${summary.netPnl >= 0 ? "+" : ""}${formatToken(summary.netPnl)} BUDOL`} />
+        <SummaryCard icon={<TrendingUp size={20} />} label="Total exposure" value={`${formatToken(summary.totalExposure)} tZEN`} />
+        <SummaryCard icon={<ExternalLink size={20} />} label="Current value" value={`${formatToken(summary.currentValue)} tZEN`} />
+        <SummaryCard icon={<Clock3 size={20} />} label="Potential payout" value={`${formatToken(summary.potentialPayout)} tZEN`} />
+        <SummaryCard icon={<Trophy size={20} />} label="Realized P/L" value={`${summary.realizedPnl >= 0 ? "+" : ""}${formatToken(summary.realizedPnl)} tZEN`} />
+        <SummaryCard icon={<TrendingUp size={20} />} label="Unrealized P/L" value={`${summary.unrealizedPnl >= 0 ? "+" : ""}${formatToken(summary.unrealizedPnl)} tZEN`} />
+        <SummaryCard icon={<Trophy size={20} />} label="Net P/L" value={`${summary.netPnl >= 0 ? "+" : ""}${formatToken(summary.netPnl)} tZEN`} />
       </div>
 
       {error ? <div className="login-error">{error}</div> : null}
@@ -372,7 +372,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                 type="button"
               >
                 {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
-                {trade.payoutStatus === "claim_failed" ? "Retry" : "Claim"} {formatToken(trade.settlementPayout)} BUDOL
+                {trade.payoutStatus === "claim_failed" ? "Retry" : "Claim"} {formatToken(trade.settlementPayout)} tZEN
               </button>
             ))}
           </div>
@@ -411,7 +411,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
               <div className="shielded-note-row" key={`${note.tradeId}-${note.commitment}`}>
                 <span>
                   <strong>{shortHash(note.commitment)}</strong>
-                  <small>{formatRawToken(note.denomination)} BUDOL pool note / trade {shortHash(note.tradeId)}</small>
+                  <small>{formatRawToken(note.denomination)} tZEN pool note / trade {shortHash(note.tradeId)}</small>
                 </span>
                 <button className="ghost-button" disabled={pendingShieldedWithdrawal === note.tradeId} onClick={() => void withdrawShieldedNote(note)} type="button">
                   {pendingShieldedWithdrawal === note.tradeId ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
@@ -450,7 +450,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                   </small>
                   {withdrawal.error ? <small className="comment-error">{withdrawal.error}</small> : null}
                   {withdrawal.transactionHash ? (
-                    <a href={arbitrumSepoliaTxURL(withdrawal.transactionHash)} target="_blank" rel="noreferrer">
+                    <a href={horizenTestnetTxURL(withdrawal.transactionHash)} target="_blank" rel="noreferrer">
                       {shortHash(withdrawal.transactionHash)}
                     </a>
                   ) : null}
@@ -488,12 +488,12 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                 </div>
                 <div className="position-metric">
                   <small>Invested</small>
-                  <strong>{formatToken(position.amount)} BUDOL</strong>
+                  <strong>{formatToken(position.amount)} tZEN</strong>
                   <span>Avg {Math.round(position.averagePrice)}¢ · now {position.currentPrice}¢</span>
                 </div>
                 <div className="position-metric">
                   <small>Current value</small>
-                  <strong>{formatToken(position.currentValue)} BUDOL</strong>
+                  <strong>{formatToken(position.currentValue)} tZEN</strong>
                   <span className={position.unrealizedPnl >= 0 ? "positive" : "negative"}>
                     {position.unrealizedPnl >= 0 ? "+" : ""}{formatToken(position.unrealizedPnl)} P/L · {formatToken(position.potentialPayout)} max
                   </span>
@@ -558,7 +558,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
                 </div>
                 <div className="trade-history-value">
                   <small>{trade.status === "open" ? "Invested" : "Payout"}</small>
-                  <strong>{formatToken(trade.settlementPayout || trade.amount)} BUDOL</strong>
+                  <strong>{formatToken(trade.settlementPayout || trade.amount)} tZEN</strong>
                   <span>
                     {trade.status === "open"
                       ? `${trade.priceCents}¢ · ${formatDate(trade.createdAt)}`
@@ -663,10 +663,10 @@ function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }
           <TradeNextAction trade={trade} />
         </div>
         <div className="trade-detail-grid">
-          <DetailMetric label="Stake" value={`${formatToken(trade.amount)} BUDOL`} />
+          <DetailMetric label="Stake" value={`${formatToken(trade.amount)} tZEN`} />
           <DetailMetric label="Shares" value={formatToken(trade.shares)} />
-          <DetailMetric label="Possible payout" value={`${formatToken(trade.potentialPayout)} BUDOL`} />
-          <DetailMetric label="Settlement payout" value={`${formatToken(trade.settlementPayout)} BUDOL`} />
+          <DetailMetric label="Possible payout" value={`${formatToken(trade.potentialPayout)} tZEN`} />
+          <DetailMetric label="Settlement payout" value={`${formatToken(trade.settlementPayout)} tZEN`} />
         </div>
         <div className="trade-detail-section">
           <span>On-chain references</span>
@@ -717,7 +717,7 @@ function TradeNextAction({ trade }: { trade: Trade }) {
 
 function tradeNextAction(trade: Trade) {
   if (trade.payoutStatus === "claimable") {
-    return { label: `Action needed: submit ZK claim for ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "warning" };
+    return { label: `Action needed: submit ZK claim for ${formatToken(trade.settlementPayout)} tZEN.`, tone: "warning" };
   }
   if (["queued", "processing", "submitted", "retry", "claim_pending"].includes(trade.payoutStatus)) {
     return { label: `Payout in progress: ${trade.payoutStatus}.`, tone: "pending" };
@@ -729,13 +729,13 @@ function tradeNextAction(trade: Trade) {
     return { label: "Payout needs attention. Open details or retry from admin tools.", tone: "danger" };
   }
   if (trade.status === "open") {
-    return { label: `Open position: possible payout ${formatToken(trade.potentialPayout)} BUDOL.`, tone: "pending" };
+    return { label: `Open position: possible payout ${formatToken(trade.potentialPayout)} tZEN.`, tone: "pending" };
   }
   if (trade.status === "lost") {
     return { label: "Resolved: this side did not win.", tone: "muted" };
   }
   if (trade.status === "cancelled") {
-    return { label: `Cancelled: refund ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "success" };
+    return { label: `Cancelled: refund ${formatToken(trade.settlementPayout)} tZEN.`, tone: "success" };
   }
   return { label: `Resolved: ${trade.status}.`, tone: "muted" };
 }
@@ -818,7 +818,7 @@ function PrivateClaimProofModal({
         </header>
         <div className="proof-market-title">
           <strong>{trade.pollTitle}</strong>
-          <small>{trade.outcomeLabel} / claimable payout {formatToken(trade.settlementPayout)} BUDOL</small>
+          <small>{trade.outcomeLabel} / claimable payout {formatToken(trade.settlementPayout)} tZEN</small>
         </div>
         <div className="proof-helper-row">
           <button className="ghost-button" onClick={() => void copyInput()} type="button">
@@ -874,6 +874,6 @@ function upsertWithdrawal(withdrawals: ShieldedWithdrawal[], withdrawal: Shielde
   return next.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
-function arbitrumSepoliaTxURL(hash: string) {
-  return `https://sepolia.arbiscan.io/tx/${hash}`;
+function horizenTestnetTxURL(hash: string) {
+  return `https://horizen-testnet.explorer.caldera.xyz/tx/${hash}`;
 }

@@ -303,10 +303,6 @@ export type TradeConfig = {
   chainId: number;
   collateral: CollateralStatus;
   collateralGuaranteeEnabled: boolean;
-  engineGasFreeEnabled: boolean;
-  gasPayerBalance?: string;
-  gasPayerBalanceRaw?: string;
-  gaslessSpenderAddress: string;
   networkName: string;
   tokenAddress: string;
   tokenDecimals: number;

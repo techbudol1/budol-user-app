@@ -38,7 +38,7 @@ export function SiteFooter({ onAccountClick, onMarketsClick, onPortfolioClick, o
         </div>
       </nav>
       <div className="site-footer-meta">
-        <span><ShieldCheck size={15} /> Arbitrum Sepolia testnet</span>
+        <span><ShieldCheck size={15} /> Horizen Testnet</span>
         <small>Market prices are crowd estimates, not financial advice.</small>
         <small>© {new Date().getFullYear()} BudolPH</small>
       </div>

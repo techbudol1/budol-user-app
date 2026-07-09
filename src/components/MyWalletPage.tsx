@@ -22,8 +22,8 @@ type MyWalletPageProps = {
   user: BudolUser | null;
 };
 
-const arbitrumSepoliaChainId = 421614;
-const fallbackBudolTokenAddress = "0x12fF5d28F93c1CABDA4Bd0ddf8906FF7E4Df1c4e";
+const horizenTestnetChainId = 2651420;
+const horizenExplorerBaseURL = "https://horizen-testnet.explorer.caldera.xyz";
 
 export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyWalletPageProps) {
   const [balance, setBalance] = useState<WalletBalance | null>(null);
@@ -34,13 +34,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
-  const tokenAddress = balance?.tokenAddress || fallbackBudolTokenAddress;
-  const explorerURL = displayAddress ? `https://sepolia.arbiscan.io/token/${tokenAddress}?a=${displayAddress}#transactions` : "";
+  const explorerURL = displayAddress ? `${horizenExplorerBaseURL}/address/${displayAddress}` : "";
   const receiveQRCode = useMemo(() => {
     if (!displayAddress) {
       return "";
     }
-    const svg = renderSVG(`ethereum:${displayAddress}@${arbitrumSepoliaChainId}`, {
+    const svg = renderSVG(`ethereum:${displayAddress}@${horizenTestnetChainId}`, {
       border: 2,
       ecc: "M",
       pixelSize: 7,
@@ -117,11 +116,11 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <section className="panel wallet-balance-card">
           <div className="panel-title">
             <Wallet size={19} />
-            <h2>BUDOL balance</h2>
+            <h2>tZEN balance</h2>
           </div>
-          <strong>{balance ? `${formatTokenAmount(balance.formatted)} BUDOL` : isLoadingWallet ? "Loading..." : "0 BUDOL"}</strong>
+          <strong>{balance ? `${formatTokenAmount(balance.formatted)} tZEN` : isLoadingWallet ? "Loading..." : "0 tZEN"}</strong>
           <div className="wallet-address-box">
-            <span>Arbitrum Sepolia</span>
+            <span>Horizen Testnet</span>
             <strong>{displayAddress}</strong>
           </div>
           <div className="account-action-row">
@@ -153,12 +152,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
           {walletError ? <p className="wallet-note">{walletError}</p> : null}
           <div className="wallet-history-list">
             {history.length > 0 ? history.map(transfer => (
-              <a className="wallet-history-item" href={`https://sepolia.arbiscan.io/tx/${transfer.transactionHash}`} target="_blank" rel="noreferrer" key={`${transfer.transactionHash}-${transfer.logIndex}`}>
+              <a className="wallet-history-item" href={`${horizenExplorerBaseURL}/tx/${transfer.transactionHash}`} target="_blank" rel="noreferrer" key={`${transfer.transactionHash}-${transfer.logIndex}`}>
                 <span className={`wallet-history-icon ${transfer.direction === "received" ? "received" : "sent"}`}>
                   {transfer.direction === "received" ? <ArrowDownLeft size={17} /> : <ExternalLink size={17} />}
                 </span>
                 <span>
-                  <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} BUDOL</strong>
+                  <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} tZEN</strong>
                   <small>{transfer.direction === "received" ? "From" : "To"} {shortAddress(transfer.counterparty)}</small>
                 </span>
                 <small>{formatWalletDate(transfer.timestamp)}</small>
@@ -169,8 +168,8 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <ShieldCheck size={17} />
                 </span>
                 <span>
-                  <strong>No BUDOL transfers yet</strong>
-                  <small>New accounts receive 100 BUDOL after the backend account sync finishes.</small>
+                  <strong>No tZEN transfers yet</strong>
+                  <small>Send Horizen testnet tZEN to this wallet to start trading.</small>
                 </span>
                 <small>{isLoadingWallet ? "Checking" : "Ready"}</small>
               </div>
@@ -196,7 +195,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                 <img src={receiveQRCode} alt="Wallet address QR code" />
               </div>
               <div className="wallet-address-box">
-                <span>Arbitrum Sepolia wallet</span>
+                <span>Horizen Testnet wallet</span>
                 <strong>{displayAddress}</strong>
               </div>
               <button className="primary-button" onClick={() => void copyAddress()}>

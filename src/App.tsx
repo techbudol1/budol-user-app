@@ -255,9 +255,9 @@ export default function App() {
         }
         nextSeen.add(trade.id);
         if (trade.status === "won") {
-          notify("Payout received.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL paid for ${trade.outcomeLabel}.`);
+          notify("Payout received.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} tZEN paid for ${trade.outcomeLabel}.`);
         } else if (trade.status === "cancelled") {
-          notify("Market cancelled and refunded.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL returned.`);
+          notify("Market cancelled and refunded.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} tZEN returned.`);
         } else if (trade.status === "lost") {
           notify("Market resolved.", `${trade.pollTitle}: your ${trade.outcomeLabel} position did not win.`);
         }
