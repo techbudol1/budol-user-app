@@ -2792,6 +2792,37 @@ a {
   overflow-wrap: anywhere;
 }
 
+.wallet-balance-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.wallet-balance-row {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.wallet-balance-row span {
+  color: var(--muted-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wallet-balance-row strong {
+  color: var(--text);
+  font-size: clamp(1.5rem, 3vw, 2.75rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
 .wallet-content-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.76fr) minmax(0, 1.24fr);
@@ -3913,6 +3944,10 @@ a {
   .market-detail-top-grid,
   .market-detail-layout,
   .detail-rule-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .wallet-balance-list {
     grid-template-columns: 1fr;
   }
 

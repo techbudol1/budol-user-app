@@ -123,6 +123,9 @@ export type WalletTransfer = {
   counterparty: string;
   amountRaw: string;
   amount: string;
+  tokenAddress?: string;
+  tokenSymbol?: string;
+  tokenLabel?: string;
   transactionHash: string;
   blockNumber: number;
   logIndex: number;
@@ -133,8 +136,11 @@ export type WalletBalance = {
   raw: string;
   formatted: string;
   decimals: number;
+  kind?: "native" | "erc20";
+  label?: string;
+  symbol?: string;
   walletAddress: string;
-  tokenAddress: string;
+  tokenAddress?: string;
   fetchedAt: string;
 };
 

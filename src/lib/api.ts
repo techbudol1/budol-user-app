@@ -171,6 +171,7 @@ type WalletHistoryResponse = {
 
 type WalletBalanceResponse = {
   balance: WalletBalance;
+  balances?: WalletBalance[];
 };
 
 type NotificationsResponse = {
@@ -880,12 +881,17 @@ export async function loadWalletHistory(): Promise<WalletTransfer[]> {
 }
 
 export async function loadWalletBalance(): Promise<WalletBalance | null> {
+  const balances = await loadWalletBalances();
+  return balances.find(balance => balance.symbol === "BUDOL") ?? balances[0] ?? null;
+}
+
+export async function loadWalletBalances(): Promise<WalletBalance[]> {
   const response = await fetch(`${apiBaseURL()}/api/wallet/balance`, {
     credentials: "include",
   });
 
   if (response.status === 401) {
-    return null;
+    return [];
   }
 
   if (!response.ok) {
@@ -893,7 +899,7 @@ export async function loadWalletBalance(): Promise<WalletBalance | null> {
   }
 
   const payload = (await response.json()) as WalletBalanceResponse;
-  return payload.balance;
+  return payload.balances?.length ? payload.balances : payload.balance ? [payload.balance] : [];
 }
 
 function pollToMarket(poll: PublicPoll): Market {

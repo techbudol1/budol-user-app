@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { renderSVG } from "uqr";
-import { loadWalletBalance, loadWalletHistory } from "../lib/api";
+import { loadWalletBalances, loadWalletHistory } from "../lib/api";
 import { shortAddress } from "../lib/format";
 import type { BudolUser, WalletBalance, WalletTransfer } from "../types";
 
@@ -26,7 +26,7 @@ const horizenTestnetChainId = 2651420;
 const horizenExplorerBaseURL = "https://horizen-testnet.explorer.caldera.xyz";
 
 export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyWalletPageProps) {
-  const [balance, setBalance] = useState<WalletBalance | null>(null);
+  const [balances, setBalances] = useState<WalletBalance[]>([]);
   const [history, setHistory] = useState<WalletTransfer[]>([]);
   const [copied, setCopied] = useState(false);
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
@@ -65,12 +65,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     setIsLoadingWallet(true);
     setWalletError("");
     const [balanceResult, historyResult] = await Promise.allSettled([
-      loadWalletBalance(),
+      loadWalletBalances(),
       loadWalletHistory(),
     ]);
     if (balanceResult.status === "fulfilled") {
-      const nextBalance = balanceResult.value;
-      setBalance(nextBalance);
+      const nextBalances = balanceResult.value;
+      setBalances(nextBalances);
     }
     if (historyResult.status === "fulfilled") {
       setHistory(historyResult.value);
@@ -116,9 +116,21 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <section className="panel wallet-balance-card">
           <div className="panel-title">
             <Wallet size={19} />
-            <h2>tZEN balance</h2>
+            <h2>Wallet balances</h2>
           </div>
-          <strong>{balance ? `${formatTokenAmount(balance.formatted)} tZEN` : isLoadingWallet ? "Loading..." : "0 tZEN"}</strong>
+          <div className="wallet-balance-list">
+            {balances.length > 0 ? balances.map(item => (
+              <div className="wallet-balance-row" key={`${item.symbol || item.label}-${item.tokenAddress || "native"}`}>
+                <span>{item.label || item.symbol || "Token"}</span>
+                <strong>{formatTokenAmount(item.formatted)} {item.symbol || ""}</strong>
+              </div>
+            )) : (
+              <div className="wallet-balance-row">
+                <span>Balances</span>
+                <strong>{isLoadingWallet ? "Loading..." : "0 ETH / 0 tZEN / 0 BUDOL"}</strong>
+              </div>
+            )}
+          </div>
           <div className="wallet-address-box">
             <span>Horizen Testnet</span>
             <strong>{displayAddress}</strong>
@@ -157,7 +169,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   {transfer.direction === "received" ? <ArrowDownLeft size={17} /> : <ExternalLink size={17} />}
                 </span>
                 <span>
-                  <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} tZEN</strong>
+                  <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} {transfer.tokenSymbol || "Token"}</strong>
                   <small>{transfer.direction === "received" ? "From" : "To"} {shortAddress(transfer.counterparty)}</small>
                 </span>
                 <small>{formatWalletDate(transfer.timestamp)}</small>
@@ -168,8 +180,8 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <ShieldCheck size={17} />
                 </span>
                 <span>
-                  <strong>No tZEN transfers yet</strong>
-                  <small>Send Horizen testnet tZEN to this wallet to start trading.</small>
+                  <strong>No token transfers yet</strong>
+                  <small>ETH gas activity is visible in Explorer. BUDOL and tZEN ERC-20 transfers will appear here.</small>
                 </span>
                 <small>{isLoadingWallet ? "Checking" : "Ready"}</small>
               </div>
