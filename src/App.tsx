@@ -63,7 +63,6 @@ export default function App() {
   const logoutRouteHandled = useRef(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
   const [marketList, setMarketList] = useState<Market[]>([]);
-  const [selectedId, setSelectedId] = useState("");
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
   const [budolUser, setBudolUser] = useState<BudolUser | null>(null);
@@ -217,7 +216,6 @@ export default function App() {
 
   const updateMarket = (nextMarket: Market) => {
     setMarketList(current => current.map(market => (market.id === nextMarket.id ? nextMarket : market)));
-    setSelectedId(nextMarket.id);
   };
 
   const sendEscrowTransfer = useCallback(async (amount: string, pollId: string, side: TradeSide) => {
@@ -324,12 +322,10 @@ export default function App() {
           return;
         }
         setMarketList(nextMarkets);
-        setSelectedId(nextMarkets[0]?.id ?? "");
       })
       .catch(() => {
         if (isMounted) {
           setMarketList([]);
-          setSelectedId("");
         }
       });
 
@@ -527,12 +523,10 @@ export default function App() {
               markets={visibleMarkets}
               onFilterChange={setActiveFilter}
               onMarketOpen={slug => navigate("marketDetail", "push", slug)}
-              onMarketSelect={setSelectedId}
               onClosingSoonToggle={() => setShowClosingSoon(value => !value)}
               showClosingSoon={showClosingSoon}
               onWatchlistFilterToggle={() => setShowWatchlistOnly(value => !value)}
               showWatchlistOnly={showWatchlistOnly}
-              selectedId={selectedId}
             />
 
           </section>

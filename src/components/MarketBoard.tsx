@@ -6,11 +6,9 @@ type MarketBoardProps = {
   activeFilter: string;
   filters: string[];
   markets: Market[];
-  selectedId: string;
   onFilterChange: (filter: string) => void;
   onClosingSoonToggle: () => void;
   onMarketOpen: (slug: string) => void;
-  onMarketSelect: (id: string) => void;
   onWatchlistFilterToggle: () => void;
   showClosingSoon: boolean;
   showWatchlistOnly: boolean;
@@ -20,11 +18,9 @@ export function MarketBoard({
   activeFilter,
   filters,
   markets,
-  selectedId,
   onFilterChange,
   onClosingSoonToggle,
   onMarketOpen,
-  onMarketSelect,
   onWatchlistFilterToggle,
   showClosingSoon,
   showWatchlistOnly,
@@ -70,18 +66,14 @@ export function MarketBoard({
             item.kind === "group" ? (
               <MultiChoiceMarketCard
                 choices={item.markets}
-                isSelected={item.markets.some(market => market.id === selectedId)}
                 key={item.id}
                 onOpen={onMarketOpen}
-                onSelect={onMarketSelect}
               />
             ) : (
               <MarketCard
-                isSelected={selectedId === item.market.id}
                 key={item.market.id}
                 market={item.market}
                 onOpen={onMarketOpen}
-                onSelect={onMarketSelect}
               />
             )
           ))
@@ -137,25 +129,20 @@ function groupedMarketItems(markets: Market[]): MarketBoardItem[] {
 
 function MultiChoiceMarketCard({
   choices,
-  isSelected,
   onOpen,
-  onSelect,
 }: {
   choices: Market[];
-  isSelected: boolean;
   onOpen: (slug: string) => void;
-  onSelect: (id: string) => void;
 }) {
   const primary = choices[0];
   const title = primary.marketGroupTitle || primary.title;
   const openPrimaryMarket = () => {
-    onSelect(primary.id);
     onOpen(primary.slug);
   };
   return (
     <article
       aria-label={`Open market: ${title}`}
-      className={`market-card multi-choice-card ${isSelected ? "selected" : ""}`}
+      className="market-card multi-choice-card"
       onClick={openPrimaryMarket}
       onKeyDown={event => {
         if (event.target !== event.currentTarget) {
@@ -182,7 +169,6 @@ function MultiChoiceMarketCard({
             type="button"
             onClick={event => {
               event.stopPropagation();
-              onSelect(choice.id);
               onOpen(choice.slug);
             }}
           >

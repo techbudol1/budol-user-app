@@ -1641,8 +1641,7 @@ a {
     box-shadow 160ms ease;
 }
 
-.market-card:hover,
-.market-card.selected {
+.market-card:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
   box-shadow: var(--shadow-strong);
@@ -5061,20 +5060,12 @@ select:focus-visible {
   opacity: 0.65;
 }
 
-.market-card:hover,
-.market-card.selected {
-  border-color: color-mix(in srgb, var(--yellow) 58%, var(--glass-border));
+.market-card:hover {
+  border-color: var(--border-strong);
   box-shadow:
     0 26px 60px rgba(8, 18, 22, 0.14),
-    0 0 0 1px rgba(255, 212, 71, 0.12),
     inset 0 1px 0 var(--glass-highlight);
   transform: translateY(-7px) scale(1.008);
-}
-
-.market-card.selected {
-  background:
-    linear-gradient(145deg, rgba(255, 212, 71, 0.11), transparent 46%),
-    var(--glass);
 }
 
 .tag,
@@ -5994,8 +5985,7 @@ select:focus-visible {
     border-radius: 16px;
   }
 
-  .market-card:hover,
-  .market-card.selected {
+  .market-card:hover {
     transform: translateY(-4px);
   }
 
@@ -6061,7 +6051,7 @@ select:focus-visible {
 /* Compact market detail experience */
 
 .market-card[role="link"]:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--yellow) 72%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--green) 62%, transparent);
   outline-offset: 3px;
 }
 

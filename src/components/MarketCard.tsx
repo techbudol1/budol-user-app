@@ -3,13 +3,11 @@ import { closesSoon, isMarketTradeable, marketStateLabel } from "../lib/marketSt
 import type { Market } from "../types";
 
 type MarketCardProps = {
-  isSelected: boolean;
   market: Market;
   onOpen: (slug: string) => void;
-  onSelect: (id: string) => void;
 };
 
-export function MarketCard({ isSelected, market, onOpen, onSelect }: MarketCardProps) {
+export function MarketCard({ market, onOpen }: MarketCardProps) {
   const state = marketStateLabel(market);
   const tradeable = isMarketTradeable(market);
   const closingSoon = closesSoon(market);
@@ -20,14 +18,13 @@ export function MarketCard({ isSelected, market, onOpen, onSelect }: MarketCardP
   });
   const areaPoints = `0,40 ${chartPoints.join(" ")} 100,40`;
   const openMarket = () => {
-    onSelect(market.id);
     onOpen(market.slug);
   };
 
   return (
     <article
       aria-label={`Open market: ${market.title}`}
-      className={`market-card ${isSelected ? "selected" : ""}`}
+      className="market-card"
       onClick={openMarket}
       onKeyDown={event => {
         if (event.key === "Enter" || event.key === " ") {
