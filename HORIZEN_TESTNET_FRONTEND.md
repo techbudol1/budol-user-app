@@ -65,7 +65,9 @@ When enabled, the frontend derives the user's ERC-4337 SimpleAccount address fro
 - connected owner wallet address
 - account index `0`
 
-Until a bundler is running and trade flow is converted to UserOperations, normal external-wallet trading remains the active transaction path.
+When `enabled: true`, the trade escrow transfer is submitted as an ERC-4337 UserOperation through the configured bundler. The frontend waits for the UserOperation receipt, extracts the underlying transaction hash, and sends that hash to the API for the existing escrow verification flow.
+
+When disabled, normal external-wallet trading remains the active transaction path.
 
 ## Cloudflare Deployment Recommendation
 

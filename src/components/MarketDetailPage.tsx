@@ -5,7 +5,7 @@ import { deleteMarketAlert, loadMarketActivity, loadMarketAlert, loadMarketComme
 import { formatDate } from "../lib/format";
 import { closesSoon, marketStateLabel } from "../lib/marketState";
 import type { Market, MarketActivity, MarketAlert, MarketComment, MarketStats, TradeSide, UserPortfolio } from "../types";
-import { TradeTicketCard } from "./TradeTicketCard";
+import { TradeTicketCard, type EscrowTransferResult } from "./TradeTicketCard";
 
 type MarketDetailPageProps = {
   accountAddress?: string;
@@ -13,7 +13,7 @@ type MarketDetailPageProps = {
   market: Market | null;
   markets: Market[];
   onBack: () => void;
-  onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<string>;
+  onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<EscrowTransferResult>;
   onLoginClick: () => void;
   onMarketChange: (market: Market) => void;
   onMarketOpen: (slug: string) => void;

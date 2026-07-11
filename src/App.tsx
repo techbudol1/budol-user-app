@@ -11,7 +11,7 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
 import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
@@ -223,7 +223,10 @@ export default function App() {
       throw new Error("Wallet is not ready. Reconnect and try again.");
     }
     await loadTradeQuote(pollId, side, Number(amount));
-    const tradeConfig = await loadTradeConfig();
+    const [tradeConfig, smartWalletConfig] = await Promise.all([
+      loadTradeConfig(),
+      loadSmartWalletConfig().catch(() => null),
+    ]);
     const browserWallet = browserWalletForAddress(accountAddress);
     if (!browserWallet) {
       throw new Error("Self-custody trading requires an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
@@ -234,6 +237,7 @@ export default function App() {
       from: accountAddress,
       pollId,
       side,
+      smartWalletConfig,
       wallet: browserWallet,
     });
   }, [accountAddress]);

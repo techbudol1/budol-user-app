@@ -1,5 +1,7 @@
-import { type Address, type Hex } from "viem";
-import type { TradeConfig, TradeSide } from "../types";
+import { createPublicClient, defineChain, getAddress, http, type Address, type Hex } from "viem";
+import { createSmartAccountClient } from "permissionless";
+import { toSimpleSmartAccount } from "permissionless/accounts";
+import type { SmartWalletConfig, TradeConfig, TradeSide } from "../types";
 import { chainAddEthereumParams, chainMetadata, numberToHex } from "./chains";
 
 export type EthereumProvider = {
@@ -21,6 +23,11 @@ export type ConnectedWallet = {
   switchChain: (chainId: number) => Promise<void>;
 };
 
+export type EscrowTransferResult = {
+  fromAddress?: string;
+  txHash: string;
+};
+
 type TransactionReceipt = {
   status?: string;
 };
@@ -33,10 +40,19 @@ export async function sendBudolEscrowTransfer(input: {
   from: string;
   pollId: string;
   side: TradeSide;
+  smartWalletConfig?: SmartWalletConfig | null;
   wallet: ConnectedWallet;
-}): Promise<string> {
+}): Promise<EscrowTransferResult> {
+  const normalized = normalizeTransferInput(input);
+  if (input.smartWalletConfig?.enabled && input.smartWalletConfig.chainId === input.config.chainId) {
+    return sendSmartWalletBudolTransfer({
+      ...normalized,
+      smartWalletConfig: input.smartWalletConfig,
+      wallet: input.wallet,
+    });
+  }
   return sendDirectBudolTransfer({
-    ...normalizeTransferInput(input),
+    ...normalized,
     wallet: input.wallet,
   });
 }
@@ -64,7 +80,75 @@ async function sendDirectBudolTransfer(input: NormalizedTransferInput & {
   }
 
   await waitForTransactionReceipt(provider, txHash);
-  return txHash;
+  return {
+    fromAddress: input.from,
+    txHash,
+  };
+}
+
+async function sendSmartWalletBudolTransfer(input: NormalizedTransferInput & {
+  smartWalletConfig: SmartWalletConfig;
+  wallet: ConnectedWallet;
+}): Promise<EscrowTransferResult> {
+  const provider = await input.wallet.getEthereumProvider();
+  const chain = defineChain({
+    id: input.chainId,
+    name: input.smartWalletConfig.networkName || "Horizen Testnet",
+    nativeCurrency: {
+      decimals: 18,
+      name: "Ether",
+      symbol: "ETH",
+    },
+    rpcUrls: {
+      default: {
+        http: [input.smartWalletConfig.rpcUrl],
+      },
+    },
+  });
+  await ensureWalletChain(input.wallet, input.chainId);
+
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(input.smartWalletConfig.rpcUrl),
+  });
+  const account = await toSimpleSmartAccount({
+    client: publicClient,
+    entryPoint: {
+      address: normalizeAddress(input.smartWalletConfig.entryPointAddress, "EntryPoint address"),
+      version: "0.8",
+    },
+    factoryAddress: normalizeAddress(input.smartWalletConfig.factoryAddress, "smart account factory address"),
+    index: 0n,
+    owner: provider,
+  });
+  const smartAccountAddress = getAddress(await account.getAddress()) as Address;
+  const smartAccountClient = createSmartAccountClient({
+    account,
+    bundlerTransport: http(input.smartWalletConfig.bundlerUrl),
+    chain,
+    client: publicClient,
+  });
+  const userOpHash = await smartAccountClient.sendTransaction({
+    data: encodeERC20Transfer(input.escrowWalletAddress, input.amountRaw),
+    to: input.tokenAddress,
+    value: 0n,
+  });
+  const receipt = await smartAccountClient.waitForUserOperationReceipt({
+    hash: userOpHash,
+    pollingInterval: 1500,
+    timeout: 90_000,
+  });
+  if (!receipt.success) {
+    throw new Error(receipt.reason || "Smart wallet escrow transfer reverted.");
+  }
+  const txHash = receipt.receipt.transactionHash;
+  if (typeof txHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    throw new Error("Bundler did not return a valid transaction hash.");
+  }
+  return {
+    fromAddress: smartAccountAddress,
+    txHash,
+  };
 }
 
 type NormalizedTransferInput = {

@@ -568,10 +568,10 @@ export async function loadPortfolio(): Promise<UserPortfolio | null> {
   return payload.portfolio;
 }
 
-export async function placeTrade(pollId: string, side: TradeSide, amount: number, escrowTxHash: string): Promise<TradeResult> {
+export async function placeTrade(pollId: string, side: TradeSide, amount: number, escrowTxHash: string, escrowFromAddress?: string): Promise<TradeResult> {
   const privateClaimNote = await createPrivateClaimNote({ amount, pollId, side });
   const response = await fetch(`${apiBaseURL()}/api/trades`, {
-    body: JSON.stringify({ amount, escrowTxHash, pollId, privateClaimLeaf: privateClaimNote.leaf, side }),
+    body: JSON.stringify({ amount, escrowFromAddress, escrowTxHash, pollId, privateClaimLeaf: privateClaimNote.leaf, side }),
     credentials: "include",
     headers: {
       "Content-Type": "application/json",

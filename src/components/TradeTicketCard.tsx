@@ -5,12 +5,17 @@ import { isHorizen } from "../lib/chains";
 import { isMarketTradeable, marketStateLabel } from "../lib/marketState";
 import type { Market, TradeConfig, TradeQuote, TradeSide, UserPortfolio } from "../types";
 
+export type EscrowTransferResult = {
+  fromAddress?: string;
+  txHash: string;
+};
+
 type TradeTicketCardProps = {
   accountAddress?: string;
   market: Market;
   isLoggedIn: boolean;
   onLoginClick: () => void;
-  onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<string>;
+  onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<EscrowTransferResult>;
   onMarketChange?: (market: Market) => void;
   onPortfolioChange?: (portfolio: UserPortfolio) => void;
   onTradePlaced?: () => void;
@@ -160,13 +165,13 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     setPendingSide(confirmOrder.side);
     try {
       setConfirmOrder(null);
-      setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen testnet escrow transfer in your wallet." : "Confirm the escrow transfer in your wallet.");
-      const escrowTxHash = await onEscrowTransfer?.(confirmOrder.transferAmount, market.id, confirmOrder.side);
-      if (!escrowTxHash) {
+      setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen escrow wallet operation." : "Confirm the escrow transfer in your wallet.");
+      const escrow = await onEscrowTransfer?.(confirmOrder.transferAmount, market.id, confirmOrder.side);
+      if (!escrow?.txHash) {
         throw new Error("Wallet transfer is not ready. Reconnect your wallet and try again.");
       }
       setMessage("Escrow submitted. Verifying the transfer and placing your trade.");
-      const result = await placeTrade(market.id, confirmOrder.side, confirmOrder.amount, escrowTxHash);
+      const result = await placeTrade(market.id, confirmOrder.side, confirmOrder.amount, escrow.txHash, escrow.fromAddress);
       onMarketChange?.(result.market);
       onPortfolioChange?.(result.portfolio);
       onTradePlaced?.();
