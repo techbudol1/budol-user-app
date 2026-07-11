@@ -316,6 +316,19 @@ export type TradeConfig = {
   escrowWalletAddress: string;
 };
 
+export type SmartWalletConfig = {
+  enabled: boolean;
+  chainId: number;
+  networkName: string;
+  rpcUrl: string;
+  entryPointAddress: string;
+  entryPointVersion: "0.8" | string;
+  factoryAddress: string;
+  bundlerUrl: string;
+  accountType: "SimpleAccount" | string;
+  mode: "erc4337" | string;
+};
+
 export type CashoutQuote = {
   pollId: string;
   pollSlug: string;

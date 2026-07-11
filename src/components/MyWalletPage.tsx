@@ -13,9 +13,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { renderSVG } from "uqr";
-import { loadWalletBalances, loadWalletHistory } from "../lib/api";
+import { loadSmartWalletConfig, loadWalletBalances, loadWalletHistory } from "../lib/api";
 import { shortAddress } from "../lib/format";
-import type { BudolUser, WalletBalance, WalletTransfer } from "../types";
+import { resolveSimpleSmartWallet, type SmartWalletResolution } from "../lib/smartWallet";
+import type { BudolUser, SmartWalletConfig, WalletBalance, WalletTransfer } from "../types";
 
 type MyWalletPageProps = {
   accountAddress?: string;
@@ -33,7 +34,11 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [history, setHistory] = useState<WalletTransfer[]>([]);
   const [copied, setCopied] = useState(false);
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
+  const [isLoadingSmartWallet, setIsLoadingSmartWallet] = useState(false);
   const [walletError, setWalletError] = useState("");
+  const [smartWalletError, setSmartWalletError] = useState("");
+  const [smartWalletConfig, setSmartWalletConfig] = useState<SmartWalletConfig | null>(null);
+  const [smartWallet, setSmartWallet] = useState<SmartWalletResolution | null>(null);
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
@@ -87,6 +92,42 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
 
   useEffect(() => {
     void refreshWallet();
+  }, [displayAddress]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!displayAddress) {
+      setSmartWalletConfig(null);
+      setSmartWallet(null);
+      return;
+    }
+    setIsLoadingSmartWallet(true);
+    setSmartWalletError("");
+    loadSmartWalletConfig()
+      .then(async config => {
+        if (!isMounted) return;
+        setSmartWalletConfig(config);
+        if (!config.enabled) {
+          setSmartWallet(null);
+          return;
+        }
+        const resolution = await resolveSimpleSmartWallet(config, displayAddress);
+        if (!isMounted) return;
+        setSmartWallet(resolution);
+      })
+      .catch(error => {
+        if (!isMounted) return;
+        setSmartWallet(null);
+        setSmartWalletError(error instanceof Error ? error.message : "Unable to load smart wallet.");
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingSmartWallet(false);
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [displayAddress]);
 
   if (!displayAddress) {
@@ -158,6 +199,42 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
               Explorer
             </a>
           </div>
+        </section>
+        <section className="panel wallet-smart-account-card">
+          <div className="panel-title">
+            <ShieldCheck size={19} />
+            <h2>Budol smart wallet</h2>
+          </div>
+          {smartWalletConfig?.enabled ? (
+            <>
+              <div className="wallet-address-box">
+                <span>{smartWalletConfig.accountType} · ERC-4337 · {smartWalletConfig.networkName}</span>
+                <strong>{smartWallet ? smartWallet.address : isLoadingSmartWallet ? "Deriving address..." : "Not available"}</strong>
+              </div>
+              <div className="smart-wallet-meta-grid">
+                <span>
+                  <small>Status</small>
+                  <strong>{smartWallet?.status === "deployed" ? "Deployed" : "Counterfactual"}</strong>
+                </span>
+                <span>
+                  <small>EntryPoint</small>
+                  <strong>{shortAddress(smartWalletConfig.entryPointAddress)}</strong>
+                </span>
+                <span>
+                  <small>Factory</small>
+                  <strong>{shortAddress(smartWalletConfig.factoryAddress)}</strong>
+                </span>
+              </div>
+              <p className="wallet-note">
+                Smart-wallet mode is configured. Fund this address with ETH for gas before the first UserOperation.
+              </p>
+            </>
+          ) : (
+            <p className="wallet-note pending">
+              Smart-wallet mode is prepared but not enabled yet. Deploy EntryPoint, deploy the account factory, then configure the bundler URL.
+            </p>
+          )}
+          {smartWalletError ? <p className="wallet-note">{smartWalletError}</p> : null}
         </section>
       </div>
 

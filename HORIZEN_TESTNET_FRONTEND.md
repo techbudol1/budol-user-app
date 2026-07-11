@@ -10,10 +10,11 @@ git switch horizen-testnet-adaptation
 
 ## Scope
 
-This keeps the current Arbitrum Sepolia production branch intact and adds support for direct external-wallet transactions on Horizen testnet.
+This keeps the current Arbitrum Sepolia production branch intact and adds support for Horizen testnet.
 
-No Alchemy, smart-wallet bundler, or paymaster is used for Horizen.
-Google/social login is disabled in this branch; users authenticate by signing a wallet message and trade by signing wallet transactions.
+Default trading still uses direct external-wallet transactions. ERC-4337 smart-wallet discovery is now supported when the API exposes `/api/smart-wallet/config` with a deployed EntryPoint, SimpleAccountFactory, and bundler URL.
+
+Google/social login is disabled in this branch; users authenticate by signing a wallet message.
 
 ## Horizen Testnet
 
@@ -48,6 +49,23 @@ The backend must also verify escrow transfers against:
 ```text
 https://horizen-testnet.rpc.caldera.xyz/http
 ```
+
+## Smart-wallet config
+
+The wallet page calls:
+
+```text
+GET /api/smart-wallet/config
+```
+
+When enabled, the frontend derives the user's ERC-4337 SimpleAccount address from:
+
+- `entryPointAddress`
+- `factoryAddress`
+- connected owner wallet address
+- account index `0`
+
+Until a bundler is running and trade flow is converted to UserOperations, normal external-wallet trading remains the active transaction path.
 
 ## Cloudflare Deployment Recommendation
 

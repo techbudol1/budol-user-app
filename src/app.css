@@ -2772,7 +2772,8 @@ a {
 
 .wallet-balance-card,
 .wallet-send-card,
-.wallet-history-card {
+.wallet-history-card,
+.wallet-smart-account-card {
   display: grid;
   gap: 14px;
   align-content: start;
@@ -2780,7 +2781,8 @@ a {
 
 .wallet-balance-card .panel-title,
 .wallet-send-card .panel-title,
-.wallet-history-card .panel-title {
+.wallet-history-card .panel-title,
+.wallet-smart-account-card .panel-title {
   margin-bottom: 0;
 }
 
@@ -5883,6 +5885,51 @@ select:focus-visible {
   max-width: 920px;
 }
 
+.wallet-smart-account-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-smart-account-card::before {
+  content: "";
+  position: absolute;
+  inset: -30% -20% auto 45%;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(35, 104, 191, 0.18), transparent 68%);
+  pointer-events: none;
+}
+
+.smart-wallet-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.smart-wallet-meta-grid span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--green) 20%, var(--border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--surface-solid) 58%, transparent);
+}
+
+.smart-wallet-meta-grid small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 950;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.smart-wallet-meta-grid strong {
+  color: var(--text);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
 .wallet-history-token-row {
   display: flex;
   flex-wrap: wrap;
@@ -5940,6 +5987,10 @@ select:focus-visible {
 
 @media (max-width: 860px) {
   .wallet-balance-list {
+    grid-template-columns: 1fr;
+  }
+
+  .smart-wallet-meta-grid {
     grid-template-columns: 1fr;
   }
 

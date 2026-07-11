@@ -1,4 +1,4 @@
-import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
+import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
 import { createPrivateClaimNote, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
 import { apiBaseURL } from "./runtimeConfig";
 import { createShieldedPayoutNote, fieldPublicSignalToBytes32, removeShieldedPayoutNote, type ShieldedPayoutConfig } from "./shieldedPayouts";
@@ -125,6 +125,10 @@ type TradeQuoteResponse = {
 
 type TradeConfigResponse = {
   config: TradeConfig;
+};
+
+type SmartWalletConfigResponse = {
+  config: SmartWalletConfig;
 };
 
 type CashoutQuoteResponse = {
@@ -816,6 +820,20 @@ export async function loadTradeConfig(): Promise<TradeConfig> {
   }
 
   const payload = (await response.json()) as TradeConfigResponse;
+  return payload.config;
+}
+
+export async function loadSmartWalletConfig(): Promise<SmartWalletConfig> {
+  const response = await fetch(`${apiBaseURL()}/api/smart-wallet/config`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to load smart wallet configuration.");
+  }
+
+  const payload = (await response.json()) as SmartWalletConfigResponse;
   return payload.config;
 }
 
