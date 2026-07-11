@@ -2,9 +2,12 @@ import {
   ArrowDownLeft,
   ArrowLeft,
   Check,
+  CircleDollarSign,
   Copy,
   ExternalLink,
+  Fuel,
   ShieldCheck,
+  Sparkles,
   Wallet,
   X,
 } from "lucide-react";
@@ -35,6 +38,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
   const explorerURL = displayAddress ? `${horizenExplorerBaseURL}/address/${displayAddress}` : "";
+  const displayBalances = normalizeWalletBalances(balances, displayAddress);
   const receiveQRCode = useMemo(() => {
     if (!displayAddress) {
       return "";
@@ -110,6 +114,11 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
           <h1>{shortAddress(displayAddress)}</h1>
           <p>{walletDescription}</p>
         </div>
+        <div className="wallet-network-strip" aria-label="Wallet token structure">
+          <span><Fuel size={15} /> ETH gas</span>
+          <span><Sparkles size={15} /> tZEN privacy fees</span>
+          <span><CircleDollarSign size={15} /> BUDOL trading</span>
+        </div>
       </div>
 
       <div className="wallet-layout">
@@ -119,17 +128,14 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
             <h2>Wallet balances</h2>
           </div>
           <div className="wallet-balance-list">
-            {balances.length > 0 ? balances.map(item => (
-              <div className="wallet-balance-row" key={`${item.symbol || item.label}-${item.tokenAddress || "native"}`}>
+            {displayBalances.map(item => (
+              <div className={`wallet-balance-row token-${tokenClass(item.symbol || item.label)}`} key={`${item.symbol || item.label}-${item.tokenAddress || "native"}`}>
+                <span className="wallet-token-mark">{tokenMark(item.symbol || item.label)}</span>
                 <span>{item.label || item.symbol || "Token"}</span>
-                <strong>{formatTokenAmount(item.formatted)} {item.symbol || ""}</strong>
+                <strong>{isLoadingWallet && item.isPlaceholder ? "Loading..." : `${formatTokenAmount(item.formatted)} ${item.symbol || ""}`}</strong>
+                <small>{tokenPurpose(item.symbol || item.label)}</small>
               </div>
-            )) : (
-              <div className="wallet-balance-row">
-                <span>Balances</span>
-                <strong>{isLoadingWallet ? "Loading..." : "0 ETH / 0 tZEN / 0 BUDOL"}</strong>
-              </div>
-            )}
+            ))}
           </div>
           <div className="wallet-address-box">
             <span>Horizen Testnet</span>
@@ -159,7 +165,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <section className="panel wallet-history-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
-            <h2>Transaction history</h2>
+            <h2>Unified activity</h2>
+          </div>
+          <div className="wallet-history-token-row" aria-label="Tracked wallet activity">
+            <span>ETH gas in Explorer</span>
+            <span>tZEN transfers</span>
+            <span>BUDOL transfers</span>
           </div>
           {walletError ? <p className="wallet-note">{walletError}</p> : null}
           <div className="wallet-history-list">
@@ -172,7 +183,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} {transfer.tokenSymbol || "Token"}</strong>
                   <small>{transfer.direction === "received" ? "From" : "To"} {shortAddress(transfer.counterparty)}</small>
                 </span>
-                <small>{formatWalletDate(transfer.timestamp)}</small>
+                <small>
+                  <span className={`wallet-token-pill token-${tokenClass(transfer.tokenSymbol || transfer.tokenLabel)}`}>
+                    {transfer.tokenSymbol || transfer.tokenLabel || "Token"}
+                  </span>
+                  {formatWalletDate(transfer.timestamp)}
+                </small>
               </a>
             )) : (
               <div className="wallet-history-item welcome-entry">
@@ -220,6 +236,62 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
       ) : null}
     </section>
   );
+}
+
+type DisplayWalletBalance = WalletBalance & {
+  isPlaceholder?: boolean;
+};
+
+function normalizeWalletBalances(balances: WalletBalance[], walletAddress: string): DisplayWalletBalance[] {
+  const preferred = [
+    { label: "ETH balance", symbol: "ETH", decimals: 18 },
+    { label: "tZEN balance", symbol: "tZEN", decimals: 18 },
+    { label: "BUDOL balance", symbol: "BUDOL", decimals: 18 },
+  ];
+
+  return preferred.map(expected => {
+    const match = balances.find(item => {
+      const symbol = (item.symbol || item.label || "").toLowerCase();
+      return symbol === expected.symbol.toLowerCase() || symbol.includes(expected.symbol.toLowerCase());
+    });
+    if (match) {
+      return match;
+    }
+    return {
+      raw: "0",
+      formatted: "0",
+      decimals: expected.decimals,
+      label: expected.label,
+      symbol: expected.symbol,
+      walletAddress,
+      fetchedAt: new Date().toISOString(),
+      isPlaceholder: true,
+    };
+  });
+}
+
+function tokenClass(value?: string) {
+  const normalized = (value || "").toLowerCase();
+  if (normalized.includes("budol")) return "budol";
+  if (normalized.includes("zen")) return "zen";
+  if (normalized.includes("eth")) return "eth";
+  return "token";
+}
+
+function tokenMark(value?: string) {
+  const normalized = tokenClass(value);
+  if (normalized === "budol") return "B";
+  if (normalized === "zen") return "Z";
+  if (normalized === "eth") return "Ξ";
+  return "•";
+}
+
+function tokenPurpose(value?: string) {
+  const normalized = tokenClass(value);
+  if (normalized === "budol") return "Used for market trades and payouts.";
+  if (normalized === "zen") return "Used for privacy access features.";
+  if (normalized === "eth") return "Used for Horizen testnet gas.";
+  return "Tracked token balance.";
 }
 
 function formatTokenAmount(value: string) {

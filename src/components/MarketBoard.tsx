@@ -1,6 +1,6 @@
 import { LayoutGrid, Sparkles } from "lucide-react";
 import type { Market } from "../types";
-import { MarketCard } from "./MarketCard";
+import { MarketCard, marketCategory } from "./MarketCard";
 
 type MarketBoardProps = {
   activeFilter: string;
@@ -83,9 +83,20 @@ export function MarketBoard({
               <Sparkles size={24} />
             </span>
             <div>
-              <h3>No live markets yet</h3>
-              <p>Administrator-published markets will appear here automatically.</p>
+              <h3>Waiting for the next crowd call</h3>
+              <p>Published markets for Philippine events, trends, business, culture, sports, and civic topics will appear here automatically.</p>
+              <div className="empty-category-row" aria-label="Example market categories">
+                <span>₱ Business</span>
+                <span>🏀 Sports</span>
+                <span>🎬 Culture</span>
+                <span>🚌 Transport</span>
+              </div>
             </div>
+            <span className="empty-pulse-stack" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
           </div>
         )}
       </div>
@@ -136,6 +147,7 @@ function MultiChoiceMarketCard({
 }) {
   const primary = choices[0];
   const title = primary.marketGroupTitle || primary.title;
+  const category = marketCategory(primary);
   const openPrimaryMarket = () => {
     onOpen(primary.slug);
   };
@@ -157,6 +169,7 @@ function MultiChoiceMarketCard({
       tabIndex={0}
     >
       <div className="market-card-top">
+        <span className={`category-mark ${primary.color}`} aria-hidden="true">{category.icon}</span>
         <span className={`tag ${primary.color}`}>{primary.tag}</span>
         <span className="region">{primary.region}</span>
         <span className="market-state-chip">Multi-choice</span>

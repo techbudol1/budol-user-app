@@ -1,4 +1,4 @@
-import { Activity, ArrowRight, Radio, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, ArrowRight, FileCheck2, LockKeyhole, Radio, ShieldCheck, Sparkles } from "lucide-react";
 import bannerImage from "../../public/assets/budol-jeepney-hero.png";
 
 type HeroPanelProps = {
@@ -22,6 +22,24 @@ export function HeroPanel({ marketCount }: HeroPanelProps) {
           <span> Price what matters.</span>
         </h1>
         <p>Prediction markets for Philippine events, trends, decisions, and the stories shaping the country.</p>
+        <div className="hero-trust-grid" aria-label="BudolPH trust features">
+          <span>
+            <ShieldCheck size={16} />
+            Human-reviewed
+          </span>
+          <span>
+            <FileCheck2 size={16} />
+            Evidence rules
+          </span>
+          <span>
+            <LockKeyhole size={16} />
+            Privacy options
+          </span>
+          <span>
+            <Sparkles size={16} />
+            PH-focused
+          </span>
+        </div>
         <div className="hero-actions">
           <a className="primary-button hero-primary-action" href="#markets">
             <Sparkles size={18} />

@@ -11,6 +11,8 @@ export function MarketCard({ market, onOpen }: MarketCardProps) {
   const state = marketStateLabel(market);
   const tradeable = isMarketTradeable(market);
   const closingSoon = closesSoon(market);
+  const category = marketCategory(market);
+  const isNew = isRecentlyPublished(market.createdAt);
   const chartPoints = market.spark.map((point, index) => {
     const x = market.spark.length <= 1 ? 0 : (index / (market.spark.length - 1)) * 100;
     const y = 38 - (Math.max(0, Math.min(point, 100)) / 100) * 32;
@@ -36,6 +38,7 @@ export function MarketCard({ market, onOpen }: MarketCardProps) {
       tabIndex={0}
     >
       <div className="market-card-top">
+        <span className={`category-mark ${market.color}`} aria-hidden="true">{category.icon}</span>
         <span className={`tag ${market.color}`}>{market.tag}</span>
         <span className="region">{market.region}</span>
         {market.hot ? (
@@ -44,6 +47,7 @@ export function MarketCard({ market, onOpen }: MarketCardProps) {
             Hot
           </span>
         ) : null}
+        {!market.hot && isNew ? <span className="market-state-chip new">New</span> : null}
         {closingSoon ? <span className="market-state-chip closing">Closing soon</span> : null}
         {!tradeable ? <span className={`market-state-chip ${state.toLowerCase()}`}>{state}</span> : null}
       </div>
@@ -67,4 +71,42 @@ export function MarketCard({ market, onOpen }: MarketCardProps) {
       </div>
     </article>
   );
+}
+
+export function marketCategory(market: Pick<Market, "tag" | "type" | "title" | "region">) {
+  const haystack = `${market.tag} ${market.type} ${market.title} ${market.region}`.toLowerCase();
+  if (/(weather|storm|typhoon|rain|flood|heat|climate)/.test(haystack)) {
+    return { icon: "☔", label: "Weather" };
+  }
+  if (/(sport|pba|nba|uaap|ncaa|boxing|basketball|volleyball|football|game)/.test(haystack)) {
+    return { icon: "🏀", label: "Sports" };
+  }
+  if (/(showbiz|entertainment|movie|music|artist|celebrity|tv|pageant)/.test(haystack)) {
+    return { icon: "🎬", label: "Entertainment" };
+  }
+  if (/(business|economy|peso|inflation|stock|company|retail|price|jobs)/.test(haystack)) {
+    return { icon: "₱", label: "Business" };
+  }
+  if (/(crypto|tech|ai|startup|chain|token|internet|app)/.test(haystack)) {
+    return { icon: "⌁", label: "Tech" };
+  }
+  if (/(traffic|transport|lrt|mrt|jeep|flight|airport|road|commute)/.test(haystack)) {
+    return { icon: "🚌", label: "Transport" };
+  }
+  if (/(policy|congress|senate|deped|doh|city|civic|barangay|court|law|mayor)/.test(haystack)) {
+    return { icon: "✦", label: "Civic" };
+  }
+  return { icon: "◇", label: "PH" };
+}
+
+function isRecentlyPublished(value: string) {
+  if (!value) {
+    return false;
+  }
+  const createdAt = new Date(value).getTime();
+  if (Number.isNaN(createdAt)) {
+    return false;
+  }
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  return Date.now() - createdAt <= sevenDays;
 }
