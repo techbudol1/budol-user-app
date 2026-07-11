@@ -1,5 +1,5 @@
 import { ShieldCheck } from "lucide-react";
-import budolLogoImage from "../../public/assets/budol-politics-market.png";
+import budolLogoImage from "../../public/assets/budol-market.png";
 
 type SiteFooterProps = {
   onAccountClick: () => void;
@@ -17,7 +17,7 @@ export function SiteFooter({ onAccountClick, onMarketsClick, onPortfolioClick, o
         <img alt="" src={budolLogoImage} />
         <div>
           <strong>BudolPH</strong>
-          <span>Human-reviewed Philippine political prediction markets.</span>
+          <span>Human-reviewed prediction markets for the Philippines.</span>
         </div>
       </div>
       <nav aria-label="Footer navigation">

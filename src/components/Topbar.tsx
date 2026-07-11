@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AccountNotification } from "../types";
 import { formatDate } from "../lib/format";
 import { shortAddress } from "../lib/format";
-import budolLogoImage from "../../public/assets/budol-politics-market.png";
+import budolLogoImage from "../../public/assets/budol-market.png";
 
 type TopbarProps = {
   activePage?: "markets" | "portfolio";
@@ -158,7 +158,7 @@ export function Topbar({
         </span>
         <span>
           <strong>BudolPH</strong>
-          <small>PH politics markets</small>
+          <small>Philippine markets</small>
         </span>
       </a>
 

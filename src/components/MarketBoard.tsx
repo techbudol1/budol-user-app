@@ -32,7 +32,7 @@ export function MarketBoard({
       <div className="section-head">
         <div>
           <span className="eyebrow">Market board</span>
-          <h2>Philippine politics only</h2>
+          <h2>Markets for the Philippines</h2>
         </div>
         <span className="board-status">
           <LayoutGrid size={16} />

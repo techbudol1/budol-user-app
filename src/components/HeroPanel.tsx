@@ -10,7 +10,7 @@ export function HeroPanel({ marketCount }: HeroPanelProps) {
 
   return (
     <section className="hero-panel">
-      <img src={bannerImage} alt="Playful Philippine politics prediction market illustration" />
+      <img src={bannerImage} alt="Playful Philippine prediction market illustration" />
       <div className="hero-copy">
         <div className="status-pill">
           <span className="live-indicator" aria-hidden="true" />
@@ -19,9 +19,9 @@ export function HeroPanel({ marketCount }: HeroPanelProps) {
         </div>
         <h1>
           Read the room.
-          <span> Price the politics.</span>
+          <span> Price what matters.</span>
         </h1>
-        <p>Prediction markets for Philippine elections, policy moves, city hall decisions, and the stories shaping the country.</p>
+        <p>Prediction markets for Philippine events, trends, decisions, and the stories shaping the country.</p>
         <div className="hero-actions">
           <a className="primary-button hero-primary-action" href="#markets">
             <Sparkles size={18} />
@@ -36,7 +36,7 @@ export function HeroPanel({ marketCount }: HeroPanelProps) {
         <div className="hero-facts" aria-label="BudolPH platform features">
           <span>
             <strong>PH only</strong>
-            Local political events
+            Local events and trends
           </span>
           <span>
             <strong>Transparent</strong>

@@ -15,7 +15,7 @@ export function TermsPage({ onBack }: LegalPageProps) {
       updated="Effective July 1, 2026"
     >
       <LegalSection title="1. Testnet service">
-        <p>BudolPH is currently a testnet prediction-market service for Philippine political and civic events. Testnet BUDOL has no guaranteed monetary value and is not redeemable for cash. Features, balances, markets, and testnet data may be changed or reset as the service is developed.</p>
+        <p>BudolPH is currently a testnet prediction-market service for Philippine events, trends, and civic topics. Testnet BUDOL has no guaranteed monetary value and is not redeemable for cash. Features, balances, markets, and testnet data may be changed or reset as the service is developed.</p>
       </LegalSection>
       <LegalSection title="2. Eligibility and accounts">
         <p>You must be legally capable of accepting these terms and must follow the laws that apply where you live. You are responsible for your account, connected wallet, recovery information, and activity performed through them. Do not create accounts to evade restrictions, manipulate grants, or impersonate another person or organization.</p>

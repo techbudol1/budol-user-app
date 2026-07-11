@@ -4,7 +4,7 @@ import { useState } from "react";
 import { createWalletLoginChallenge, verifyWalletLogin } from "../lib/api";
 import { rememberExternalWallet, type EthereumProvider } from "../lib/externalWallet";
 import type { BudolUser } from "../types";
-import budolLogoImage from "../../public/assets/budol-politics-market.png";
+import budolLogoImage from "../../public/assets/budol-market.png";
 import baseWalletLogo from "../../public/assets/wallets/base-wallet.webp";
 import metamaskLogo from "../../public/assets/wallets/metamask.webp";
 import okxWalletLogo from "../../public/assets/wallets/okx-wallet.webp";
@@ -211,7 +211,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
               </div>
               <div>
                 <h2 id="login-modal-title">BudolPH</h2>
-                <span>PH politics markets</span>
+                <span>Philippine markets</span>
               </div>
             </div>
 
