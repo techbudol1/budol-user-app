@@ -15,13 +15,13 @@ export function TermsPage({ onBack }: LegalPageProps) {
       updated="Effective July 1, 2026"
     >
       <LegalSection title="1. Testnet service">
-        <p>BudolPH is currently a testnet prediction-market service for Philippine political and civic events. Testnet tZEN has no guaranteed monetary value and is not redeemable for cash. Features, balances, markets, and testnet data may be changed or reset as the service is developed.</p>
+        <p>BudolPH is currently a testnet prediction-market service for Philippine political and civic events. Testnet BUDOL has no guaranteed monetary value and is not redeemable for cash. Features, balances, markets, and testnet data may be changed or reset as the service is developed.</p>
       </LegalSection>
       <LegalSection title="2. Eligibility and accounts">
         <p>You must be legally capable of accepting these terms and must follow the laws that apply where you live. You are responsible for your account, connected wallet, recovery information, and activity performed through them. Do not create accounts to evade restrictions, manipulate grants, or impersonate another person or organization.</p>
       </LegalSection>
       <LegalSection title="3. Markets and trading">
-        <p>Market prices are estimates created by trading activity, not facts, investment advice, or guarantees. Before trading, review the market question, deadline, outcomes, and resolution rules. Trades may lose all testnet tZEN committed to the losing outcome.</p>
+        <p>Market prices are estimates created by trading activity, not facts, investment advice, or guarantees. Before trading, review the market question, deadline, outcomes, and resolution rules. Trades may lose all testnet BUDOL committed to the losing outcome.</p>
       </LegalSection>
       <LegalSection title="4. Market resolution">
         <p>BudolPH administrators resolve or cancel markets using the published rules and cited evidence. Ambiguous, unavailable, or conflicting evidence may result in cancellation or the fallback treatment stated in the market rules. Testnet resolution decisions are final unless BudolPH explicitly reopens a market to correct a technical or factual error.</p>
