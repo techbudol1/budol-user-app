@@ -1,5 +1,5 @@
 import { buildPoseidon } from "circomlibjs";
-import type { ShieldedPayoutNote, ShieldedWithdrawalCircuitInput } from "../types";
+import type { ShieldedPayoutNote, ShieldedPayoutPool, ShieldedWithdrawalCircuitInput } from "../types";
 import { apiBaseURL } from "./runtimeConfig";
 
 const FIELD_MODULUS = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
@@ -13,6 +13,7 @@ export type ShieldedPayoutConfig = {
   denomination: string;
   enabled: boolean;
   poolAddress: string;
+  pools?: ShieldedPayoutPool[];
   tokenAddress: string;
   version: typeof NOTE_VERSION;
 };
@@ -91,19 +92,40 @@ async function poseidonHash(inputs: bigint[]): Promise<bigint> {
   return normalizeField(BigInt(field.toString(poseidon(inputs.map(normalizeField)))));
 }
 
-function storageKey(tradeId: string) {
+function storageKey(tradeId: string, noteId = "default") {
+  return `${NOTE_STORAGE_PREFIX}${tradeId}.${noteId}`;
+}
+
+function legacyStorageKey(tradeId: string) {
   return `${NOTE_STORAGE_PREFIX}${tradeId}`;
 }
 
+function noteIdFor(pool: Pick<ShieldedPayoutNote, "denomination" | "poolAddress">, index = 0) {
+  const poolAddress = pool.poolAddress.toLowerCase().replace(/^0x/, "");
+  return `${pool.denomination}.${poolAddress}.${index}`;
+}
+
 export function loadShieldedPayoutNote(tradeId: string): ShieldedPayoutNote | null {
+  return loadShieldedPayoutNotes(tradeId)[0] ?? null;
+}
+
+export function loadShieldedPayoutNotes(tradeId: string): ShieldedPayoutNote[] {
+  const notes: ShieldedPayoutNote[] = [];
   try {
-    const raw = window.localStorage.getItem(storageKey(tradeId));
-    if (!raw) return null;
-    const note = JSON.parse(raw) as ShieldedPayoutNote;
-    return isPoseidonShieldedPayoutNote(note) && note.tradeId === tradeId ? note : null;
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(`${NOTE_STORAGE_PREFIX}${tradeId}`)) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const note = JSON.parse(raw) as ShieldedPayoutNote;
+      if (isPoseidonShieldedPayoutNote(note) && note.tradeId === tradeId) {
+        notes.push(note);
+      }
+    }
   } catch {
-    return null;
+    return notes;
   }
+  return uniqueShieldedNotes(notes).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
 export function listShieldedPayoutNotes(): ShieldedPayoutNote[] {
@@ -114,44 +136,126 @@ export function listShieldedPayoutNotes(): ShieldedPayoutNote[] {
       if (!key?.startsWith(NOTE_STORAGE_PREFIX)) continue;
       const raw = window.localStorage.getItem(key);
       if (!raw) continue;
-      const note = JSON.parse(raw) as ShieldedPayoutNote;
-      if (isPoseidonShieldedPayoutNote(note)) {
-        notes.push(note);
+      const parsed = JSON.parse(raw) as ShieldedPayoutNote | ShieldedPayoutNote[];
+      const parsedNotes = Array.isArray(parsed) ? parsed : [parsed];
+      for (const note of parsedNotes) {
+        if (isPoseidonShieldedPayoutNote(note)) {
+          notes.push(note);
+        }
       }
     }
   } catch {
     return notes;
   }
-  return notes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return uniqueShieldedNotes(notes).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export function saveShieldedPayoutNote(note: ShieldedPayoutNote) {
   try {
-    window.localStorage.setItem(storageKey(note.tradeId), JSON.stringify(note));
+    const noteId = note.noteId || noteIdFor(note);
+    window.localStorage.setItem(storageKey(note.tradeId, noteId), JSON.stringify({ ...note, noteId }));
+    window.localStorage.removeItem(legacyStorageKey(note.tradeId));
   } catch {
     // A shielded payout note is required to withdraw from the pool later.
 	}
 }
 
+export function saveShieldedPayoutNotes(notes: ShieldedPayoutNote[]) {
+  for (const note of notes) {
+    saveShieldedPayoutNote(note);
+  }
+}
+
 export function removeShieldedPayoutNote(tradeId: string) {
 	try {
-		window.localStorage.removeItem(storageKey(tradeId));
+    const keys: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (key?.startsWith(`${NOTE_STORAGE_PREFIX}${tradeId}`)) {
+        keys.push(key);
+      }
+    }
+    keys.forEach(key => window.localStorage.removeItem(key));
 	} catch {
 		// A missing local note does not affect a direct payout.
 	}
 }
 
 export async function createShieldedPayoutNote(tradeId: string, config: ShieldedPayoutConfig): Promise<ShieldedPayoutNote> {
-  const existing = loadShieldedPayoutNote(tradeId);
+  const existing = loadShieldedPayoutNotes(tradeId).find(note =>
+    note.chainId === config.chainId &&
+    note.denomination === config.denomination &&
+    note.poolAddress.toLowerCase() === config.poolAddress.toLowerCase() &&
+    note.tokenAddress.toLowerCase() === config.tokenAddress.toLowerCase()
+  );
   if (
-    existing &&
-    existing.chainId === config.chainId &&
-    existing.denomination === config.denomination &&
-    existing.poolAddress.toLowerCase() === config.poolAddress.toLowerCase() &&
-    existing.tokenAddress.toLowerCase() === config.tokenAddress.toLowerCase()
+    existing
   ) {
     return existing;
   }
+  return createShieldedPayoutNoteForPool(tradeId, config, {
+    denomination: config.denomination,
+    poolAddress: config.poolAddress,
+  }, 0, true);
+}
+
+export async function createShieldedPayoutNotesForAmount(tradeId: string, config: ShieldedPayoutConfig, payoutAmount: string | number): Promise<ShieldedPayoutNote[]> {
+  const plan = splitPayoutAmount(config, payoutAmount);
+  const created: ShieldedPayoutNote[] = [];
+  const seen = new Map<string, number>();
+  for (const pool of plan) {
+    const key = `${pool.denomination}:${pool.poolAddress.toLowerCase()}`;
+    const index = seen.get(key) ?? 0;
+    seen.set(key, index + 1);
+    const existing = loadShieldedPayoutNotes(tradeId).find(note =>
+      note.chainId === config.chainId &&
+      note.denomination === pool.denomination &&
+      note.poolAddress.toLowerCase() === pool.poolAddress.toLowerCase() &&
+      note.tokenAddress.toLowerCase() === config.tokenAddress.toLowerCase() &&
+      note.noteId === noteIdFor(pool, index)
+    );
+    created.push(existing || await createShieldedPayoutNoteForPool(tradeId, config, pool, index, false));
+  }
+  return created;
+}
+
+export function canSplitShieldedPayoutAmount(config: ShieldedPayoutConfig, payoutAmount: string | number): boolean {
+  return splitPayoutAmount(config, payoutAmount).length > 0;
+}
+
+function splitPayoutAmount(config: ShieldedPayoutConfig, payoutAmount: string | number): ShieldedPayoutPool[] {
+  const baseUnits = tokenAmountToBaseUnits(payoutAmount, 18);
+  let remaining = baseUnits;
+  const pools = (config.pools?.length ? config.pools : [{ denomination: config.denomination, poolAddress: config.poolAddress }])
+    .filter(pool => /^\d+$/.test(pool.denomination) && pool.poolAddress)
+    .sort((a, b) => {
+      const left = BigInt(a.denomination);
+      const right = BigInt(b.denomination);
+      return left === right ? 0 : left > right ? -1 : 1;
+    });
+  const plan: ShieldedPayoutPool[] = [];
+  for (const pool of pools) {
+    const denomination = BigInt(pool.denomination);
+    while (denomination > 0n && remaining >= denomination) {
+      plan.push(pool);
+      remaining -= denomination;
+    }
+  }
+  if (remaining !== 0n || plan.length === 0) {
+    return [];
+  }
+  return plan;
+}
+
+function tokenAmountToBaseUnits(amount: string | number, decimals: number): bigint {
+  const text = String(amount).trim();
+  if (!/^\d+(\.\d+)?$/.test(text)) return 0n;
+  const [whole, fraction = ""] = text.split(".");
+  const padded = `${fraction}${"0".repeat(decimals)}`.slice(0, decimals);
+  return BigInt(whole || "0") * 10n ** BigInt(decimals) + BigInt(padded || "0");
+}
+
+async function createShieldedPayoutNoteForPool(tradeId: string, config: ShieldedPayoutConfig, pool: ShieldedPayoutPool, index: number, persist: boolean): Promise<ShieldedPayoutNote> {
   const secret = randomField();
   const blinding = randomField();
   const commitmentField = await poseidonHash([
@@ -159,24 +263,35 @@ export async function createShieldedPayoutNote(tradeId: string, config: Shielded
     blinding,
     BigInt(config.chainId),
     addressField(config.tokenAddress),
-    addressField(config.poolAddress),
-    decimalField(config.denomination, "denomination"),
+    addressField(pool.poolAddress),
+    decimalField(pool.denomination, "denomination"),
   ]);
   const note: ShieldedPayoutNote = {
     blinding: fieldString(blinding),
     chainId: config.chainId,
     commitment: fieldToBytes32(commitmentField),
     createdAt: new Date().toISOString(),
-    denomination: config.denomination,
+    denomination: pool.denomination,
     hashScheme: HASH_SCHEME,
-    poolAddress: config.poolAddress,
+    noteId: noteIdFor(pool, index),
+    poolAddress: pool.poolAddress,
     secret: fieldString(secret),
     tokenAddress: config.tokenAddress,
     tradeId,
     version: NOTE_VERSION,
   };
-  saveShieldedPayoutNote(note);
+  if (persist) {
+    saveShieldedPayoutNote(note);
+  }
   return note;
+}
+
+function uniqueShieldedNotes(notes: ShieldedPayoutNote[]) {
+  const byKey = new Map<string, ShieldedPayoutNote>();
+  for (const note of notes) {
+    byKey.set(`${note.tradeId}:${note.commitment.toLowerCase()}`, note);
+  }
+  return [...byKey.values()];
 }
 
 function isPoseidonShieldedPayoutNote(note: ShieldedPayoutNote | null | undefined): note is ShieldedPayoutNote {

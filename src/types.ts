@@ -200,11 +200,17 @@ export type ShieldedPayoutNote = {
   createdAt: string;
   denomination: string;
   hashScheme?: "poseidon-v1" | "sha256-v0";
+  noteId?: string;
   poolAddress: string;
   secret: string;
   tokenAddress: string;
   tradeId: string;
   version: "budol-shielded-payout-v1";
+};
+
+export type ShieldedPayoutPool = {
+  denomination: string;
+  poolAddress: string;
 };
 
 export type ShieldedWithdrawalCircuitInput = {

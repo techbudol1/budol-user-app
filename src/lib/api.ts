@@ -1,7 +1,7 @@
-import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
+import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedPayoutPool, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
 import { createPrivateClaimNote, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
 import { apiBaseURL } from "./runtimeConfig";
-import { createShieldedPayoutNote, fieldPublicSignalToBytes32, removeShieldedPayoutNote, type ShieldedPayoutConfig } from "./shieldedPayouts";
+import { createShieldedPayoutNotesForAmount, fieldPublicSignalToBytes32, removeShieldedPayoutNote, saveShieldedPayoutNotes, type ShieldedPayoutConfig } from "./shieldedPayouts";
 
 type AuthResponse = {
   user: BudolUser;
@@ -48,6 +48,8 @@ type PrivateClaimResponse = {
   payoutMode?: "direct" | "direct_fallback" | "shielded";
   shieldedPayout?: boolean;
   shieldedPayoutNote?: ShieldedPayoutNote;
+  shieldedPayoutNotes?: ShieldedPayoutNote[];
+  shieldedPayoutCommitments?: string[];
   transactionIds: string[];
 };
 
@@ -598,7 +600,7 @@ export async function placeTrade(pollId: string, side: TradeSide, amount: number
   };
 }
 
-export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string): Promise<PrivateClaimResponse> {
+export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string, payoutAmount?: string | number): Promise<PrivateClaimResponse> {
   const note = loadPrivateClaimNote(tradeId);
   if (!note) {
     throw new Error("Private claim note is missing on this browser. Claims require the note created when the trade was placed.");
@@ -607,11 +609,15 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
     throw new Error("ZKVerify proof submission ID is required before claiming.");
   }
   const shieldedConfig = await loadShieldedPayoutConfig();
-  const shieldedPayoutNote = shieldedConfig.enabled ? await createShieldedPayoutNote(tradeId, shieldedConfig) : null;
+  const shieldedPayoutNotes = shieldedConfig.enabled && payoutAmount !== undefined ? await createShieldedPayoutNotesForAmount(tradeId, shieldedConfig, payoutAmount) : [];
   const response = await fetch(`${apiBaseURL()}/api/private-claims`, {
     body: JSON.stringify({
       nullifierHash: note.nullifierHash,
-      shieldedNoteCommitment: shieldedPayoutNote?.commitment,
+      shieldedNoteCommitments: shieldedPayoutNotes.map(note => ({
+        commitment: note.commitment,
+        denomination: note.denomination,
+        poolAddress: note.poolAddress,
+      })),
       tradeId,
       zkProofSubmissionId: zkProofSubmissionId.trim(),
     }),
@@ -628,9 +634,17 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
   if (!payload?.shieldedPayout) {
     removeShieldedPayoutNote(tradeId);
   }
+  const creditedCommitments = new Set((payload?.shieldedPayoutCommitments || []).map(commitment => commitment.toLowerCase()));
+  const creditedNotes = payload?.shieldedPayout
+    ? shieldedPayoutNotes.filter(note => creditedCommitments.size === 0 || creditedCommitments.has(note.commitment.toLowerCase()))
+    : [];
+  if (creditedNotes.length > 0) {
+    saveShieldedPayoutNotes(creditedNotes);
+  }
   return {
     ...(payload as PrivateClaimResponse),
-    shieldedPayoutNote: payload?.shieldedPayout ? shieldedPayoutNote || undefined : undefined,
+    shieldedPayoutNote: creditedNotes[0],
+    shieldedPayoutNotes: creditedNotes,
   };
 }
 
@@ -644,6 +658,7 @@ export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigRe
       denomination: "",
       enabled: false,
       poolAddress: "",
+      pools: [],
       tokenAddress: "",
       version: "budol-shielded-payout-v1",
     };
@@ -654,6 +669,12 @@ export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigRe
     denomination: String(payload.denomination || ""),
     enabled: Boolean(payload.enabled),
     poolAddress: String(payload.poolAddress || ""),
+    pools: Array.isArray(payload.pools)
+      ? payload.pools.map((pool: ShieldedPayoutPool) => ({
+        denomination: String(pool.denomination || ""),
+        poolAddress: String(pool.poolAddress || ""),
+      })).filter(pool => pool.denomination && pool.poolAddress)
+      : [],
     tokenAddress: String(payload.tokenAddress || ""),
     version: "budol-shielded-payout-v1",
   };

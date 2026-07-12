@@ -154,7 +154,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
           tradeId: trade.id,
           vk: proofBundle.vk,
         });
-        const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id);
+        const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout);
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
         onToast(
@@ -197,7 +197,7 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
         tradeId: trade.id,
         vk,
       });
-      const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id);
+      const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout);
       setPortfolio(result.portfolio);
       setSelectedTrade(result.trade);
       setProofWork(null);
