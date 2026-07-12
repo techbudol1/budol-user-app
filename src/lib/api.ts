@@ -108,6 +108,18 @@ type PrivateClaimProofSubmissionResponse = {
 
 type ShieldedPayoutConfigResponse = ShieldedPayoutConfig;
 
+export type PrivacyFeeKind = "hide_position" | "private_claim" | "shielded_payout";
+
+export type PrivacyAccessConfig = {
+  chainId: number;
+  collectorAddress: string;
+  currency: string;
+  decimals: number;
+  mode: "native";
+  fees: Record<PrivacyFeeKind, string>;
+  limitations: string[];
+};
+
 type ShieldedWithdrawalProofSubmissionResponse = {
   submission: {
     id: string;
@@ -660,7 +672,7 @@ export async function createGaslessTradeEscrow(pollId: string, side: TradeSide, 
   return payload;
 }
 
-export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string, payoutAmount?: string | number): Promise<PrivateClaimResponse> {
+export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string, payoutAmount?: string | number, privacyReceiptTxHash = ""): Promise<PrivateClaimResponse> {
   const note = loadPrivateClaimNote(tradeId);
   if (!note) {
     throw new Error("Private claim note is missing on this browser. Claims require the note created when the trade was placed.");
@@ -678,6 +690,7 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
         denomination: note.denomination,
         poolAddress: note.poolAddress,
       })),
+      privacyReceiptTxHash,
       tradeId,
       zkProofSubmissionId: zkProofSubmissionId.trim(),
     }),
@@ -705,6 +718,31 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
     ...(payload as PrivateClaimResponse),
     shieldedPayoutNote: creditedNotes[0],
     shieldedPayoutNotes: creditedNotes,
+  };
+}
+
+export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {
+  const response = await fetch(`${apiBaseURL()}/api/privacy-access/config`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to load privacy fee configuration.");
+  }
+  const payload = (await response.json()) as PrivacyAccessConfig;
+  const fees = (payload.fees || {}) as Record<PrivacyFeeKind, string>;
+  return {
+    chainId: Number(payload.chainId || 2651420),
+    collectorAddress: String(payload.collectorAddress || ""),
+    currency: String(payload.currency || "tZEN"),
+    decimals: Number(payload.decimals || 18),
+    fees: {
+      hide_position: String(fees.hide_position || "0"),
+      private_claim: String(fees.private_claim || "0"),
+      shielded_payout: String(fees.shielded_payout || "0"),
+    },
+    limitations: Array.isArray(payload.limitations) ? payload.limitations.map(String) : [],
+    mode: "native",
   };
 }
 
@@ -846,6 +884,7 @@ export async function loadPrivateClaimTree(slug: string): Promise<PrivateClaimTr
 
 export async function submitPrivateClaimProof(input: {
   nullifierHash: string;
+  privacyReceiptTxHash?: string;
   proof: unknown;
   publicSignals: unknown[];
   tradeId: string;
@@ -855,6 +894,7 @@ export async function submitPrivateClaimProof(input: {
     body: JSON.stringify({
       domainId: 1,
       nullifierHash: input.nullifierHash,
+      privacyReceiptTxHash: input.privacyReceiptTxHash || "",
       proof: input.proof,
       proofSystem: "groth16",
       publicSignals: input.publicSignals,

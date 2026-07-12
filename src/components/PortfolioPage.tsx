@@ -1,13 +1,16 @@
 import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivateClaimTree, loadShieldedWithdrawals, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout } from "../lib/api";
+import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTree, loadShieldedPayoutConfig, loadShieldedWithdrawals, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { sendNativePrivacyFee } from "../lib/erc20Transfer";
+import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
 import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, generatePrivateClaimProof, importEncryptedPrivateClaimNotes, listPrivateClaimNotes, loadPrivateClaimNote, PrivateClaimArtifactError, sideToPrivateClaimOutcome, type PrivateClaimCircuitInput } from "../lib/privateClaims";
 import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, removeShieldedPayoutNote, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
 import type { Market, Position, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
 
 type PortfolioPageProps = {
+  accountAddress?: string;
   onBack: () => void;
   onLoginClick: () => void;
   onMarketChange: (market: Market) => void;
@@ -17,7 +20,7 @@ type PortfolioPageProps = {
   setPortfolio: (portfolio: UserPortfolio | null) => void;
 };
 
-export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio }: PortfolioPageProps) {
+export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio }: PortfolioPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
   const [pendingClaim, setPendingClaim] = useState("");
@@ -147,14 +150,17 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
       const circuitInput = await buildPrivateClaimCircuitInput(note, tree.leaves, sideToPrivateClaimOutcome(trade.side));
       try {
         const proofBundle = await generatePrivateClaimProof(circuitInput);
+        const privateClaimFeeTxHash = await payPrivacyFee("private_claim", "submit this private claim proof");
         const proofSubmission = await submitPrivateClaimProof({
           nullifierHash: note.nullifierHash,
+          privacyReceiptTxHash: privateClaimFeeTxHash,
           proof: proofBundle.proof,
           publicSignals: proofBundle.publicSignals,
           tradeId: trade.id,
           vk: proofBundle.vk,
         });
-        const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout);
+        const shieldedFeeTxHash = await payShieldedPayoutFeeIfNeeded(trade);
+        const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout, shieldedFeeTxHash);
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
         onToast(
@@ -192,12 +198,14 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     try {
       const proofSubmission = await submitPrivateClaimProof({
         nullifierHash: note.nullifierHash,
+        privacyReceiptTxHash: await payPrivacyFee("private_claim", "submit this private claim proof"),
         proof,
         publicSignals,
         tradeId: trade.id,
         vk,
       });
-      const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout);
+      const shieldedFeeTxHash = await payShieldedPayoutFeeIfNeeded(trade);
+      const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout, shieldedFeeTxHash);
       setPortfolio(result.portfolio);
       setSelectedTrade(result.trade);
       setProofWork(null);
@@ -214,6 +222,42 @@ export function PortfolioPage({ onBack, onLoginClick, onMarketChange, onMarketOp
     } finally {
       setPendingClaim("");
     }
+  };
+
+  const payPrivacyFee = async (kind: PrivacyFeeKind, actionLabel: string) => {
+    const config = await loadPrivacyAccessConfig();
+    const amountRaw = config.fees[kind] || "0";
+    if (!isPositiveRawAmount(amountRaw)) {
+      return "";
+    }
+    if (!accountAddress) {
+      throw new Error("Reconnect your wallet before paying the privacy fee.");
+    }
+    if (!config.collectorAddress) {
+      throw new Error("Privacy fee collector is not configured.");
+    }
+    const confirmed = window.confirm(`Pay ${formatRawToken(amountRaw)} ${config.currency} to ${actionLabel}? This fee unlocks the paid privacy feature.`);
+    if (!confirmed) {
+      throw new Error("Privacy fee payment cancelled.");
+    }
+    const wallet = browserWalletForAddress(accountAddress);
+    if (!wallet) {
+      throw new Error("Privacy fee payment requires a connected external wallet. Managed Google wallet fee payment is not enabled yet.");
+    }
+    return sendNativePrivacyFee({
+      amountRaw,
+      chainId: config.chainId,
+      collectorAddress: config.collectorAddress,
+      from: accountAddress,
+      wallet,
+    });
+  };
+
+  const payShieldedPayoutFeeIfNeeded = async (trade: Trade) => {
+    if (!(await supportsShieldedPayoutAmount(trade.settlementPayout))) {
+      return "";
+    }
+    return payPrivacyFee("shielded_payout", "credit this shielded payout note");
   };
 
   const withdrawShieldedNote = async (note: ShieldedPayoutNote) => {
@@ -641,6 +685,52 @@ function formatRawToken(value: string, decimals = 18) {
   } catch {
     return value;
   }
+}
+
+async function supportsShieldedPayoutAmount(payoutAmount: string | number) {
+  const config = await loadShieldedPayoutConfig();
+  if (!config.enabled) {
+    return false;
+  }
+  const rawAmount = decimalToRawToken(payoutAmount, 18);
+  if (rawAmount <= 0n) {
+    return false;
+  }
+  const denominations = (config.pools || [])
+    .map(pool => {
+      try {
+        return BigInt(pool.denomination);
+      } catch {
+        return 0n;
+      }
+    })
+    .filter(value => value > 0n)
+    .sort((left, right) => left > right ? -1 : left < right ? 1 : 0);
+  let remaining = rawAmount;
+  for (const denomination of denominations) {
+    while (remaining >= denomination) {
+      remaining -= denomination;
+    }
+  }
+  return denominations.length > 0 && remaining === 0n;
+}
+
+function isPositiveRawAmount(value: string) {
+  try {
+    return BigInt(value) > 0n;
+  } catch {
+    return false;
+  }
+}
+
+function decimalToRawToken(value: string | number, decimals: number) {
+  const normalized = String(value).trim();
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    return 0n;
+  }
+  const [wholePart, fractionPart = ""] = normalized.split(".");
+  const fraction = (fractionPart + "0".repeat(decimals)).slice(0, decimals);
+  return BigInt(wholePart || "0") * 10n ** BigInt(decimals) + BigInt(fraction || "0");
 }
 
 function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }: { isClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; trade: Trade }) {

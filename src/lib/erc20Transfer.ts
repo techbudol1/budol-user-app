@@ -130,6 +130,36 @@ export async function signBudolPermit(input: {
   };
 }
 
+export async function sendNativePrivacyFee(input: {
+  amountRaw: string;
+  chainId: number;
+  collectorAddress: string;
+  from: string;
+  wallet: ConnectedWallet;
+}): Promise<string> {
+  const amountRaw = parseRawAmount(input.amountRaw, "privacy fee amount");
+  const from = normalizeAddress(input.from, "wallet address");
+  const collectorAddress = normalizeAddress(input.collectorAddress, "privacy fee collector address");
+  await ensureWalletChain(input.wallet, input.chainId);
+  const provider = await input.wallet.getEthereumProvider();
+  const txHash = await provider.request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        chainId: numberToHex(input.chainId),
+        from,
+        to: collectorAddress,
+        value: `0x${amountRaw.toString(16)}`,
+      },
+    ],
+  });
+  if (typeof txHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    throw new Error("Wallet did not return a valid privacy fee transaction hash.");
+  }
+  await waitForTransactionReceipt(provider, txHash);
+  return txHash;
+}
+
 async function sendDirectBudolTransfer(input: NormalizedTransferInput & {
   wallet: ConnectedWallet;
 }) {
@@ -355,6 +385,14 @@ function parseTokenAmount(value: string, decimals: number) {
     throw new Error("Amount must be greater than zero.");
   }
   return raw;
+}
+
+function parseRawAmount(value: string, label: string) {
+  const amount = value.trim();
+  if (!/^\d+$/.test(amount)) {
+    throw new Error(`Invalid ${label}.`);
+  }
+  return BigInt(amount);
 }
 
 function normalizeAddress(value: string, label: string): Address {

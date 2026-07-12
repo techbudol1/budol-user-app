@@ -493,6 +493,7 @@ export default function App() {
         />
       ) : route === "portfolio" ? (
         <PortfolioPage
+          accountAddress={accountAddress}
           onBack={() => navigate("markets")}
           onLoginClick={() => setIsLoginOpen(true)}
           onMarketChange={updateMarket}
