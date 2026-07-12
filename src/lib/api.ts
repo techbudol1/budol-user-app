@@ -40,12 +40,23 @@ type TradeResult = {
 };
 
 export type ManagedEscrowResult = {
+  escrowAmount?: number;
   escrowTxHash: string;
   gasFree?: boolean;
   managed?: boolean;
   permitTransactionHash?: string;
+  tradingFee?: number;
+  tradingFeeBps?: number;
   transactionIds?: string[];
   transferTransactionHash?: string;
+};
+
+export type GaslessPermitSignature = {
+  deadline: string;
+  owner: string;
+  r: string;
+  s: string;
+  v: number;
 };
 
 type PrivateClaimResponse = {
@@ -625,6 +636,26 @@ export async function createManagedTradeEscrow(pollId: string, side: TradeSide, 
   }
   if (!payload?.escrowTxHash) {
     throw new Error("Managed escrow did not return a transaction hash.");
+  }
+  return payload;
+}
+
+export async function createGaslessTradeEscrow(pollId: string, side: TradeSide, amount: string, permit: GaslessPermitSignature): Promise<ManagedEscrowResult> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/gasless-escrow`, {
+    body: JSON.stringify({ amount, deadline: permit.deadline, owner: permit.owner, pollId, r: permit.r, s: permit.s, side, v: permit.v }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const payload = (await response.json().catch(() => null)) as (ManagedEscrowResult & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to create gas-free escrow transfer.");
+  }
+  if (!payload?.escrowTxHash) {
+    throw new Error("Gas-free escrow did not return a transaction hash.");
   }
   return payload;
 }

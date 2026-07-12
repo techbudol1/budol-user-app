@@ -11,8 +11,8 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
-import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
+import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { sendBudolEscrowTransfer, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
 
@@ -238,6 +238,20 @@ export default function App() {
       throw new Error("Self-custody trading requires an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
     }
     const escrowAmount = escrowAmountWithTradingFee(amount, tradeConfig.tradingFeeBps);
+    if (tradeConfig.engineGasFreeEnabled && tradeConfig.gaslessSpenderAddress) {
+      const permit = await signBudolPermit({
+        amount: escrowAmount,
+        config: tradeConfig,
+        owner: accountAddress,
+        spender: tradeConfig.gaslessSpenderAddress,
+        wallet: browserWallet,
+      });
+      const gaslessEscrow = await createGaslessTradeEscrow(pollId, side, amount, permit);
+      return {
+        fromAddress: accountAddress,
+        txHash: gaslessEscrow.escrowTxHash,
+      };
+    }
     return sendBudolEscrowTransfer({
       amount: escrowAmount,
       config: tradeConfig,

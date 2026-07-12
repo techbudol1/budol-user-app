@@ -1,4 +1,4 @@
-import { createPublicClient, defineChain, getAddress, http, type Address, type Hex } from "viem";
+import { createPublicClient, defineChain, getAddress, http, parseAbi, parseSignature, type Address, type Hex } from "viem";
 import { createSmartAccountClient } from "permissionless";
 import { toSimpleSmartAccount } from "permissionless/accounts";
 import type { SmartWalletConfig, TradeConfig, TradeSide } from "../types";
@@ -33,6 +33,10 @@ type TransactionReceipt = {
 };
 
 const erc20TransferSelector = "a9059cbb";
+const erc20PermitAbi = parseAbi([
+  "function name() view returns (string)",
+  "function nonces(address owner) view returns (uint256)",
+]);
 
 export async function sendBudolEscrowTransfer(input: {
   amount: string;
@@ -55,6 +59,75 @@ export async function sendBudolEscrowTransfer(input: {
     ...normalized,
     wallet: input.wallet,
   });
+}
+
+export async function signBudolPermit(input: {
+  amount: string;
+  config: TradeConfig;
+  owner: string;
+  spender: string;
+  wallet: ConnectedWallet;
+}): Promise<{ deadline: string; owner: string; r: string; s: string; v: number }> {
+  const normalized = normalizePermitInput(input);
+  await ensureWalletChain(input.wallet, normalized.chainId);
+  const provider = await input.wallet.getEthereumProvider();
+  const chain = chainForConfig(input.config);
+  const publicClient = createPublicClient({
+    chain,
+    transport: http(chain.rpcUrls.default.http[0]),
+  });
+  const [tokenName, nonce] = await Promise.all([
+    publicClient.readContract({ address: normalized.tokenAddress, abi: erc20PermitAbi, functionName: "name" }),
+    publicClient.readContract({ address: normalized.tokenAddress, abi: erc20PermitAbi, functionName: "nonces", args: [normalized.owner] }),
+  ]);
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 15 * 60);
+  const typedData = {
+    domain: {
+      chainId: normalized.chainId,
+      name: tokenName,
+      verifyingContract: normalized.tokenAddress,
+      version: "1",
+    },
+    message: {
+      deadline: deadline.toString(),
+      nonce: nonce.toString(),
+      owner: normalized.owner,
+      spender: normalized.spender,
+      value: normalized.amountRaw.toString(),
+    },
+    primaryType: "Permit",
+    types: {
+      EIP712Domain: [
+        { name: "name", type: "string" },
+        { name: "version", type: "string" },
+        { name: "chainId", type: "uint256" },
+        { name: "verifyingContract", type: "address" },
+      ],
+      Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    },
+  };
+  const signature = await provider.request({
+    method: "eth_signTypedData_v4",
+    params: [normalized.owner, JSON.stringify(typedData)],
+  });
+  if (typeof signature !== "string" || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    throw new Error("Wallet did not return a valid permit signature.");
+  }
+  const parsed = parseSignature(signature as Hex);
+  const v = Number(parsed.v ?? BigInt((parsed.yParity ?? 0) + 27));
+  return {
+    deadline: deadline.toString(),
+    owner: normalized.owner,
+    r: parsed.r,
+    s: parsed.s,
+    v,
+  };
 }
 
 async function sendDirectBudolTransfer(input: NormalizedTransferInput & {
@@ -171,6 +244,40 @@ function normalizeTransferInput(input: {
     from: normalizeAddress(input.from, "wallet address"),
     tokenAddress: normalizeAddress(input.config.tokenAddress, "token address"),
   };
+}
+
+function normalizePermitInput(input: {
+  amount: string;
+  config: TradeConfig;
+  owner: string;
+  spender: string;
+}) {
+  return {
+    amountRaw: parseTokenAmount(input.amount, input.config.tokenDecimals),
+    chainId: input.config.chainId,
+    owner: normalizeAddress(input.owner, "permit owner"),
+    spender: normalizeAddress(input.spender, "permit spender"),
+    tokenAddress: normalizeAddress(input.config.tokenAddress, "token address"),
+  };
+}
+
+function chainForConfig(config: TradeConfig) {
+  const metadata = chainMetadata(config.chainId);
+  const rpcUrl = metadata?.rpcUrls[0];
+  return defineChain({
+    id: config.chainId,
+    name: config.networkName || metadata?.chainName || `Chain ${config.chainId}`,
+    nativeCurrency: metadata?.nativeCurrency ?? {
+      decimals: 18,
+      name: "Ether",
+      symbol: "ETH",
+    },
+    rpcUrls: {
+      default: {
+        http: [rpcUrl || "https://horizen-testnet.rpc.caldera.xyz/http"],
+      },
+    },
+  });
 }
 
 async function ensureWalletChain(wallet: ConnectedWallet, chainId: number) {
