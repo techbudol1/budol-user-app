@@ -39,6 +39,15 @@ type TradeResult = {
   market: Market;
 };
 
+export type ManagedEscrowResult = {
+  escrowTxHash: string;
+  gasFree?: boolean;
+  managed?: boolean;
+  permitTransactionHash?: string;
+  transactionIds?: string[];
+  transferTransactionHash?: string;
+};
+
 type PrivateClaimResponse = {
   claim: PrivateClaim;
   trade: Trade;
@@ -598,6 +607,26 @@ export async function placeTrade(pollId: string, side: TradeSide, amount: number
     portfolio: payload.portfolio,
     market: pollToMarket(payload.poll),
   };
+}
+
+export async function createManagedTradeEscrow(pollId: string, side: TradeSide, amount: string): Promise<ManagedEscrowResult> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/managed-escrow`, {
+    body: JSON.stringify({ amount, pollId, side }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+
+  const payload = (await response.json().catch(() => null)) as (ManagedEscrowResult & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to create managed escrow transfer.");
+  }
+  if (!payload?.escrowTxHash) {
+    throw new Error("Managed escrow did not return a transaction hash.");
+  }
+  return payload;
 }
 
 export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: string, payoutAmount?: string | number): Promise<PrivateClaimResponse> {

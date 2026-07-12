@@ -11,7 +11,7 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { addWatchlist, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
 import { sendBudolEscrowTransfer } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
@@ -223,6 +223,12 @@ export default function App() {
       throw new Error("Wallet is not ready. Reconnect and try again.");
     }
     await loadTradeQuote(pollId, side, Number(amount));
+    if (budolUser?.walletCustody === "managed") {
+      const managedEscrow = await createManagedTradeEscrow(pollId, side, amount);
+      return {
+        txHash: managedEscrow.escrowTxHash,
+      };
+    }
     const [tradeConfig, smartWalletConfig] = await Promise.all([
       loadTradeConfig(),
       loadSmartWalletConfig().catch(() => null),
@@ -240,7 +246,7 @@ export default function App() {
       smartWalletConfig,
       wallet: browserWallet,
     });
-  }, [accountAddress]);
+  }, [accountAddress, budolUser?.walletCustody]);
 
   const recordPortfolioSettlements = (nextPortfolio: UserPortfolio | null) => {
     if (!nextPortfolio) {
@@ -301,10 +307,9 @@ export default function App() {
     loadCurrentUser()
       .then(user => {
         if (isMounted) {
-          if (user && isSelfCustodyUser(user)) {
+          if (user) {
             setBudolUser(user);
           } else {
-            void logoutCurrentUser().catch(() => undefined);
             setBudolUser(null);
           }
         }
@@ -440,13 +445,6 @@ export default function App() {
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
         onLoggedIn={user => {
-          if (!isSelfCustodyUser(user)) {
-            void logoutCurrentUser().catch(() => undefined);
-            setBudolUser(null);
-            setIsAuthLoading(false);
-            notify("External wallet required.", "This Horizen testnet build only supports self-custodial wallet login.", false);
-            return;
-          }
           setBudolUser(user);
           setIsAuthLoading(false);
           void refreshAccountNotifications();
@@ -558,10 +556,6 @@ function isClosingSoon(value: string) {
   }
   const now = Date.now();
   return end >= now && end <= now + 7 * 24 * 60 * 60 * 1000;
-}
-
-function isSelfCustodyUser(user: BudolUser) {
-  return user.walletCustody === "external" || user.authProvider === "wallet" || user.authType === "wallet";
 }
 
 function formatToken(value: number) {

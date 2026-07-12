@@ -765,6 +765,43 @@ a {
   padding-right: 2px;
 }
 
+.google-login-option {
+  margin-bottom: 8px;
+  border-color: color-mix(in srgb, #4285f4 42%, var(--login-border));
+}
+
+.google-login-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 26% 28%, #fff 0 16%, transparent 17%),
+    conic-gradient(from -40deg, #4285f4 0 25%, #34a853 0 50%, #fbbc05 0 75%, #ea4335 0);
+  color: #fff;
+  font-size: 1.45rem;
+  font-weight: 1000;
+  letter-spacing: -0.08em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.22);
+}
+
+.google-login-mark.large {
+  width: 42px;
+  height: 42px;
+}
+
+.google-button-mark {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff;
+  color: #4285f4;
+  font-weight: 1000;
+}
+
 .stacked-provider-mark {
   position: relative;
   display: grid;
@@ -1000,6 +1037,12 @@ a {
   background: linear-gradient(135deg, var(--green), #16bc8d);
   color: #041511;
   font-weight: 1000;
+}
+
+.login-action-button.google-action {
+  border-color: rgba(66, 133, 244, 0.5);
+  background: linear-gradient(135deg, #fff, #edf4ff);
+  color: #172026;
 }
 
 .login-action-button:disabled {

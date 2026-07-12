@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useState } from "react";
 import { createWalletLoginChallenge, verifyWalletLogin } from "../lib/api";
 import { rememberExternalWallet, type EthereumProvider } from "../lib/externalWallet";
+import { apiBaseURL } from "../lib/runtimeConfig";
 import type { BudolUser } from "../types";
 import budolLogoImage from "../../public/assets/budol-market.png";
 import baseWalletLogo from "../../public/assets/wallets/base-wallet.webp";
@@ -165,6 +166,12 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
     }
   };
 
+  const loginWithGoogle = () => {
+    setServerError("");
+    setPendingProvider("google");
+    window.location.href = `${apiBaseURL()}/api/auth/google/start`;
+  };
+
   const selectedWallet = walletOptions.find(wallet => wallet.id === selectedWalletId && wallet.installed);
 
   return (
@@ -183,6 +190,22 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
         <div className="login-picker-layout">
           <aside className="login-picker-sidebar" aria-label="Login options">
             <div className="login-wallet-list">
+              <button
+                className={`login-picker-option wallet-option google-login-option ${selectedWalletId === "google" ? "active" : ""}`}
+                disabled={isLoading}
+                onClick={() => {
+                  setServerError("");
+                  setSelectedWalletId("google");
+                }}
+                type="button"
+              >
+                <span className="google-login-mark" aria-hidden="true">G</span>
+                <span>
+                  <strong>Google</strong>
+                  <small>Managed wallet</small>
+                </span>
+                {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={16} /> : null}
+              </button>
               {walletOptions.map(wallet => (
                 <button
                   className={`login-picker-option wallet-option ${selectedWalletId === wallet.id ? "active" : ""}`}
@@ -219,7 +242,20 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
               <h3>Connect wallet:</h3>
             </div>
 
-            {selectedWallet ? (
+            {selectedWalletId === "google" ? (
+              <div className="login-method-card">
+                <span className="login-selected-wallet-logo">
+                  <span className="google-login-mark large" aria-hidden="true">G</span>
+                </span>
+                <small>Managed wallet</small>
+                <h3>Google</h3>
+                <p>Sign in with Google. BudolPH creates a managed wallet through GMR Engine Vault.</p>
+                <button className="login-action-button google-action" disabled={isLoading} onClick={loginWithGoogle}>
+                  {pendingProvider === "google" ? <LoaderCircle className="spin-icon" size={18} /> : <span className="google-button-mark" aria-hidden="true">G</span>}
+                  <span>{pendingProvider === "google" ? "Opening Google..." : "Continue with Google"}</span>
+                </button>
+              </div>
+            ) : selectedWallet ? (
               <div className="login-method-card">
                 <span className="login-selected-wallet-logo">
                   <WalletLogo icon={selectedWallet.icon} name={selectedWallet.name} />
@@ -234,7 +270,7 @@ export function LoginModal({ isOpen, onClose, onLoggedIn }: LoginModalProps) {
               </div>
             ) : (
               <div className="login-empty-choice">
-                <p>Choose one of the supported wallets from the list. You will sign a message to log in.</p>
+                <p>Choose Google for a managed wallet, or choose an installed wallet to self-custody.</p>
               </div>
             )}
 
