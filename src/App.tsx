@@ -237,8 +237,9 @@ export default function App() {
     if (!browserWallet) {
       throw new Error("Self-custody trading requires an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
     }
+    const escrowAmount = escrowAmountWithTradingFee(amount, tradeConfig.tradingFeeBps);
     return sendBudolEscrowTransfer({
-      amount,
+      amount: escrowAmount,
       config: tradeConfig,
       from: accountAddress,
       pollId,
@@ -563,6 +564,16 @@ function formatToken(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
   });
+}
+
+function escrowAmountWithTradingFee(amount: string, feeBps?: number) {
+  const parsed = Number(amount);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return amount;
+  }
+  const normalizedFeeBps = Number.isFinite(feeBps) ? Math.max(0, Math.min(1000, Number(feeBps))) : 50;
+  const total = Math.round((parsed + (parsed * normalizedFeeBps) / 10000) * 100) / 100;
+  return total.toFixed(total % 1 === 0 ? 0 : 2);
 }
 
 function errorMessage(error: unknown) {

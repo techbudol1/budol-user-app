@@ -67,6 +67,9 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     ? selectedSide === "yes" ? selectedQuote.newYesPercent : selectedQuote.newNoPercent
     : selectedProbabilityBefore;
   const selectedLabel = selectedSide === "yes" ? "Yes" : "No";
+  const tradingFeeBps = normalizeTradingFeeBps(tradeConfig?.tradingFeeBps);
+  const selectedTradingFee = tradingFeeAmount(numericAmount || 0, tradingFeeBps);
+  const selectedEscrowTotal = roundMoney((numericAmount || 0) + selectedTradingFee);
 
   useEffect(() => {
     if (!tradeable || !numericAmount || numericAmount <= 0) {
@@ -252,6 +255,14 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
             <strong>{formatToken(numericAmount || 0)} BUDOL</strong>
           </div>
           <div>
+            <span>Trading fee</span>
+            <strong>{formatToken(selectedTradingFee)} BUDOL</strong>
+          </div>
+          <div>
+            <span>Total escrow</span>
+            <strong>{formatToken(selectedEscrowTotal)} BUDOL</strong>
+          </div>
+          <div>
             <span>Potential payout</span>
             <strong className="positive">{formatToken(selectedReturn)} BUDOL</strong>
           </div>
@@ -312,8 +323,16 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
             <p>{market.title}</p>
             <div className="order-confirm-grid">
               <div>
-                <span>You spend</span>
+                <span>Trade amount</span>
                 <strong>{formatToken(confirmOrder.amount)} BUDOL</strong>
+              </div>
+              <div>
+                <span>Trading fee</span>
+                <strong>{formatToken(tradingFeeAmount(confirmOrder.amount, tradingFeeBps))} BUDOL</strong>
+              </div>
+              <div>
+                <span>Total escrow</span>
+                <strong>{formatToken(roundMoney(confirmOrder.amount + tradingFeeAmount(confirmOrder.amount, tradingFeeBps)))} BUDOL</strong>
               </div>
               <div>
                 <span>Outcome price</span>
@@ -328,7 +347,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
                 <strong>{formatToken(confirmOrder.expectedPayout)} BUDOL</strong>
               </div>
             </div>
-            <p className="order-confirm-note">BudolPH will escrow only this BUDOL amount when you confirm.</p>
+            <p className="order-confirm-note">BudolPH escrows the trade amount plus the trading fee when you confirm.</p>
             <div className="order-confirm-actions">
               <button className="ghost-button" onClick={() => setConfirmOrder(null)}>Cancel</button>
               <button className="primary-button" onClick={() => void confirmTrade()}>Confirm trade</button>
@@ -357,6 +376,21 @@ function formatToken(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
   });
+}
+
+function normalizeTradingFeeBps(value?: number) {
+  if (!Number.isFinite(value)) {
+    return 50;
+  }
+  return Math.max(0, Math.min(1000, Number(value)));
+}
+
+function tradingFeeAmount(amount: number, feeBps: number) {
+  return roundMoney((amount * feeBps) / 10000);
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function normalizeTradeAmount(value: string): { ok: true; tradeAmount: number; transferAmount: string } | { ok: false; error: string } {

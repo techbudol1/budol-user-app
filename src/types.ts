@@ -320,6 +320,8 @@ export type TradeConfig = {
   tokenDecimals: number;
   tokenSymbol: string;
   escrowWalletAddress: string;
+  tradingFeeBps: number;
+  tradingFeeRate: number;
 };
 
 export type SmartWalletConfig = {
