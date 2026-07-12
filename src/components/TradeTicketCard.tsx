@@ -35,6 +35,8 @@ type QuoteSnapshot = {
   quotes: Partial<Record<TradeSide, TradeQuote>>;
 };
 
+const FIXED_TRADE_AMOUNTS = [10, 25, 50, 100, 250, 500] as const;
+
 export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTransfer, onLoginClick, onMarketChange, onPortfolioChange, onTradePlaced }: TradeTicketCardProps) {
   const [amount, setAmount] = useState("100");
   const [confirmOrder, setConfirmOrder] = useState<ConfirmOrder | null>(null);
@@ -223,23 +225,22 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
           </button>
         </div>
 
-        <label className="simple-amount-label">
+        <section className="simple-amount-label" aria-label="Trade amount">
           <span>Amount</span>
           <div className="simple-amount-input">
-            <input
-              inputMode="decimal"
-              min="1"
-              step="0.01"
-              type="number"
-              value={amount}
-              onChange={event => setAmount(event.target.value)}
-            />
-            <strong>BUDOL</strong>
+            <span className="simple-amount-value">{amount}</span>
+            <strong>BUDOL selected</strong>
           </div>
-        </label>
-        <div className="simple-amount-presets" aria-label="Quick amount selection">
-          {[10, 50, 100, 500].map(value => (
-            <button key={value} onClick={() => setAmount(value.toString())} type="button">
+        </section>
+        <div className="simple-amount-presets" aria-label="Fixed trade amount selection">
+          {FIXED_TRADE_AMOUNTS.map(value => (
+            <button
+              aria-pressed={amount === value.toString()}
+              className={amount === value.toString() ? "selected" : ""}
+              key={value}
+              onClick={() => setAmount(value.toString())}
+              type="button"
+            >
               {value}
             </button>
           ))}
@@ -360,8 +361,8 @@ function formatToken(value: number) {
 
 function normalizeTradeAmount(value: string): { ok: true; tradeAmount: number; transferAmount: string } | { ok: false; error: string } {
   const trimmed = value.trim();
-  if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) {
-    return { ok: false, error: "Enter a BUDOL amount with up to 2 decimals." };
+  if (!FIXED_TRADE_AMOUNTS.some(amount => amount.toString() === trimmed)) {
+    return { ok: false, error: `Choose one of the fixed BUDOL amounts: ${FIXED_TRADE_AMOUNTS.join(", ")}.` };
   }
   const tradeAmount = Number(trimmed);
   if (!Number.isFinite(tradeAmount) || tradeAmount <= 0) {

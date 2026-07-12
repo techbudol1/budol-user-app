@@ -5395,17 +5395,9 @@ select:focus-visible {
   background: color-mix(in srgb, var(--surface-solid) 68%, transparent);
 }
 
-.simple-amount-input:focus-within {
-  border-color: color-mix(in srgb, var(--green) 54%, var(--border));
-  box-shadow: 0 0 0 3px rgba(22, 163, 127, 0.09);
-}
-
-.simple-amount-input input {
+.simple-amount-value {
   width: 100%;
   min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
   color: var(--text);
   font-size: 1.25rem;
   font-weight: 900;
@@ -5419,7 +5411,7 @@ select:focus-visible {
 
 .simple-amount-presets {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 7px;
   margin-top: -8px;
 }
@@ -5437,6 +5429,14 @@ select:focus-visible {
 .simple-amount-presets button:hover {
   border-color: var(--border-strong);
   color: var(--text);
+}
+
+.simple-amount-presets button.selected,
+.simple-amount-presets button[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--yellow) 70%, var(--border));
+  background: linear-gradient(135deg, var(--yellow), #ffdf6a);
+  color: #14201f;
+  box-shadow: 0 10px 22px rgba(255, 209, 74, 0.16);
 }
 
 .simple-ticket-summary {
