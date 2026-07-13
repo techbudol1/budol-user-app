@@ -238,20 +238,19 @@ async function sendSmartWalletBudolTransfer(input: NormalizedTransferInput & {
     client: publicClient,
     paymaster,
   });
-  const userOpHash = await smartAccountClient.sendTransaction({
+  const txHash = await smartAccountClient.sendTransaction({
     data: encodeERC20Transfer(input.escrowWalletAddress, input.amountRaw),
     to: input.tokenAddress,
     value: 0n,
   });
-  const receipt = await smartAccountClient.waitForUserOperationReceipt({
-    hash: userOpHash,
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: txHash,
     pollingInterval: 1500,
     timeout: 90_000,
   });
-  if (!receipt.success) {
-    throw new Error(receipt.reason || "Smart wallet escrow transfer reverted.");
+  if (receipt.status !== "success") {
+    throw new Error("Smart wallet escrow transfer reverted.");
   }
-  const txHash = receipt.receipt.transactionHash;
   if (typeof txHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
     throw new Error("Bundler did not return a valid transaction hash.");
   }
