@@ -120,6 +120,17 @@ export type PrivacyAccessConfig = {
   limitations: string[];
 };
 
+type ManagedPrivacyFeeResponse = {
+  amountRaw: string;
+  collectorAddress: string;
+  currency: string;
+  kind: PrivacyFeeKind;
+  managed?: boolean;
+  skipped?: boolean;
+  transactionHash: string;
+  transactionIds?: string[];
+};
+
 type ShieldedWithdrawalProofSubmissionResponse = {
   submission: {
     id: string;
@@ -744,6 +755,22 @@ export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {
     limitations: Array.isArray(payload.limitations) ? payload.limitations.map(String) : [],
     mode: "native",
   };
+}
+
+export async function payManagedPrivacyFee(kind: PrivacyFeeKind): Promise<ManagedPrivacyFeeResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/privacy-access/managed-fee`, {
+    body: JSON.stringify({ kind }),
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (ManagedPrivacyFeeResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to pay managed privacy fee.");
+  }
+  return payload as ManagedPrivacyFeeResponse;
 }
 
 export async function loadShieldedPayoutConfig(): Promise<ShieldedPayoutConfigResponse> {

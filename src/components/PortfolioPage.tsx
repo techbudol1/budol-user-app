@@ -1,7 +1,7 @@
 import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTree, loadShieldedPayoutConfig, loadShieldedWithdrawals, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTree, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
 import { sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
@@ -18,9 +18,10 @@ type PortfolioPageProps = {
   onToast: (message: string, detail?: string) => void;
   portfolio: UserPortfolio | null;
   setPortfolio: (portfolio: UserPortfolio | null) => void;
+  walletCustody?: string;
 };
 
-export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio }: PortfolioPageProps) {
+export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio, walletCustody }: PortfolioPageProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
   const [pendingClaim, setPendingClaim] = useState("");
@@ -240,9 +241,13 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     if (!confirmed) {
       throw new Error("Privacy fee payment cancelled.");
     }
+    if (walletCustody === "managed") {
+      const result = await payManagedPrivacyFee(kind);
+      return result.transactionHash || "";
+    }
     const wallet = browserWalletForAddress(accountAddress);
     if (!wallet) {
-      throw new Error("Privacy fee payment requires a connected external wallet. Managed Google wallet fee payment is not enabled yet.");
+      throw new Error("Privacy fee payment requires a connected external wallet.");
     }
     return sendNativePrivacyFee({
       amountRaw,

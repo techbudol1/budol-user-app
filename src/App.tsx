@@ -501,6 +501,7 @@ export default function App() {
           onToast={notify}
           portfolio={userPortfolio}
           setPortfolio={setUserPortfolio}
+          walletCustody={budolUser?.walletCustody}
         />
       ) : route === "notifications" ? (
         <NotificationsPage
