@@ -337,6 +337,9 @@ export type SmartWalletConfig = {
   entryPointVersion: "0.8" | string;
   factoryAddress: string;
   bundlerUrl: string;
+  paymasterAddress?: string;
+  paymasterUrl?: string;
+  gasSponsored?: boolean;
   accountType: "SimpleAccount" | string;
   mode: "erc4337" | string;
 };

@@ -1,4 +1,5 @@
 import { createPublicClient, defineChain, getAddress, http, parseAbi, parseSignature, type Address, type Hex } from "viem";
+import { createPaymasterClient } from "viem/account-abstraction";
 import { createSmartAccountClient } from "permissionless";
 import { toSimpleSmartAccount } from "permissionless/accounts";
 import type { SmartWalletConfig, TradeConfig, TradeSide } from "../types";
@@ -225,11 +226,17 @@ async function sendSmartWalletBudolTransfer(input: NormalizedTransferInput & {
     owner: provider,
   });
   const smartAccountAddress = getAddress(await account.getAddress()) as Address;
+  const paymaster = input.smartWalletConfig.gasSponsored && input.smartWalletConfig.paymasterUrl
+    ? createPaymasterClient({
+        transport: http(input.smartWalletConfig.paymasterUrl),
+      })
+    : undefined;
   const smartAccountClient = createSmartAccountClient({
     account,
     bundlerTransport: http(input.smartWalletConfig.bundlerUrl),
     chain,
     client: publicClient,
+    paymaster,
   });
   const userOpHash = await smartAccountClient.sendTransaction({
     data: encodeERC20Transfer(input.escrowWalletAddress, input.amountRaw),
