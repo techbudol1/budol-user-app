@@ -71,6 +71,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     if (!displayAddress) {
       return;
     }
+    const historyCacheKey = walletHistoryCacheKey(displayAddress);
     setIsLoadingWallet(true);
     setWalletError("");
     const [balanceResult, historyResult] = await Promise.allSettled([
@@ -82,7 +83,13 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
       setBalances(nextBalances);
     }
     if (historyResult.status === "fulfilled") {
-      setHistory(historyResult.value);
+      const nextHistory = historyResult.value;
+      if (nextHistory.length > 0) {
+        localStorage.setItem(historyCacheKey, JSON.stringify(nextHistory.slice(0, 100)));
+        setHistory(nextHistory);
+      } else {
+        setHistory(current => (current.length > 0 ? current : nextHistory));
+      }
     }
     if (balanceResult.status === "rejected") {
       setWalletError(balanceResult.reason instanceof Error ? balanceResult.reason.message : "Unable to load wallet balance.");
@@ -96,6 +103,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   };
 
   useEffect(() => {
+    if (displayAddress) {
+      setHistory(loadCachedWalletHistory(displayAddress));
+    } else {
+      setHistory([]);
+      setBalances([]);
+    }
     void refreshWallet({ retryIfHistoryEmpty: true });
   }, [displayAddress]);
 
@@ -393,4 +406,21 @@ function formatWalletDate(value: string) {
     return value;
   }
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+function walletHistoryCacheKey(walletAddress: string) {
+  return `budol-wallet-history:${walletAddress.toLowerCase()}`;
+}
+
+function loadCachedWalletHistory(walletAddress: string): WalletTransfer[] {
+  try {
+    const raw = localStorage.getItem(walletHistoryCacheKey(walletAddress));
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
