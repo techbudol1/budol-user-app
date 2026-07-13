@@ -67,7 +67,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     window.setTimeout(() => setCopied(false), 1400);
   };
 
-  const refreshWallet = async (options: { retryIfHistoryEmpty?: boolean } = {}) => {
+  const refreshWallet = async (options: { forceRefresh?: boolean; retryIfHistoryEmpty?: boolean } = {}) => {
     if (!displayAddress) {
       return;
     }
@@ -75,7 +75,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     setIsLoadingWallet(true);
     setWalletError("");
     const [balanceResult, historyResult] = await Promise.allSettled([
-      loadWalletBalances(),
+      loadWalletBalances({ forceRefresh: options.forceRefresh }),
       loadWalletHistory(),
     ]);
     if (balanceResult.status === "fulfilled") {
@@ -201,7 +201,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
             <strong>{displayAddress}</strong>
           </div>
           <div className="account-action-row">
-            <button className="ghost-button" onClick={() => void refreshWallet()} disabled={isLoadingWallet}>
+            <button className="ghost-button" onClick={() => void refreshWallet({ forceRefresh: true })} disabled={isLoadingWallet}>
               {isLoadingWallet ? "Refreshing" : "Refresh balance"}
             </button>
             <button className="primary-button" onClick={() => setIsReceiveOpen(true)}>

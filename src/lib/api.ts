@@ -1048,13 +1048,17 @@ export async function loadWalletHistory(): Promise<WalletTransfer[]> {
   return payload.transfers;
 }
 
-export async function loadWalletBalance(): Promise<WalletBalance | null> {
-  const balances = await loadWalletBalances();
+export async function loadWalletBalance(options: { forceRefresh?: boolean } = {}): Promise<WalletBalance | null> {
+  const balances = await loadWalletBalances(options);
   return balances.find(balance => balance.symbol === "BUDOL") ?? balances[0] ?? null;
 }
 
-export async function loadWalletBalances(): Promise<WalletBalance[]> {
-  const response = await fetch(`${apiBaseURL()}/api/wallet/balance`, {
+export async function loadWalletBalances(options: { forceRefresh?: boolean } = {}): Promise<WalletBalance[]> {
+  const url = new URL(`${apiBaseURL()}/api/wallet/balance`);
+  if (options.forceRefresh) {
+    url.searchParams.set("refresh", "1");
+  }
+  const response = await fetch(url.toString(), {
     cache: "no-store",
     credentials: "include",
   });
