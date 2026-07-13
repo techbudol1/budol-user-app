@@ -59,7 +59,6 @@ export type BudolUser = {
   id: string;
   walletAddress: string;
   publicAlias: string;
-  thirdwebUserId?: string;
   authProvider?: string;
   authType?: string;
   email?: string;

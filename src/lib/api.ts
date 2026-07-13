@@ -239,25 +239,6 @@ type MarketAlertResponse = {
   alert: MarketAlert;
 };
 
-export async function loginWithThirdwebToken(authToken: string): Promise<BudolUser> {
-  const baseURL = apiBaseURL();
-  const response = await fetch(`${baseURL}/api/auth/thirdweb`, {
-    body: JSON.stringify({ authToken }),
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
-
-  if (!response.ok) {
-    throw new Error("BudolPH login failed. Please try again.");
-  }
-
-  const payload = (await response.json()) as AuthResponse;
-  return payload.user;
-}
-
 export async function createWalletLoginChallenge(address: string): Promise<WalletNonceResponse> {
   const response = await fetch(`${apiBaseURL()}/api/auth/wallet/nonce`, {
     body: JSON.stringify({ address }),
