@@ -67,7 +67,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     window.setTimeout(() => setCopied(false), 1400);
   };
 
-  const refreshWallet = async () => {
+  const refreshWallet = async (options: { retryIfHistoryEmpty?: boolean } = {}) => {
     if (!displayAddress) {
       return;
     }
@@ -88,10 +88,15 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
       setWalletError(balanceResult.reason instanceof Error ? balanceResult.reason.message : "Unable to load wallet balance.");
     }
     setIsLoadingWallet(false);
+    if (options.retryIfHistoryEmpty && (historyResult.status !== "fulfilled" || historyResult.value.length === 0)) {
+      window.setTimeout(() => {
+        void refreshWallet();
+      }, 1800);
+    }
   };
 
   useEffect(() => {
-    void refreshWallet();
+    void refreshWallet({ retryIfHistoryEmpty: true });
   }, [displayAddress]);
 
   useEffect(() => {
@@ -203,12 +208,12 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
         <section className="panel wallet-smart-account-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
-            <h2>Budol smart wallet</h2>
+            <h2>Budol smart account</h2>
           </div>
           {smartWalletConfig?.enabled ? (
             <>
               <div className="wallet-address-box">
-                <span>{smartWalletConfig.accountType} · ERC-4337 · {smartWalletConfig.networkName}</span>
+                <span>Separate ERC-4337 account · controlled by your connected wallet</span>
                 <strong>{smartWallet ? smartWallet.address : isLoadingSmartWallet ? "Deriving address..." : "Not available"}</strong>
               </div>
               <div className="smart-wallet-meta-grid">
@@ -226,7 +231,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                 </span>
               </div>
               <p className="wallet-note">
-                Smart-wallet mode is configured. Fund this address with ETH for gas before the first UserOperation.
+                This is a separate contract account derived from your owner wallet. Your visible balances above are for the connected owner wallet unless a trade explicitly uses this smart account.
               </p>
             </>
           ) : (

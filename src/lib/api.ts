@@ -959,6 +959,7 @@ export async function loadTradeQuote(pollId: string, side: TradeSide, amount: nu
 
 export async function loadTradeConfig(): Promise<TradeConfig> {
   const response = await fetch(`${apiBaseURL()}/api/trade-config`, {
+    cache: "no-store",
     credentials: "include",
   });
 
@@ -1031,6 +1032,7 @@ export async function cashoutPosition(pollId: string, side: TradeSide, amount = 
 
 export async function loadWalletHistory(): Promise<WalletTransfer[]> {
   const response = await fetch(`${apiBaseURL()}/api/wallet/history`, {
+    cache: "no-store",
     credentials: "include",
   });
 
@@ -1053,6 +1055,7 @@ export async function loadWalletBalance(): Promise<WalletBalance | null> {
 
 export async function loadWalletBalances(): Promise<WalletBalance[]> {
   const response = await fetch(`${apiBaseURL()}/api/wallet/balance`, {
+    cache: "no-store",
     credentials: "include",
   });
 

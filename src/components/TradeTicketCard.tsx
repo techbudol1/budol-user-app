@@ -67,7 +67,8 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     ? selectedSide === "yes" ? selectedQuote.newYesPercent : selectedQuote.newNoPercent
     : selectedProbabilityBefore;
   const selectedLabel = selectedSide === "yes" ? "Yes" : "No";
-  const tradingFeeBps = normalizeTradingFeeBps(tradeConfig?.tradingFeeBps);
+  const isTradeConfigReady = !isLoggedIn || Boolean(tradeConfig);
+  const tradingFeeBps = tradeConfig ? normalizeTradingFeeBps(tradeConfig.tradingFeeBps) : 0;
   const selectedTradingFee = tradingFeeAmount(numericAmount || 0, tradingFeeBps);
   const selectedEscrowTotal = roundMoney((numericAmount || 0) + selectedTradingFee);
 
@@ -139,6 +140,10 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     }
     if (!tradeable) {
       setMessage(`Trading is not available while this market is ${marketState.toLowerCase()}.`);
+      return;
+    }
+    if (!tradeConfig) {
+      setMessage("Trading configuration is still loading. Try again in a moment.");
       return;
     }
     if (!onEscrowTransfer || !accountAddress) {
@@ -256,11 +261,11 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
           </div>
           <div>
             <span>Trading fee</span>
-            <strong>{formatToken(selectedTradingFee)} BUDOL</strong>
+            <strong>{tradeConfig ? `${formatToken(selectedTradingFee)} BUDOL` : "Loading"}</strong>
           </div>
           <div>
             <span>Total escrow</span>
-            <strong>{formatToken(selectedEscrowTotal)} BUDOL</strong>
+            <strong>{tradeConfig ? `${formatToken(selectedEscrowTotal)} BUDOL` : "Loading"}</strong>
           </div>
           <div>
             <span>Potential payout</span>
@@ -291,11 +296,11 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
 
         <button
           className={`simple-trade-submit ${selectedSide}`}
-          disabled={!tradeable || Boolean(pendingSide) || !numericAmount || numericAmount <= 0}
+          disabled={!tradeable || !isTradeConfigReady || Boolean(pendingSide) || !numericAmount || numericAmount <= 0}
           onClick={() => void requestTrade(selectedSide)}
           type="button"
         >
-          {pendingSide ? "Placing trade…" : isLoggedIn ? `Trade ${selectedLabel}` : "Log in to trade"}
+          {pendingSide ? "Placing trade…" : isLoggedIn && !isTradeConfigReady ? "Loading trade config…" : isLoggedIn ? `Trade ${selectedLabel}` : "Log in to trade"}
         </button>
 
         <div className="simple-ticket-foot">
@@ -328,11 +333,11 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               </div>
               <div>
                 <span>Trading fee</span>
-                <strong>{formatToken(tradingFeeAmount(confirmOrder.amount, tradingFeeBps))} BUDOL</strong>
+                <strong>{tradeConfig ? `${formatToken(tradingFeeAmount(confirmOrder.amount, tradingFeeBps))} BUDOL` : "Loading"}</strong>
               </div>
               <div>
                 <span>Total escrow</span>
-                <strong>{formatToken(roundMoney(confirmOrder.amount + tradingFeeAmount(confirmOrder.amount, tradingFeeBps)))} BUDOL</strong>
+                <strong>{tradeConfig ? `${formatToken(roundMoney(confirmOrder.amount + tradingFeeAmount(confirmOrder.amount, tradingFeeBps)))} BUDOL` : "Loading"}</strong>
               </div>
               <div>
                 <span>Outcome price</span>
