@@ -382,15 +382,19 @@ function tokenMark(value?: string) {
   if (normalized === "zen") {
     return (
       <svg viewBox="0 0 48 48" role="img">
-        <defs>
-          <linearGradient id="zen-token-gradient" x1="7" x2="40" y1="8" y2="41" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#8ff8d0" />
-            <stop offset="1" stopColor="#0b8c7f" />
-          </linearGradient>
-        </defs>
-        <circle cx="24" cy="24" r="20" fill="url(#zen-token-gradient)" />
-        <path d="M15 15h18l-13.2 18H33" fill="none" stroke="#071215" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4.4" />
-        <path d="M18 38h12" stroke="#d7fff3" strokeLinecap="round" strokeWidth="3" opacity=".85" />
+        <rect width="48" height="48" rx="8" fill="#f6c515" />
+        <path
+          d="M36.5 9.8C29.5 4.6 18.9 4.9 12.1 10.9 5.2 17.1 4.4 27.4 9.9 34.6l7.1-7.1c-1.1-3.2-.2-6.8 2.4-9.1 2.9-2.6 7.2-2.8 10.3-.7L36.5 9.8Z"
+          fill="#071328"
+        />
+        <path
+          d="M11.4 38.2c7 5.2 17.7 4.9 24.5-1.1 6.9-6.2 7.7-16.5 2.2-23.7l-7.1 7.1c1.1 3.2.2 6.8-2.4 9.1-2.9 2.6-7.2 2.8-10.3.7l-6.9 7.9Z"
+          fill="#071328"
+        />
+        <path
+          d="M13.5 31.2c5.9-7.8 14-11.5 23.4-10.1-5.8 1.5-11.7 3.5-18.7 8.2l-4.7 1.9Z"
+          fill="#f6c515"
+        />
       </svg>
     );
   }
