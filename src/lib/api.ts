@@ -1079,7 +1079,7 @@ function pollToMarket(poll: PublicPoll): Market {
     hot: poll.hot,
     featured: poll.featured,
     color: poll.color,
-    spark: sparkFromPercent(poll.yesPercent),
+    spark: sparkFromMarket(poll),
     callName: poll.callName,
     liquidity: poll.liquidity,
     yesShares: poll.yesShares,
@@ -1103,6 +1103,28 @@ function pollToMarket(poll: PublicPoll): Market {
     createdAt: poll.createdAt,
     updatedAt: poll.updatedAt,
   };
+}
+
+function sparkFromMarket(poll: PublicPoll): number[] {
+  const percent = poll.yesPercent;
+  const clamped = Math.max(8, Math.min(92, percent));
+  const activity = Math.max(0, Number(poll.marketMakerCollected || 0));
+  if (!activity) {
+    return sparkFromPercent(clamped);
+  }
+  const drift = Math.min(8, Math.log10(activity + 1) * 3);
+  const direction = (poll.yesShares || 0) >= (poll.noShares || 0) ? 1 : -1;
+  return [
+    clamped - 10,
+    clamped - 6,
+    clamped - 8,
+    clamped - 3 + direction * drift * 0.25,
+    clamped + direction * drift * 0.55,
+    clamped + direction * drift * 0.8,
+    clamped + direction * drift,
+  ].map(value =>
+    Math.max(8, Math.min(92, value)),
+  );
 }
 
 function sparkFromPercent(percent: number): number[] {
