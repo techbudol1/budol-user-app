@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { renderSVG } from "uqr";
+import budolLogoImage from "../../public/assets/budol-market.png";
 import { loadSmartWalletConfig, loadWalletBalances, loadWalletHistory } from "../lib/api";
 import { shortAddress } from "../lib/format";
 import { resolveSimpleSmartWallet, type SmartWalletResolution } from "../lib/smartWallet";
@@ -189,7 +190,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
           <div className="wallet-balance-list">
             {displayBalances.map(item => (
               <div className={`wallet-balance-row token-${tokenClass(item.symbol || item.label)}`} key={`${item.symbol || item.label}-${item.tokenAddress || "native"}`}>
-                <span className="wallet-token-mark">{tokenMark(item.symbol || item.label)}</span>
+                <span className="wallet-token-mark" aria-hidden="true">{tokenMark(item.symbol || item.label)}</span>
                 <span>{item.label || item.symbol || "Token"}</span>
                 <strong>{isLoadingWallet && item.isPlaceholder ? "Loading..." : `${formatTokenAmount(item.formatted)} ${item.symbol || ""}`}</strong>
                 <small>{tokenPurpose(item.symbol || item.label)}</small>
@@ -375,10 +376,47 @@ function tokenClass(value?: string) {
 
 function tokenMark(value?: string) {
   const normalized = tokenClass(value);
-  if (normalized === "budol") return "B";
-  if (normalized === "zen") return "Z";
-  if (normalized === "eth") return "Ξ";
-  return "•";
+  if (normalized === "budol") {
+    return <img src={budolLogoImage} alt="" />;
+  }
+  if (normalized === "zen") {
+    return (
+      <svg viewBox="0 0 48 48" role="img">
+        <defs>
+          <linearGradient id="zen-token-gradient" x1="7" x2="40" y1="8" y2="41" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#8ff8d0" />
+            <stop offset="1" stopColor="#0b8c7f" />
+          </linearGradient>
+        </defs>
+        <circle cx="24" cy="24" r="20" fill="url(#zen-token-gradient)" />
+        <path d="M15 15h18l-13.2 18H33" fill="none" stroke="#071215" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4.4" />
+        <path d="M18 38h12" stroke="#d7fff3" strokeLinecap="round" strokeWidth="3" opacity=".85" />
+      </svg>
+    );
+  }
+  if (normalized === "eth") {
+    return (
+      <svg viewBox="0 0 48 48" role="img">
+        <defs>
+          <linearGradient id="eth-token-gradient" x1="12" x2="36" y1="6" y2="42" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#f6f9ff" />
+            <stop offset=".48" stopColor="#8ea7ff" />
+            <stop offset="1" stopColor="#536dfe" />
+          </linearGradient>
+        </defs>
+        <circle cx="24" cy="24" r="20" fill="#102033" />
+        <path d="M24 6 13 25l11 6 11-6L24 6Z" fill="url(#eth-token-gradient)" />
+        <path d="M13 27.5 24 42l11-14.5-11 6-11-6Z" fill="#7f92ff" />
+        <path d="m24 6v25l11-6L24 6Z" fill="#dfe6ff" opacity=".52" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 48 48" role="img">
+      <circle cx="24" cy="24" r="20" fill="currentColor" opacity=".25" />
+      <circle cx="24" cy="24" r="5" fill="currentColor" />
+    </svg>
+  );
 }
 
 function tokenPurpose(value?: string) {

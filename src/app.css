@@ -5913,6 +5913,19 @@ select:focus-visible {
   box-shadow: 0 10px 24px color-mix(in srgb, var(--token-color, var(--green)) 15%, transparent);
 }
 
+.wallet-token-mark svg,
+.wallet-token-mark img {
+  display: block;
+  width: 29px;
+  height: 29px;
+}
+
+.wallet-token-mark img {
+  border-radius: 8px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.2));
+}
+
 .wallet-balance-row small {
   color: var(--muted);
   font-size: 0.78rem;
