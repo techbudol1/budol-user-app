@@ -11,10 +11,10 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWalletBalances, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
 import { sendBudolEscrowTransfer, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
-import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
+import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "privacy" | "terms" | "logout";
 
@@ -71,6 +71,8 @@ export default function App() {
   const [route, setRoute] = useState<AppRoute>(initialRoute.route);
   const [marketSlug, setMarketSlug] = useState(initialRoute.marketSlug);
   const [userPortfolio, setUserPortfolio] = useState<UserPortfolio | null>(null);
+  const [walletBalances, setWalletBalances] = useState<WalletBalance[]>([]);
+  const [isWalletBalanceLoading, setIsWalletBalanceLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showClosingSoon, setShowClosingSoon] = useState(false);
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
@@ -112,6 +114,22 @@ export default function App() {
       // Keep the local notification list if the API is temporarily unavailable.
     }
   };
+
+  const refreshWalletBalances = useCallback(async (options: { forceRefresh?: boolean } = {}) => {
+    if (!budolUser) {
+      setWalletBalances([]);
+      return;
+    }
+    setIsWalletBalanceLoading(true);
+    try {
+      const balances = await loadWalletBalances(options);
+      setWalletBalances(balances);
+    } catch {
+      // Keep the last known balances if the RPC/API is temporarily slow.
+    } finally {
+      setIsWalletBalanceLoading(false);
+    }
+  }, [budolUser?.id]);
 
   const showToast = (message: string) => {
     setToast(message);
@@ -301,6 +319,7 @@ export default function App() {
       // Local state is cleared even if the server session is unavailable.
     }
     setBudolUser(null);
+    setWalletBalances([]);
     notify("Logged out.", "Your BudolPH session ended on this browser.", false);
     navigate("markets", "replace");
   };
@@ -406,6 +425,7 @@ export default function App() {
   useEffect(() => {
     if (budolUser) {
       void refreshAccountNotifications();
+      void refreshWalletBalances();
       loadWatchlist()
         .then(items => {
           const slugs = items.map(item => item.slug);
@@ -414,20 +434,22 @@ export default function App() {
         })
         .catch(() => undefined);
     } else if (!isAuthLoading) {
+      setWalletBalances([]);
       setAccountNotifications([]);
       localStorage.setItem("budol-account-notifications", "[]");
     }
-  }, [budolUser?.id, isAuthLoading]);
+  }, [budolUser?.id, isAuthLoading, refreshWalletBalances]);
 
   useEffect(() => {
     if (!budolUser) return;
     const interval = window.setInterval(() => {
       if (!document.hidden) {
         void refreshAccountNotifications();
+        void refreshWalletBalances();
       }
-    }, 15_000);
+    }, 30_000);
     return () => window.clearInterval(interval);
-  }, [budolUser?.id]);
+  }, [budolUser?.id, refreshWalletBalances]);
 
   return (
     <main className="app-shell">
@@ -436,6 +458,7 @@ export default function App() {
         accountAddress={accountAddress}
         isAuthLoading={isAuthLoading && !accountAddress}
         isDark={isDark}
+        isWalletBalanceLoading={isWalletBalanceLoading}
         onAccountClick={() => navigate("account")}
         onLoginClick={() => setIsLoginOpen(true)}
         onLogout={async () => {
@@ -450,6 +473,7 @@ export default function App() {
         onSearchChange={setSearchQuery}
         onThemeToggle={() => applyTheme(isDark ? "light" : "dark")}
         onWalletClick={() => navigate("wallet")}
+        walletBalances={walletBalances}
       />
 
       <LoginModal
@@ -458,6 +482,7 @@ export default function App() {
         onLoggedIn={user => {
           setBudolUser(user);
           setIsAuthLoading(false);
+          void refreshWalletBalances({ forceRefresh: true });
           void refreshAccountNotifications();
           showToast("Login successful.");
         }}
@@ -521,6 +546,7 @@ export default function App() {
           onLoginClick={() => setIsLoginOpen(true)}
           onMarketChange={updateMarket}
           onMarketOpen={slug => navigate("marketDetail", "push", slug)}
+          onTradePlaced={() => void refreshWalletBalances({ forceRefresh: true })}
           onPortfolioChange={setUserPortfolio}
           onToast={notify}
           onWatchlistToggle={toggleWatchlist}

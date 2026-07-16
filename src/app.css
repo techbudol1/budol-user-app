@@ -4551,6 +4551,77 @@ select:focus-visible {
   background: linear-gradient(135deg, #23c997, var(--green));
 }
 
+.quick-balance-strip {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 48px;
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  border-radius: 15px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--surface-muted) 86%, transparent), transparent 58%),
+    color-mix(in srgb, var(--surface-soft) 78%, transparent);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.quick-balance-strip:hover {
+  border-color: color-mix(in srgb, var(--green) 48%, var(--border));
+  transform: translateY(-2px);
+  box-shadow: 0 9px 22px rgba(8, 18, 22, 0.12);
+}
+
+.quick-balance-token {
+  display: grid;
+  min-width: 74px;
+  padding: 6px 10px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface-solid) 64%, transparent);
+  text-align: left;
+}
+
+.quick-balance-token em {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.quick-balance-token strong {
+  color: var(--text);
+  font-size: 0.98rem;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
+  white-space: nowrap;
+}
+
+.quick-balance-token.budol {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--yellow) 24%, transparent), transparent),
+    color-mix(in srgb, var(--surface-solid) 68%, transparent);
+}
+
+.quick-balance-token.budol em {
+  color: var(--yellow);
+}
+
+.quick-balance-token.eth {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #70a8ff 20%, transparent), transparent),
+    color-mix(in srgb, var(--surface-solid) 68%, transparent);
+}
+
+.quick-balance-token.tzen {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--green) 22%, transparent), transparent),
+    color-mix(in srgb, var(--surface-solid) 68%, transparent);
+}
+
 .account-dropdown,
 .notification-panel {
   top: calc(100% + 14px);
@@ -6320,6 +6391,11 @@ select:focus-visible {
   .mobile-only {
     display: flex;
   }
+
+  .quick-balance-token {
+    min-width: 68px;
+    padding-inline: 8px;
+  }
 }
 
 @media (max-width: 860px) {
@@ -6443,6 +6519,25 @@ select:focus-visible {
   .topbar-actions {
     flex: 0 0 auto;
     gap: 5px;
+  }
+
+  .quick-balance-strip {
+    min-height: 42px;
+    padding: 3px;
+  }
+
+  .quick-balance-token {
+    min-width: 62px;
+    padding: 5px 8px;
+  }
+
+  .quick-balance-token.eth,
+  .quick-balance-token.tzen {
+    display: none;
+  }
+
+  .quick-balance-token strong {
+    font-size: 0.9rem;
   }
 
   .brand {

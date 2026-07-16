@@ -1,6 +1,6 @@
 import { Bell, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { AccountNotification } from "../types";
+import type { AccountNotification, WalletBalance } from "../types";
 import { formatDate } from "../lib/format";
 import { shortAddress } from "../lib/format";
 import budolLogoImage from "../../public/assets/budol-market.png";
@@ -10,6 +10,7 @@ type TopbarProps = {
   accountAddress?: string;
   isAuthLoading: boolean;
   isDark: boolean;
+  isWalletBalanceLoading?: boolean;
   onAccountClick: () => void;
   onLoginClick: () => void;
   onLogout: () => Promise<void>;
@@ -22,6 +23,7 @@ type TopbarProps = {
   onSearchChange: (query: string) => void;
   onThemeToggle: () => void;
   onWalletClick: () => void;
+  walletBalances?: WalletBalance[];
 };
 
 export function Topbar({
@@ -29,6 +31,7 @@ export function Topbar({
   accountAddress,
   isAuthLoading,
   isDark,
+  isWalletBalanceLoading = false,
   onAccountClick,
   onLoginClick,
   onLogout,
@@ -41,6 +44,7 @@ export function Topbar({
   onSearchChange,
   onThemeToggle,
   onWalletClick,
+  walletBalances = [],
 }: TopbarProps) {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -52,6 +56,7 @@ export function Topbar({
   const notificationsRef = useRef<HTMLDivElement>(null);
   const walletLabel = accountAddress ? shortAddress(accountAddress) : isAuthLoading ? "Checking" : "Login";
   const unreadCount = notifications.filter(notification => !notification.readAt).length;
+  const quickBalances = quickBalanceItems(walletBalances);
 
   useEffect(() => {
     if (!isAccountMenuOpen && !isMobileMenuOpen && !isNotificationsOpen) {
@@ -196,6 +201,16 @@ export function Topbar({
       </nav>
 
       <div className="topbar-actions">
+        {accountAddress ? (
+          <button className="quick-balance-strip" onClick={onWalletClick} type="button" aria-label="Open wallet balances">
+            {quickBalances.map(item => (
+              <span className={`quick-balance-token ${item.symbol.toLowerCase()}`} key={item.symbol}>
+                <em>{item.symbol}</em>
+                <strong>{isWalletBalanceLoading && item.isPlaceholder ? "..." : item.value}</strong>
+              </span>
+            ))}
+          </button>
+        ) : null}
         <button
           aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
           aria-pressed={isDark}
@@ -320,4 +335,38 @@ export function Topbar({
       </div>
     </header>
   );
+}
+
+type QuickBalanceItem = {
+  isPlaceholder: boolean;
+  symbol: "BUDOL" | "ETH" | "tZEN";
+  value: string;
+};
+
+function quickBalanceItems(balances: WalletBalance[]): QuickBalanceItem[] {
+  return (["BUDOL", "ETH", "tZEN"] as const).map(symbol => {
+    const balance = balances.find(item => (item.symbol || "").toUpperCase() === symbol.toUpperCase());
+    return {
+      isPlaceholder: !balance,
+      symbol,
+      value: balance ? formatQuickBalance(balance.formatted) : "0",
+    };
+  });
+}
+
+function formatQuickBalance(value: string) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return value || "0";
+  }
+  if (numeric === 0) {
+    return "0";
+  }
+  if (numeric < 0.001) {
+    return "<0.001";
+  }
+  return numeric.toLocaleString("en-PH", {
+    maximumFractionDigits: numeric >= 100 ? 0 : numeric >= 1 ? 2 : 4,
+    minimumFractionDigits: 0,
+  });
 }

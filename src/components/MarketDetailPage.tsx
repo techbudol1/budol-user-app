@@ -18,6 +18,7 @@ type MarketDetailPageProps = {
   onMarketChange: (market: Market) => void;
   onMarketOpen: (slug: string) => void;
   onPortfolioChange: (portfolio: UserPortfolio) => void;
+  onTradePlaced?: () => void;
   onToast: (message: string, detail?: string) => void;
   onWatchlistToggle: (slug: string) => void;
   slug: string;
@@ -26,7 +27,7 @@ type MarketDetailPageProps = {
 
 type MarketDetailTab = "overview" | "activity" | "comments" | "rules" | "holders";
 
-export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
+export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onTradePlaced, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
   const [loadedMarket, setLoadedMarket] = useState<Market | null>(market);
   const [activity, setActivity] = useState<MarketActivity[]>([]);
   const [comments, setComments] = useState<MarketComment[]>([]);
@@ -510,6 +511,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
             onPortfolioChange={onPortfolioChange}
             onTradePlaced={() => {
               onToast("Trade placed. Portfolio updated.");
+              onTradePlaced?.();
               reloadActivity();
               reloadStats();
             }}
