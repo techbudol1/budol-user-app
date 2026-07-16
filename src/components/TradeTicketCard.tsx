@@ -38,7 +38,7 @@ type QuoteSnapshot = {
 const FIXED_TRADE_AMOUNTS = [10, 25, 50, 100, 250, 500] as const;
 
 export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTransfer, onLoginClick, onMarketChange, onPortfolioChange, onTradePlaced }: TradeTicketCardProps) {
-  const [amount, setAmount] = useState("100");
+  const [amount, setAmount] = useState("10");
   const [confirmOrder, setConfirmOrder] = useState<ConfirmOrder | null>(null);
   const [message, setMessage] = useState("");
   const [pendingSide, setPendingSide] = useState<TradeSide | "">("");
