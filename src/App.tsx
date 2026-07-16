@@ -11,7 +11,7 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadSmartWalletConfig, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
 import { sendBudolEscrowTransfer, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio } from "./types";
@@ -229,10 +229,7 @@ export default function App() {
         txHash: managedEscrow.escrowTxHash,
       };
     }
-    const [tradeConfig, smartWalletConfig] = await Promise.all([
-      loadTradeConfig(),
-      loadSmartWalletConfig().catch(() => null),
-    ]);
+    const tradeConfig = await loadTradeConfig();
     const browserWallet = browserWalletForAddress(accountAddress);
     if (!browserWallet) {
       throw new Error("Self-custody trading requires an external wallet. Log out, then connect Trust Wallet, OKX Wallet, SubWallet, Phantom, or Talisman.");
@@ -258,7 +255,6 @@ export default function App() {
       from: accountAddress,
       pollId,
       side,
-      smartWalletConfig,
       wallet: browserWallet,
     });
   }, [accountAddress, budolUser?.walletCustody]);
