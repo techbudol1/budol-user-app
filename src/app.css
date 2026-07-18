@@ -3435,6 +3435,12 @@ a {
   backdrop-filter: blur(10px);
 }
 
+.centered-modal-backdrop {
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
 .trade-detail-drawer {
   display: grid;
   align-content: start;
@@ -3558,6 +3564,11 @@ a {
 
 .shielded-withdrawal-modal {
   width: min(560px, calc(100vw - 28px));
+  max-height: min(560px, calc(100vh - 36px));
+  margin: 0;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
 }
 
 .shielded-withdrawal-help,

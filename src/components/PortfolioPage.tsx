@@ -931,7 +931,7 @@ function ShieldedWithdrawalRecipientModal({
   };
 
   return (
-    <div className="drawer-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+    <div className="drawer-backdrop centered-modal-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
       <aside className="private-proof-modal shielded-withdrawal-modal" role="dialog" aria-modal="true" aria-label="Queue shielded withdrawal" onClick={event => event.stopPropagation()}>
         <header>
           <span>
