@@ -2,7 +2,7 @@ import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, His
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTree, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
-import { sendNativePrivacyFee } from "../lib/erc20Transfer";
+import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
 import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, generatePrivateClaimProof, importEncryptedPrivateClaimNotes, listPrivateClaimNotes, loadPrivateClaimNote, PrivateClaimArtifactError, sideToPrivateClaimOutcome, type PrivateClaimCircuitInput } from "../lib/privateClaims";
@@ -248,6 +248,19 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     const wallet = browserWalletForAddress(accountAddress);
     if (!wallet) {
       throw new Error("Privacy fee payment requires a connected external wallet.");
+    }
+    if (config.mode === "erc20") {
+      if (!config.tokenAddress) {
+        throw new Error("Privacy token contract is not configured.");
+      }
+      return sendERC20PrivacyFee({
+        amountRaw,
+        chainId: config.chainId,
+        collectorAddress: config.collectorAddress,
+        from: accountAddress,
+        tokenAddress: config.tokenAddress,
+        wallet,
+      });
     }
     return sendNativePrivacyFee({
       amountRaw,

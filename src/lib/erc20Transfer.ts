@@ -150,6 +150,39 @@ export async function sendNativePrivacyFee(input: {
   return txHash;
 }
 
+export async function sendERC20PrivacyFee(input: {
+  amountRaw: string;
+  chainId: number;
+  collectorAddress: string;
+  from: string;
+  tokenAddress: string;
+  wallet: ConnectedWallet;
+}): Promise<string> {
+  const amountRaw = parseRawAmount(input.amountRaw, "privacy fee amount");
+  const from = normalizeAddress(input.from, "wallet address");
+  const collectorAddress = normalizeAddress(input.collectorAddress, "privacy fee collector address");
+  const tokenAddress = normalizeAddress(input.tokenAddress, "privacy token address");
+  await ensureWalletChain(input.wallet, input.chainId);
+  const provider = await input.wallet.getEthereumProvider();
+  const txHash = await provider.request({
+    method: "eth_sendTransaction",
+    params: [
+      {
+        chainId: numberToHex(input.chainId),
+        data: encodeERC20Transfer(collectorAddress, amountRaw),
+        from,
+        to: tokenAddress,
+        value: "0x0",
+      },
+    ],
+  });
+  if (typeof txHash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    throw new Error("Wallet did not return a valid privacy fee transaction hash.");
+  }
+  await waitForTransactionReceipt(provider, txHash);
+  return txHash;
+}
+
 async function sendDirectBudolTransfer(input: NormalizedTransferInput & {
   wallet: ConnectedWallet;
 }) {

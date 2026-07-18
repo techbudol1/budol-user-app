@@ -115,7 +115,8 @@ export type PrivacyAccessConfig = {
   collectorAddress: string;
   currency: string;
   decimals: number;
-  mode: "native";
+  mode: "erc20" | "native";
+  tokenAddress: string;
   fees: Record<PrivacyFeeKind, string>;
   limitations: string[];
 };
@@ -728,6 +729,7 @@ export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {
       privateClaimProof?: { fee?: string };
       shieldedPayout?: { fee?: string };
     };
+    tokenAddress?: string;
     tokenSymbol?: string;
   };
   const fees = (payload.fees || {}) as Record<PrivacyFeeKind, string>;
@@ -737,13 +739,14 @@ export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {
     collectorAddress: String(payload.collectorAddress || payload.feeCollectorAddress || ""),
     currency: String(payload.currency || payload.tokenSymbol || "tZEN"),
     decimals: Number(payload.decimals || 18),
+    tokenAddress: String(payload.tokenAddress || ""),
     fees: {
       hide_position: String(fees.hide_position || legacyFeatures.hidePositionUntilResolution?.fee || "0"),
       private_claim: String(fees.private_claim || legacyFeatures.privateClaimProof?.fee || "0"),
       shielded_payout: String(fees.shielded_payout || legacyFeatures.shieldedPayout?.fee || "0"),
     },
     limitations: Array.isArray(payload.limitations) ? payload.limitations.map(String) : [],
-    mode: "native",
+    mode: payload.tokenAddress ? "erc20" : "native",
   };
 }
 
