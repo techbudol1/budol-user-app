@@ -1,7 +1,7 @@
 import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTree, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
 import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
@@ -150,7 +150,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         throw new Error("Private claim note is missing on this browser. Claims require the browser that placed the trade until note backup is implemented.");
       }
       setClaimProgress(progress => ({ ...progress, [trade.id]: "Loading claim tree..." }));
-      const tree = await loadPrivateClaimTree(trade.pollSlug);
+      const tree = await loadPrivateClaimTreeForTrade(trade.id);
       setClaimProgress(progress => ({ ...progress, [trade.id]: "Building private claim input..." }));
       const circuitInput = await buildPrivateClaimCircuitInput(note, tree.leaves, sideToPrivateClaimOutcome(trade.side));
       try {

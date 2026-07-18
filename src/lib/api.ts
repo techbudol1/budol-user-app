@@ -902,6 +902,20 @@ export async function loadPrivateClaimTree(slug: string): Promise<PrivateClaimTr
   return payload.tree;
 }
 
+export async function loadPrivateClaimTreeForTrade(tradeId: string): Promise<PrivateClaimTreeResponse["tree"]> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/${encodeURIComponent(tradeId)}/private-claim-tree`, {
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || "Unable to load private claim tree.");
+  }
+
+  const payload = (await response.json()) as PrivateClaimTreeResponse;
+  return payload.tree;
+}
+
 export async function submitPrivateClaimProof(input: {
   nullifierHash: string;
   privacyReceiptTxHash?: string;
