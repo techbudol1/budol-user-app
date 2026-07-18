@@ -181,6 +181,27 @@ export function removeShieldedPayoutNote(tradeId: string) {
 	}
 }
 
+export function removeShieldedPayoutNoteByCommitment(commitment: string) {
+	try {
+    const normalizedCommitment = commitment.toLowerCase();
+    const keys: string[] = [];
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+      if (!key?.startsWith(NOTE_STORAGE_PREFIX)) continue;
+      const raw = window.localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw) as ShieldedPayoutNote | ShieldedPayoutNote[];
+      const parsedNotes = Array.isArray(parsed) ? parsed : [parsed];
+      if (parsedNotes.some(note => isPoseidonShieldedPayoutNote(note) && note.commitment.toLowerCase() === normalizedCommitment)) {
+        keys.push(key);
+      }
+    }
+    keys.forEach(key => window.localStorage.removeItem(key));
+	} catch {
+		// A missing local note does not affect an already queued withdrawal.
+	}
+}
+
 export async function createShieldedPayoutNote(tradeId: string, config: ShieldedPayoutConfig): Promise<ShieldedPayoutNote> {
   const existing = loadShieldedPayoutNotes(tradeId).find(note =>
     note.chainId === config.chainId &&

@@ -6,7 +6,7 @@ import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer"
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
 import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, generatePrivateClaimProof, importEncryptedPrivateClaimNotes, listPrivateClaimNotes, loadPrivateClaimNote, PrivateClaimArtifactError, sideToPrivateClaimOutcome, type PrivateClaimCircuitInput } from "../lib/privateClaims";
-import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, removeShieldedPayoutNote, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
+import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, removeShieldedPayoutNote, removeShieldedPayoutNoteByCommitment, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
 import type { Market, Position, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
 
 type PortfolioPageProps = {
@@ -116,6 +116,12 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     netPnl: 0,
   };
   const shieldedNotes = listShieldedPayoutNotes();
+  const queuedWithdrawalCommitments = new Set(
+    shieldedWithdrawals
+      .filter(withdrawal => !["failed", "cancelled"].includes(withdrawal.status))
+      .map(withdrawal => withdrawal.noteCommitment.toLowerCase()),
+  );
+  const withdrawableShieldedNotes = shieldedNotes.filter(note => !queuedWithdrawalCommitments.has(note.commitment.toLowerCase()));
   const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
 
   const cashout = async (pollId: string, side: TradeSide, amount = 0) => {
@@ -322,6 +328,8 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       } else {
         setShieldedWithdrawals(await loadShieldedWithdrawals());
       }
+      removeShieldedPayoutNoteByCommitment(note.commitment);
+      setShieldedNotesRevision(revision => revision + 1);
       const executeAfter = withdrawal.withdrawal?.executeAfter ? ` Scheduled after ${formatDate(withdrawal.withdrawal.executeAfter)}.` : "";
       onToast("Shielded withdrawal queued.", `BudolPH will relay this withdrawal in a delayed batch.${executeAfter}`);
       setShieldedWithdrawalNote(null);
@@ -455,7 +463,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
             <ShieldCheck size={19} />
             <h2>Private claim notes</h2>
           </div>
-          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {shieldedNotes.length} shielded payout note{shieldedNotes.length === 1 ? "" : "s"} saved in this browser.</p>
+          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {withdrawableShieldedNotes.length} shielded payout note{withdrawableShieldedNotes.length === 1 ? "" : "s"} ready in this browser.</p>
           {backupStatus ? <small>{backupStatus}</small> : null}
         </div>
         <div className="claim-note-backup-actions">
@@ -470,14 +478,14 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </div>
       </section>
 
-      {shieldedNotes.length > 0 ? (
+      {withdrawableShieldedNotes.length > 0 ? (
         <section className="panel shielded-note-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
             <h2>Shielded payout notes</h2>
           </div>
           <div className="shielded-note-list">
-            {shieldedNotes.map(note => (
+            {withdrawableShieldedNotes.map(note => (
               <div className="shielded-note-row" key={`${note.tradeId}-${note.commitment}`}>
                 <span>
                   <strong>{shortHash(note.commitment)}</strong>
