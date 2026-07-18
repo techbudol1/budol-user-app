@@ -25,6 +25,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
   const [pendingClaim, setPendingClaim] = useState("");
+  const [claimProgress, setClaimProgress] = useState<Record<string, string>>({});
   const [pendingShieldedWithdrawal, setPendingShieldedWithdrawal] = useState("");
   const [pendingWithdrawalRetry, setPendingWithdrawalRetry] = useState("");
   const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
@@ -141,17 +142,27 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
 
   const claimPayout = async (trade: Trade) => {
     setPendingClaim(trade.id);
+    setClaimProgress(progress => ({ ...progress, [trade.id]: "Preparing private claim..." }));
     setError("");
     try {
       const note = loadPrivateClaimNote(trade.id);
       if (!note) {
         throw new Error("Private claim note is missing on this browser. Claims require the browser that placed the trade until note backup is implemented.");
       }
+      setClaimProgress(progress => ({ ...progress, [trade.id]: "Loading claim tree..." }));
       const tree = await loadPrivateClaimTree(trade.pollSlug);
+      setClaimProgress(progress => ({ ...progress, [trade.id]: "Building private claim input..." }));
       const circuitInput = await buildPrivateClaimCircuitInput(note, tree.leaves, sideToPrivateClaimOutcome(trade.side));
       try {
-        const proofBundle = await generatePrivateClaimProof(circuitInput);
+        setClaimProgress(progress => ({ ...progress, [trade.id]: "Generating ZK proof in this browser..." }));
+        const proofBundle = await withTimeout(
+          generatePrivateClaimProof(circuitInput),
+          120000,
+          "ZK proof generation is taking too long in this browser. Try desktop Chrome, keep this tab focused, or use the manual proof modal."
+        );
+        setClaimProgress(progress => ({ ...progress, [trade.id]: "Requesting TZEN privacy fee..." }));
         const privateClaimFeeTxHash = await payPrivacyFee("private_claim", "submit this private claim proof");
+        setClaimProgress(progress => ({ ...progress, [trade.id]: "Submitting ZK proof..." }));
         const proofSubmission = await submitPrivateClaimProof({
           nullifierHash: note.nullifierHash,
           privacyReceiptTxHash: privateClaimFeeTxHash,
@@ -160,7 +171,9 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           tradeId: trade.id,
           vk: proofBundle.vk,
         });
+        setClaimProgress(progress => ({ ...progress, [trade.id]: "Checking shielded payout fee..." }));
         const shieldedFeeTxHash = await payShieldedPayoutFeeIfNeeded(trade);
+        setClaimProgress(progress => ({ ...progress, [trade.id]: "Claiming private payout..." }));
         const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout, shieldedFeeTxHash);
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
@@ -185,6 +198,11 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       setError(err instanceof Error ? err.message : "Unable to claim private payout.");
     } finally {
       setPendingClaim("");
+      setClaimProgress(progress => {
+        const nextProgress = { ...progress };
+        delete nextProgress[trade.id];
+        return nextProgress;
+      });
     }
   };
 
@@ -637,7 +655,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                     }}
                     type="button"
                   >
-                    {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
+                    {pendingClaim === trade.id ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
                   </button>
                 ) : null}
               </div>
@@ -647,6 +665,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       </div>
       {selectedTrade ? (
         <TradeDetailDrawer
+          claimProgress={claimProgress[selectedTrade.id] || ""}
           isClaiming={pendingClaim === selectedTrade.id}
           onClaim={() => void claimPayout(selectedTrade)}
           onClose={() => setSelectedTrade(null)}
@@ -741,6 +760,18 @@ function isPositiveRawAmount(value: string) {
   }
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  });
+}
+
 function decimalToRawToken(value: string | number, decimals: number) {
   const normalized = String(value).trim();
   if (!/^\d+(\.\d+)?$/.test(normalized)) {
@@ -751,7 +782,7 @@ function decimalToRawToken(value: string | number, decimals: number) {
   return BigInt(wholePart || "0") * 10n ** BigInt(decimals) + BigInt(fraction || "0");
 }
 
-function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }: { isClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; trade: Trade }) {
+function TradeDetailDrawer({ claimProgress, isClaiming, onClaim, onClose, onOpenMarket, trade }: { claimProgress: string; isClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; trade: Trade }) {
   const payoutStatus = trade.payoutStatus || (trade.status === "open" ? "pending" : "none");
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
@@ -800,7 +831,7 @@ function TradeDetailDrawer({ isClaiming, onClaim, onClose, onOpenMarket, trade }
         </div>
         {["claimable", "claim_failed"].includes(trade.payoutStatus) ? (
           <button className="primary-button" disabled={isClaiming} onClick={onClaim}>
-            {isClaiming ? <LoaderCircle className="spin-icon" size={16} /> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
+            {isClaiming ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
           </button>
         ) : null}
         <button className="primary-button" onClick={onOpenMarket}>Open market</button>
