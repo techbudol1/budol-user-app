@@ -18,6 +18,18 @@ type ShieldedPayoutGroup = {
   tradeId: string;
 };
 
+type CashoutConfirmation = {
+  amount: number;
+  outcomeLabel: string;
+  pollId: string;
+  proceeds: number;
+  side: TradeSide;
+};
+
+type BackupPassphraseRequest =
+  | { kind: "export" }
+  | { backupText: string; kind: "import" };
+
 type PortfolioPageProps = {
   accountAddress?: string;
   onBack: () => void;
@@ -40,6 +52,9 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
   const [sellAmounts, setSellAmounts] = useState<Record<string, string>>({});
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [cashoutConfirmation, setCashoutConfirmation] = useState<CashoutConfirmation | null>(null);
+  const [backupPassphraseRequest, setBackupPassphraseRequest] = useState<BackupPassphraseRequest | null>(null);
+  const [isBackupWorking, setIsBackupWorking] = useState(false);
   const [shieldedWithdrawalGroup, setShieldedWithdrawalGroup] = useState<ShieldedPayoutGroup | null>(null);
   const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
@@ -141,13 +156,29 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     setError("");
     try {
       const quote = await loadCashoutQuote(pollId, side, amount);
-      const confirmed = window.confirm(`${amount > 0 ? "Reduce" : "Cash out"} ${quote.outcomeLabel} for about ${formatToken(quote.proceeds)} BUDOL?`);
-      if (!confirmed) {
-        return;
-      }
-      const result = await cashoutPosition(pollId, side, amount);
+      setCashoutConfirmation({
+        amount,
+        outcomeLabel: quote.outcomeLabel,
+        pollId,
+        proceeds: quote.proceeds,
+        side,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to cash out position.");
+    } finally {
+      setPendingCashout("");
+    }
+  };
+
+  const confirmCashout = async (confirmation: CashoutConfirmation) => {
+    const key = `${confirmation.pollId}-${confirmation.side}`;
+    setPendingCashout(key);
+    setError("");
+    try {
+      const result = await cashoutPosition(confirmation.pollId, confirmation.side, confirmation.amount);
       setPortfolio(result.portfolio);
       onMarketChange(result.market);
+      setCashoutConfirmation(null);
       const message = `Cashed out ${result.cashout.outcomeLabel} for ${formatToken(result.cashout.proceeds)} BUDOL.`;
       setError(`${message} Payout status: ${result.payoutStatus}.`);
       onToast("Cashout submitted.", `${message} Payout status: ${result.payoutStatus}.`);
@@ -389,23 +420,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
 
   const exportClaimNotes = async () => {
     setBackupStatus("");
-    try {
-      const passphrase = window.prompt("Set a passphrase for this encrypted claim note backup.");
-      if (!passphrase) return;
-      const backup = await exportEncryptedPrivateClaimNotes(passphrase);
-      const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `budol-claim-notes-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      const shieldedCount = backup.shieldedNoteCount ?? 0;
-      const message = `Exported ${backup.noteCount} claim note${backup.noteCount === 1 ? "" : "s"} and ${shieldedCount} shielded payout note${shieldedCount === 1 ? "" : "s"}.`;
-      setBackupStatus(message);
-      onToast("Claim notes exported.", message);
-    } catch (err) {
-      setBackupStatus(err instanceof Error ? err.message : "Unable to export claim notes.");
-    }
+    setBackupPassphraseRequest({ kind: "export" });
   };
 
   const importClaimNotes = () => {
@@ -417,17 +432,43 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       const file = input.files?.[0];
       if (!file) return;
       try {
-        const passphrase = window.prompt("Enter the passphrase for this claim note backup.");
-        if (!passphrase) return;
-        const imported = await importEncryptedPrivateClaimNotes(await file.text(), passphrase);
-        const message = `Imported ${imported} private note${imported === 1 ? "" : "s"}.`;
-        setBackupStatus(message);
-        onToast("Claim notes imported.", message);
+        setBackupPassphraseRequest({ backupText: await file.text(), kind: "import" });
       } catch (err) {
-        setBackupStatus(err instanceof Error ? err.message : "Unable to import claim notes.");
+        setBackupStatus(err instanceof Error ? err.message : "Unable to read claim note backup.");
       }
     };
     input.click();
+  };
+
+  const submitBackupPassphrase = async (passphrase: string) => {
+    if (!backupPassphraseRequest) return;
+    setIsBackupWorking(true);
+    setBackupStatus("");
+    try {
+      if (backupPassphraseRequest.kind === "export") {
+        const backup = await exportEncryptedPrivateClaimNotes(passphrase);
+        const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `budol-claim-notes-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        const shieldedCount = backup.shieldedNoteCount ?? 0;
+        const message = `Exported ${backup.noteCount} claim note${backup.noteCount === 1 ? "" : "s"} and ${shieldedCount} shielded payout note${shieldedCount === 1 ? "" : "s"}.`;
+        setBackupStatus(message);
+        onToast("Claim notes exported.", message);
+      } else {
+        const imported = await importEncryptedPrivateClaimNotes(backupPassphraseRequest.backupText, passphrase);
+        const message = `Imported ${imported} private note${imported === 1 ? "" : "s"}.`;
+        setBackupStatus(message);
+        onToast("Claim notes imported.", message);
+      }
+      setBackupPassphraseRequest(null);
+    } catch (err) {
+      setBackupStatus(err instanceof Error ? err.message : backupPassphraseRequest.kind === "export" ? "Unable to export claim notes." : "Unable to import claim notes.");
+    } finally {
+      setIsBackupWorking(false);
+    }
   };
 
   return (
@@ -694,6 +735,22 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           onClose={() => setSelectedTrade(null)}
           onOpenMarket={() => onMarketOpen(selectedTrade.pollSlug)}
           trade={selectedTrade}
+        />
+      ) : null}
+      {cashoutConfirmation ? (
+        <CashoutConfirmationModal
+          confirmation={cashoutConfirmation}
+          isSubmitting={pendingCashout === `${cashoutConfirmation.pollId}-${cashoutConfirmation.side}`}
+          onClose={() => setCashoutConfirmation(null)}
+          onConfirm={() => void confirmCashout(cashoutConfirmation)}
+        />
+      ) : null}
+      {backupPassphraseRequest ? (
+        <BackupPassphraseModal
+          kind={backupPassphraseRequest.kind}
+          isSubmitting={isBackupWorking}
+          onClose={() => setBackupPassphraseRequest(null)}
+          onSubmit={passphrase => void submitBackupPassphrase(passphrase)}
         />
       ) : null}
       {proofWork ? (
@@ -975,6 +1032,125 @@ function CopyableHash({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <small>{shortHash(value)}</small>
     </button>
+  );
+}
+
+function CashoutConfirmationModal({
+  confirmation,
+  isSubmitting,
+  onClose,
+  onConfirm,
+}: {
+  confirmation: CashoutConfirmation;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const action = confirmation.amount > 0 ? "Reduce position" : "Cash out position";
+  return (
+    <div className="drawer-backdrop centered-modal-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+      <aside className="private-proof-modal compact-dialog-modal" role="dialog" aria-modal="true" aria-label={action} onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <ReceiptText size={18} />
+            {action}
+          </span>
+          <button disabled={isSubmitting} onClick={onClose} aria-label="Close cashout confirmation">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="proof-market-title">
+          <strong>{confirmation.outcomeLabel}</strong>
+          <small>
+            Estimated payout: {formatToken(confirmation.proceeds)} BUDOL
+          </small>
+        </div>
+        <p className="shielded-withdrawal-help">
+          Confirm this action before BudolPH submits the cashout request.
+        </p>
+        <div className="modal-action-row">
+          <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
+          <button className="primary-button" disabled={isSubmitting} onClick={onConfirm} type="button">
+            {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+            Confirm
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function BackupPassphraseModal({
+  isSubmitting,
+  kind,
+  onClose,
+  onSubmit,
+}: {
+  isSubmitting: boolean;
+  kind: "export" | "import";
+  onClose: () => void;
+  onSubmit: (passphrase: string) => void;
+}) {
+  const [passphrase, setPassphrase] = useState("");
+  const [localError, setLocalError] = useState("");
+  const title = kind === "export" ? "Encrypt claim note backup" : "Unlock claim note backup";
+  const submit = () => {
+    const cleanPassphrase = passphrase.trim();
+    setLocalError("");
+    if (cleanPassphrase.length < 8) {
+      setLocalError("Use at least 8 characters.");
+      return;
+    }
+    onSubmit(cleanPassphrase);
+  };
+
+  return (
+    <div className="drawer-backdrop centered-modal-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+      <aside className="private-proof-modal compact-dialog-modal" role="dialog" aria-modal="true" aria-label={title} onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <ShieldCheck size={18} />
+            {title}
+          </span>
+          <button disabled={isSubmitting} onClick={onClose} aria-label="Close backup passphrase">
+            <X size={18} />
+          </button>
+        </header>
+        <p className="shielded-withdrawal-help">
+          {kind === "export"
+            ? "Set a passphrase to encrypt this browser’s private claim and shielded payout notes. You will need it to restore the backup."
+            : "Enter the passphrase used when this claim note backup was exported."}
+        </p>
+        <label>
+          Passphrase
+          <input
+            autoFocus
+            disabled={isSubmitting}
+            onChange={event => {
+              setPassphrase(event.currentTarget.value);
+              setLocalError("");
+            }}
+            onKeyDown={event => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="At least 8 characters"
+            type="password"
+            value={passphrase}
+          />
+        </label>
+        {localError ? <div className="login-error">{localError}</div> : null}
+        <div className="modal-action-row">
+          <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
+          <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
+            {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+            {kind === "export" ? "Export backup" : "Import backup"}
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 

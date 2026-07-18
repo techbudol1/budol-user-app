@@ -39,6 +39,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
   const [isStatsLoading, setIsStatsLoading] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [reportingCommentId, setReportingCommentId] = useState("");
+  const [reportCommentTarget, setReportCommentTarget] = useState<MarketComment | null>(null);
   const [marketAlert, setMarketAlert] = useState<MarketAlert | null>(null);
   const [alertDraft, setAlertDraft] = useState<MarketAlert | null>(null);
   const [alertError, setAlertError] = useState("");
@@ -191,15 +192,16 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
       onLoginClick();
       return;
     }
-    const reason = window.prompt("Why should BudolPH admins review this comment?", "Spam, abusive, or off-topic");
-    if (reason === null) {
-      return;
-    }
+    setReportCommentTarget(comment);
+  };
+
+  const submitCommentReport = async (comment: MarketComment, reason: string) => {
     setReportingCommentId(comment.id);
     setCommentError("");
     try {
       const updated = await reportMarketComment(comment.id, reason);
       setComments(current => current.map(item => (item.id === updated.id ? updated : item)));
+      setReportCommentTarget(null);
       onToast("Comment reported.", "Admins can review it in the dashboard.");
     } catch (err) {
       setCommentError(err instanceof Error ? err.message : "Unable to report comment.");
@@ -452,7 +454,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
                   <button
                     className="comment-report-button"
                     disabled={reportingCommentId === comment.id}
-                    onClick={() => void reportComment(comment)}
+                    onClick={() => reportComment(comment)}
                     type="button"
                   >
                     <Flag size={14} />
@@ -518,6 +520,14 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
           />
         </aside>
       </div>
+      {reportCommentTarget ? (
+        <ReportCommentModal
+          comment={reportCommentTarget}
+          isSubmitting={reportingCommentId === reportCommentTarget.id}
+          onClose={() => setReportCommentTarget(null)}
+          onSubmit={reason => void submitCommentReport(reportCommentTarget, reason)}
+        />
+      ) : null}
       {isAlertOpen && alertDraft ? (
         <div className="market-alert-backdrop" role="presentation" onMouseDown={() => setIsAlertOpen(false)}>
           <section className="market-alert-modal" role="dialog" aria-modal="true" aria-label="Market alerts" onMouseDown={event => event.stopPropagation()}>
@@ -593,6 +603,72 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
         </div>
       ) : null}
     </section>
+  );
+}
+
+function ReportCommentModal({
+  comment,
+  isSubmitting,
+  onClose,
+  onSubmit,
+}: {
+  comment: MarketComment;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("Spam, abusive, or off-topic");
+  const [localError, setLocalError] = useState("");
+
+  const submit = () => {
+    const cleanReason = reason.trim();
+    setLocalError("");
+    if (cleanReason.length < 3) {
+      setLocalError("Add a short reason for admin review.");
+      return;
+    }
+    onSubmit(cleanReason);
+  };
+
+  return (
+    <div className="drawer-backdrop centered-modal-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+      <aside className="private-proof-modal compact-dialog-modal" role="dialog" aria-modal="true" aria-label="Report comment" onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <Flag size={18} />
+            Report comment
+          </span>
+          <button disabled={isSubmitting} onClick={onClose} aria-label="Close report comment">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="proof-market-title">
+          <strong>{comment.actor}</strong>
+          <small>{comment.body}</small>
+        </div>
+        <label>
+          Reason for admin review
+          <textarea
+            autoFocus
+            disabled={isSubmitting}
+            maxLength={240}
+            onChange={event => {
+              setReason(event.currentTarget.value);
+              setLocalError("");
+            }}
+            value={reason}
+          />
+        </label>
+        {localError ? <div className="login-error">{localError}</div> : null}
+        <div className="modal-action-row">
+          <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
+          <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
+            {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <Flag size={16} />}
+            Submit report
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 

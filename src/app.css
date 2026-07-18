@@ -3571,6 +3571,25 @@ a {
   padding: 14px;
 }
 
+.compact-dialog-modal {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(620px, calc(100vh - 36px));
+  margin: 0;
+  align-content: start;
+  gap: 12px;
+  padding: 14px;
+}
+
+.compact-dialog-modal textarea {
+  min-height: 110px;
+}
+
+.compact-notice {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+}
+
 .shielded-withdrawal-help,
 .privacy-warning {
   margin: 0;
