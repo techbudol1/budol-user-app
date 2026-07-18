@@ -9,6 +9,15 @@ import { buildPrivateClaimCircuitInput, exportEncryptedPrivateClaimNotes, genera
 import { buildShieldedWithdrawalCircuitInput, fieldPublicSignalToBytes32, generateShieldedWithdrawalProof, listShieldedPayoutNotes, removeShieldedPayoutNote, removeShieldedPayoutNoteByCommitment, ShieldedWithdrawalArtifactError } from "../lib/shieldedPayouts";
 import type { Market, Position, ShieldedPayoutNote, ShieldedWithdrawal, Trade, TradeSide, UserPortfolio } from "../types";
 
+type ShieldedPayoutGroup = {
+  createdAt: string;
+  id: string;
+  notes: ShieldedPayoutNote[];
+  title: string;
+  totalRaw: string;
+  tradeId: string;
+};
+
 type PortfolioPageProps = {
   accountAddress?: string;
   onBack: () => void;
@@ -31,7 +40,8 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
   const [sellAmounts, setSellAmounts] = useState<Record<string, string>>({});
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
-  const [shieldedWithdrawalNote, setShieldedWithdrawalNote] = useState<ShieldedPayoutNote | null>(null);
+  const [shieldedWithdrawalGroup, setShieldedWithdrawalGroup] = useState<ShieldedPayoutGroup | null>(null);
+  const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
   const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
@@ -122,6 +132,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       .map(withdrawal => withdrawal.noteCommitment.toLowerCase()),
   );
   const withdrawableShieldedNotes = shieldedNotes.filter(note => !queuedWithdrawalCommitments.has(note.commitment.toLowerCase()));
+  const shieldedPayoutGroups = groupShieldedPayoutNotes(withdrawableShieldedNotes, portfolio?.trades ?? []);
   const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
 
   const cashout = async (pollId: string, side: TradeSide, amount = 0) => {
@@ -299,48 +310,62 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     return payPrivacyFee("shielded_payout", "credit this shielded payout note");
   };
 
-  const withdrawShieldedNote = async (note: ShieldedPayoutNote, cleanRecipient: string) => {
-    setPendingShieldedWithdrawal(note.tradeId);
+  const withdrawShieldedGroup = async (group: ShieldedPayoutGroup, cleanRecipient: string) => {
+    setPendingShieldedWithdrawal(group.id);
+    setShieldedWithdrawalProgress("");
     setError("");
+    let queuedCount = 0;
     try {
-      const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
-      const proofBundle = await generateShieldedWithdrawalProof(circuitInput);
-      const noteCommitment = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[0] ?? ""));
-      const nullifierHash = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[1] ?? ""));
-      const proofSubmission = await submitShieldedWithdrawalProof({
-        noteCommitment,
-        nullifierHash,
-        proof: proofBundle.proof,
-        publicSignals: proofBundle.publicSignals,
-        recipient: cleanRecipient,
-        vk: proofBundle.vk,
-      });
-      const withdrawal = await withdrawShieldedPayout({
-        noteCommitment,
-        nullifierHash,
-        publicSignals: proofBundle.publicSignals,
-        recipient: cleanRecipient,
-        solidityProof: proofBundle.solidityProof,
-        zkProofSubmissionId: proofSubmission.submission.id,
-      });
-      if (withdrawal.withdrawal) {
-        setShieldedWithdrawals(current => upsertWithdrawal(current, withdrawal.withdrawal as ShieldedWithdrawal));
-      } else {
-        setShieldedWithdrawals(await loadShieldedWithdrawals());
+      for (const [index, note] of group.notes.entries()) {
+        const step = `${index + 1}/${group.notes.length}`;
+        setShieldedWithdrawalProgress(`Generating privacy proof ${step}...`);
+        const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
+        const proofBundle = await generateShieldedWithdrawalProof(circuitInput);
+        const noteCommitment = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[0] ?? ""));
+        const nullifierHash = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[1] ?? ""));
+        setShieldedWithdrawalProgress(`Submitting proof ${step}...`);
+        const proofSubmission = await submitShieldedWithdrawalProof({
+          noteCommitment,
+          nullifierHash,
+          proof: proofBundle.proof,
+          publicSignals: proofBundle.publicSignals,
+          recipient: cleanRecipient,
+          vk: proofBundle.vk,
+        });
+        setShieldedWithdrawalProgress(`Queueing withdrawal ${step}...`);
+        const withdrawal = await withdrawShieldedPayout({
+          noteCommitment,
+          nullifierHash,
+          publicSignals: proofBundle.publicSignals,
+          recipient: cleanRecipient,
+          solidityProof: proofBundle.solidityProof,
+          zkProofSubmissionId: proofSubmission.submission.id,
+        });
+        if (withdrawal.withdrawal) {
+          setShieldedWithdrawals(current => upsertWithdrawal(current, withdrawal.withdrawal as ShieldedWithdrawal));
+        } else {
+          setShieldedWithdrawals(await loadShieldedWithdrawals());
+        }
+        queuedCount += 1;
+        removeShieldedPayoutNoteByCommitment(note.commitment);
+        setShieldedNotesRevision(revision => revision + 1);
       }
-      removeShieldedPayoutNoteByCommitment(note.commitment);
-      setShieldedNotesRevision(revision => revision + 1);
-      const executeAfter = withdrawal.withdrawal?.executeAfter ? ` Scheduled after ${formatDate(withdrawal.withdrawal.executeAfter)}.` : "";
-      onToast("Shielded withdrawal queued.", `BudolPH will relay this withdrawal in a delayed batch.${executeAfter}`);
-      setShieldedWithdrawalNote(null);
+      setShieldedWithdrawals(await loadShieldedWithdrawals());
+      onToast(
+        "Shielded withdrawal batch queued.",
+        `${formatRawToken(group.totalRaw)} BUDOL queued as ${group.notes.length} fixed-denomination private note${group.notes.length === 1 ? "" : "s"}.`,
+      );
+      setShieldedWithdrawalGroup(null);
     } catch (err) {
       if (err instanceof ShieldedWithdrawalArtifactError) {
         setError("Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.");
       } else {
-        setError(err instanceof Error ? err.message : "Unable to withdraw shielded payout.");
+        const partial = queuedCount > 0 ? `${queuedCount}/${group.notes.length} withdrawals were queued before the error. ` : "";
+        setError(`${partial}${err instanceof Error ? err.message : "Unable to withdraw shielded payout."}`);
       }
     } finally {
       setPendingShieldedWithdrawal("");
+      setShieldedWithdrawalProgress("");
     }
   };
 
@@ -463,7 +488,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
             <ShieldCheck size={19} />
             <h2>Private claim notes</h2>
           </div>
-          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {withdrawableShieldedNotes.length} shielded payout note{withdrawableShieldedNotes.length === 1 ? "" : "s"} ready in this browser.</p>
+          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {shieldedPayoutGroups.length} shielded payout batch{shieldedPayoutGroups.length === 1 ? "" : "es"} ready in this browser.</p>
           {backupStatus ? <small>{backupStatus}</small> : null}
         </div>
         <div className="claim-note-backup-actions">
@@ -478,22 +503,22 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </div>
       </section>
 
-      {withdrawableShieldedNotes.length > 0 ? (
+      {shieldedPayoutGroups.length > 0 ? (
         <section className="panel shielded-note-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
-            <h2>Shielded payout notes</h2>
+            <h2>Shielded payouts</h2>
           </div>
           <div className="shielded-note-list">
-            {withdrawableShieldedNotes.map(note => (
-              <div className="shielded-note-row" key={`${note.tradeId}-${note.commitment}`}>
+            {shieldedPayoutGroups.map(group => (
+              <div className="shielded-note-row" key={group.id}>
                 <span>
-                  <strong>{shortHash(note.commitment)}</strong>
-                  <small>{formatRawToken(note.denomination)} BUDOL pool note / trade {shortHash(note.tradeId)}</small>
+                  <strong>{formatRawToken(group.totalRaw)} BUDOL private payout</strong>
+                  <small>{group.title} / {group.notes.length} fixed-denomination note{group.notes.length === 1 ? "" : "s"}</small>
                 </span>
-                <button className="ghost-button" disabled={pendingShieldedWithdrawal === note.tradeId} onClick={() => setShieldedWithdrawalNote(note)} type="button">
-                  {pendingShieldedWithdrawal === note.tradeId ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
-                  Queue withdrawal
+                <button className="ghost-button" disabled={pendingShieldedWithdrawal === group.id} onClick={() => setShieldedWithdrawalGroup(group)} type="button">
+                  {pendingShieldedWithdrawal === group.id ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+                  Withdraw privately
                 </button>
               </div>
             ))}
@@ -680,13 +705,14 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           trade={proofWork.trade}
         />
       ) : null}
-      {shieldedWithdrawalNote ? (
+      {shieldedWithdrawalGroup ? (
         <ShieldedWithdrawalRecipientModal
           connectedWallet={accountAddress || ""}
-          isSubmitting={pendingShieldedWithdrawal === shieldedWithdrawalNote.tradeId}
-          note={shieldedWithdrawalNote}
-          onClose={() => setShieldedWithdrawalNote(null)}
-          onSubmit={recipient => void withdrawShieldedNote(shieldedWithdrawalNote, recipient)}
+          group={shieldedWithdrawalGroup}
+          isSubmitting={pendingShieldedWithdrawal === shieldedWithdrawalGroup.id}
+          progress={shieldedWithdrawalProgress}
+          onClose={() => setShieldedWithdrawalGroup(null)}
+          onSubmit={recipient => void withdrawShieldedGroup(shieldedWithdrawalGroup, recipient)}
         />
       ) : null}
     </section>
@@ -728,6 +754,55 @@ function formatRawToken(value: string, decimals = 18) {
     return `${whole.toLocaleString("en-PH")}.${fractionText}`;
   } catch {
     return value;
+  }
+}
+
+function groupShieldedPayoutNotes(notes: ShieldedPayoutNote[], trades: Trade[]): ShieldedPayoutGroup[] {
+  const tradesById = new Map(trades.map(trade => [trade.id, trade]));
+  const groups = new Map<string, ShieldedPayoutNote[]>();
+  for (const note of notes) {
+    const current = groups.get(note.tradeId) ?? [];
+    current.push(note);
+    groups.set(note.tradeId, current);
+  }
+  return Array.from(groups.entries())
+    .map(([tradeId, groupNotes]) => {
+      const sortedNotes = [...groupNotes].sort(compareShieldedNotes);
+      const totalRaw = sortedNotes.reduce((total, note) => total + rawTokenValue(note.denomination), 0n).toString();
+      const trade = tradesById.get(tradeId);
+      return {
+        createdAt: sortedNotes.map(note => note.createdAt).sort().at(-1) ?? "",
+        id: tradeId,
+        notes: sortedNotes,
+        title: trade?.pollTitle || `Trade ${shortHash(tradeId)}`,
+        totalRaw,
+        tradeId,
+      };
+    })
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function compareShieldedNotes(left: ShieldedPayoutNote, right: ShieldedPayoutNote) {
+  const denominationCompare = compareRawTokenValues(right.denomination, left.denomination);
+  if (denominationCompare !== 0) {
+    return denominationCompare;
+  }
+  return left.createdAt.localeCompare(right.createdAt);
+}
+
+function compareRawTokenValues(left: string, right: string) {
+  const leftRaw = rawTokenValue(left);
+  const rightRaw = rawTokenValue(right);
+  if (leftRaw > rightRaw) return 1;
+  if (leftRaw < rightRaw) return -1;
+  return 0;
+}
+
+function rawTokenValue(value: string) {
+  try {
+    return BigInt(value);
+  } catch {
+    return 0n;
   }
 }
 
@@ -905,16 +980,18 @@ function CopyableHash({ label, value }: { label: string; value: string }) {
 
 function ShieldedWithdrawalRecipientModal({
   connectedWallet,
+  group,
   isSubmitting,
-  note,
   onClose,
   onSubmit,
+  progress,
 }: {
   connectedWallet: string;
+  group: ShieldedPayoutGroup;
   isSubmitting: boolean;
-  note: ShieldedPayoutNote;
   onClose: () => void;
   onSubmit: (recipient: string) => void;
+  progress: string;
 }) {
   const [recipient, setRecipient] = useState("");
   const [localError, setLocalError] = useState("");
@@ -943,11 +1020,12 @@ function ShieldedWithdrawalRecipientModal({
           </button>
         </header>
         <div className="proof-market-title">
-          <strong>{formatRawToken(note.denomination)} BUDOL shielded note</strong>
-          <small>Commitment {shortHash(note.commitment)} / pool {shortHash(note.poolAddress)}</small>
+          <strong>{formatRawToken(group.totalRaw)} BUDOL shielded payout</strong>
+          <small>{group.title} / {group.notes.length} fixed-denomination note{group.notes.length === 1 ? "" : "s"}</small>
         </div>
         <p className="shielded-withdrawal-help">
-          Choose the wallet that will receive this payout. For better privacy, use a fresh wallet that has not interacted with BudolPH.
+          Choose the wallet that will receive this payout once. BudolPH will queue the internal fixed-denomination notes as a private withdrawal batch.
+          For better privacy, use a fresh wallet that has not interacted with BudolPH.
         </p>
         <label>
           Recipient wallet
@@ -965,11 +1043,12 @@ function ShieldedWithdrawalRecipientModal({
           </div>
         ) : null}
         {localError ? <div className="login-error">{localError}</div> : null}
+        {progress ? <div className="notice compact-notice">{progress}</div> : null}
         <div className="modal-action-row">
           <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
           <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
             {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
-            Queue withdrawal
+            Withdraw privately
           </button>
         </div>
       </aside>
