@@ -255,10 +255,6 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     if (!config.collectorAddress) {
       throw new Error("Privacy fee collector is not configured.");
     }
-    const confirmed = window.confirm(`Pay ${formatRawToken(amountRaw)} ${config.currency} to ${actionLabel}? This fee unlocks the paid privacy feature.`);
-    if (!confirmed) {
-      throw new Error("Privacy fee payment cancelled.");
-    }
     if (walletCustody === "managed") {
       const result = await payManagedPrivacyFee(kind);
       return result.transactionHash || "";
