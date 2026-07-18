@@ -721,17 +721,26 @@ export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new Error(payload?.error || "Unable to load privacy fee configuration.");
   }
-  const payload = (await response.json()) as PrivacyAccessConfig;
+  const payload = (await response.json()) as PrivacyAccessConfig & {
+    feeCollectorAddress?: string;
+    features?: {
+      hidePositionUntilResolution?: { fee?: string };
+      privateClaimProof?: { fee?: string };
+      shieldedPayout?: { fee?: string };
+    };
+    tokenSymbol?: string;
+  };
   const fees = (payload.fees || {}) as Record<PrivacyFeeKind, string>;
+  const legacyFeatures = payload.features || {};
   return {
     chainId: Number(payload.chainId || 2651420),
-    collectorAddress: String(payload.collectorAddress || ""),
-    currency: String(payload.currency || "tZEN"),
+    collectorAddress: String(payload.collectorAddress || payload.feeCollectorAddress || ""),
+    currency: String(payload.currency || payload.tokenSymbol || "tZEN"),
     decimals: Number(payload.decimals || 18),
     fees: {
-      hide_position: String(fees.hide_position || "0"),
-      private_claim: String(fees.private_claim || "0"),
-      shielded_payout: String(fees.shielded_payout || "0"),
+      hide_position: String(fees.hide_position || legacyFeatures.hidePositionUntilResolution?.fee || "0"),
+      private_claim: String(fees.private_claim || legacyFeatures.privateClaimProof?.fee || "0"),
+      shielded_payout: String(fees.shielded_payout || legacyFeatures.shieldedPayout?.fee || "0"),
     },
     limitations: Array.isArray(payload.limitations) ? payload.limitations.map(String) : [],
     mode: "native",
