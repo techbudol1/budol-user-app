@@ -1,7 +1,7 @@
 import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadCurrentUser, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
 import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
@@ -31,6 +31,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
   const [sellAmounts, setSellAmounts] = useState<Record<string, string>>({});
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+  const [shieldedWithdrawalNote, setShieldedWithdrawalNote] = useState<ShieldedPayoutNote | null>(null);
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
   const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
@@ -292,18 +293,10 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     return payPrivacyFee("shielded_payout", "credit this shielded payout note");
   };
 
-  const withdrawShieldedNote = async (note: ShieldedPayoutNote) => {
+  const withdrawShieldedNote = async (note: ShieldedPayoutNote, cleanRecipient: string) => {
     setPendingShieldedWithdrawal(note.tradeId);
     setError("");
     try {
-      const user = await loadCurrentUser();
-      const recipient = window.prompt("Recipient wallet for this shielded withdrawal. For better privacy, use a fresh wallet that has not interacted with BudolPH.", "");
-      if (!recipient) return;
-      const cleanRecipient = recipient.trim();
-      if (user?.walletAddress && cleanRecipient.toLowerCase() === user.walletAddress.toLowerCase()) {
-        const proceed = window.confirm("This recipient is your connected BudolPH wallet. The withdrawal will still work, but it makes the payout easier to link to your account. Continue?");
-        if (!proceed) return;
-      }
       const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
       const proofBundle = await generateShieldedWithdrawalProof(circuitInput);
       const noteCommitment = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[0] ?? ""));
@@ -331,6 +324,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       }
       const executeAfter = withdrawal.withdrawal?.executeAfter ? ` Scheduled after ${formatDate(withdrawal.withdrawal.executeAfter)}.` : "";
       onToast("Shielded withdrawal queued.", `BudolPH will relay this withdrawal in a delayed batch.${executeAfter}`);
+      setShieldedWithdrawalNote(null);
     } catch (err) {
       if (err instanceof ShieldedWithdrawalArtifactError) {
         setError("Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.");
@@ -489,7 +483,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                   <strong>{shortHash(note.commitment)}</strong>
                   <small>{formatRawToken(note.denomination)} BUDOL pool note / trade {shortHash(note.tradeId)}</small>
                 </span>
-                <button className="ghost-button" disabled={pendingShieldedWithdrawal === note.tradeId} onClick={() => void withdrawShieldedNote(note)} type="button">
+                <button className="ghost-button" disabled={pendingShieldedWithdrawal === note.tradeId} onClick={() => setShieldedWithdrawalNote(note)} type="button">
                   {pendingShieldedWithdrawal === note.tradeId ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
                   Queue withdrawal
                 </button>
@@ -676,6 +670,15 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           onClose={() => setProofWork(null)}
           onSubmit={(proof, publicSignals, vk) => void submitManualProof(proofWork.trade, proof, publicSignals, vk)}
           trade={proofWork.trade}
+        />
+      ) : null}
+      {shieldedWithdrawalNote ? (
+        <ShieldedWithdrawalRecipientModal
+          connectedWallet={accountAddress || ""}
+          isSubmitting={pendingShieldedWithdrawal === shieldedWithdrawalNote.tradeId}
+          note={shieldedWithdrawalNote}
+          onClose={() => setShieldedWithdrawalNote(null)}
+          onSubmit={recipient => void withdrawShieldedNote(shieldedWithdrawalNote, recipient)}
         />
       ) : null}
     </section>
@@ -889,6 +892,80 @@ function CopyableHash({ label, value }: { label: string; value: string }) {
       <span>{label}</span>
       <small>{shortHash(value)}</small>
     </button>
+  );
+}
+
+function ShieldedWithdrawalRecipientModal({
+  connectedWallet,
+  isSubmitting,
+  note,
+  onClose,
+  onSubmit,
+}: {
+  connectedWallet: string;
+  isSubmitting: boolean;
+  note: ShieldedPayoutNote;
+  onClose: () => void;
+  onSubmit: (recipient: string) => void;
+}) {
+  const [recipient, setRecipient] = useState("");
+  const [localError, setLocalError] = useState("");
+  const cleanRecipient = recipient.trim();
+  const usesConnectedWallet = connectedWallet.trim() !== "" && cleanRecipient.toLowerCase() === connectedWallet.trim().toLowerCase();
+
+  const submit = () => {
+    setLocalError("");
+    if (!/^0x[0-9a-fA-F]{40}$/.test(cleanRecipient)) {
+      setLocalError("Enter a valid EVM wallet address.");
+      return;
+    }
+    onSubmit(cleanRecipient);
+  };
+
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+      <aside className="private-proof-modal shielded-withdrawal-modal" role="dialog" aria-modal="true" aria-label="Queue shielded withdrawal" onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <ShieldCheck size={18} />
+            Queue shielded withdrawal
+          </span>
+          <button disabled={isSubmitting} onClick={onClose} aria-label="Close shielded withdrawal">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="proof-market-title">
+          <strong>{formatRawToken(note.denomination)} BUDOL shielded note</strong>
+          <small>Commitment {shortHash(note.commitment)} / pool {shortHash(note.poolAddress)}</small>
+        </div>
+        <p className="shielded-withdrawal-help">
+          Choose the wallet that will receive this payout. For better privacy, use a fresh wallet that has not interacted with BudolPH.
+        </p>
+        <label>
+          Recipient wallet
+          <input
+            autoFocus
+            disabled={isSubmitting}
+            onChange={event => setRecipient(event.currentTarget.value)}
+            placeholder="0x..."
+            value={recipient}
+          />
+        </label>
+        {usesConnectedWallet ? (
+          <div className="privacy-warning">
+            This is your connected BudolPH wallet. The withdrawal will work, but it is easier to link to your account. A fresh wallet is better for privacy.
+          </div>
+        ) : null}
+        {localError ? <div className="login-error">{localError}</div> : null}
+        <div className="modal-action-row">
+          <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
+          <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
+            {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+            Queue withdrawal
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 
