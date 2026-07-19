@@ -3203,6 +3203,15 @@ a {
   gap: 12px;
 }
 
+.shielded-background-card {
+  display: grid;
+  gap: 12px;
+  border-color: rgba(22, 163, 127, 0.28);
+  background:
+    linear-gradient(135deg, rgba(22, 163, 127, 0.1), transparent 52%),
+    var(--panel);
+}
+
 .shielded-note-list {
   display: grid;
   gap: 8px;
@@ -3246,6 +3255,14 @@ a {
   color: var(--accent);
   font-weight: 900;
   text-decoration: none;
+}
+
+.shielded-job-row.done {
+  border-color: rgba(22, 163, 127, 0.32);
+}
+
+.shielded-job-row.failed {
+  border-color: rgba(239, 91, 69, 0.42);
 }
 
 .portfolio-content-grid,

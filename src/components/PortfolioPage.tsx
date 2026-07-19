@@ -30,6 +30,13 @@ type BackupPassphraseRequest =
   | { kind: "export" }
   | { backupText: string; kind: "import" };
 
+type BackgroundWithdrawalJob = {
+  detail: string;
+  id: string;
+  status: "running" | "done" | "failed";
+  title: string;
+};
+
 type PortfolioPageProps = {
   accountAddress?: string;
   onBack: () => void;
@@ -57,6 +64,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [isBackupWorking, setIsBackupWorking] = useState(false);
   const [shieldedWithdrawalGroup, setShieldedWithdrawalGroup] = useState<ShieldedPayoutGroup | null>(null);
   const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
+  const [backgroundWithdrawalJobs, setBackgroundWithdrawalJobs] = useState<BackgroundWithdrawalJob[]>([]);
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
   const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
@@ -342,19 +350,35 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   };
 
   const withdrawShieldedGroup = async (group: ShieldedPayoutGroup, cleanRecipient: string) => {
-    setPendingShieldedWithdrawal(group.id);
-    setShieldedWithdrawalProgress("");
+    const jobId = `${group.id}-${Date.now()}`;
+    setShieldedWithdrawalGroup(null);
+    setBackgroundWithdrawalJobs(current => [
+      {
+        detail: `Preparing ${group.notes.length} private note${group.notes.length === 1 ? "" : "s"} for ${shortHash(cleanRecipient)}.`,
+        id: jobId,
+        status: "running",
+        title: `${formatRawToken(group.totalRaw)} BUDOL private withdrawal`,
+      },
+      ...current,
+    ].slice(0, 5));
+    onToast("Shielded withdrawal started.", "You can keep using BudolPH. We will notify you when the batch is queued.");
     setError("");
     let queuedCount = 0;
     try {
       for (const [index, note] of group.notes.entries()) {
         const step = `${index + 1}/${group.notes.length}`;
-        setShieldedWithdrawalProgress(`Generating privacy proof ${step}...`);
+        setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, {
+          detail: `Generating privacy proof ${step}...`,
+          status: "running",
+        }));
         const circuitInput = await buildShieldedWithdrawalCircuitInput(note, cleanRecipient);
         const proofBundle = await generateShieldedWithdrawalProof(circuitInput);
         const noteCommitment = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[0] ?? ""));
         const nullifierHash = fieldPublicSignalToBytes32(String(proofBundle.publicSignals[1] ?? ""));
-        setShieldedWithdrawalProgress(`Submitting proof ${step}...`);
+        setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, {
+          detail: `Submitting proof ${step}...`,
+          status: "running",
+        }));
         const proofSubmission = await submitShieldedWithdrawalProof({
           noteCommitment,
           nullifierHash,
@@ -363,7 +387,10 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           recipient: cleanRecipient,
           vk: proofBundle.vk,
         });
-        setShieldedWithdrawalProgress(`Queueing withdrawal ${step}...`);
+        setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, {
+          detail: `Queueing withdrawal ${step}...`,
+          status: "running",
+        }));
         const withdrawal = await withdrawShieldedPayout({
           noteCommitment,
           nullifierHash,
@@ -382,20 +409,28 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         setShieldedNotesRevision(revision => revision + 1);
       }
       setShieldedWithdrawals(await loadShieldedWithdrawals());
+      setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, {
+        detail: `${group.notes.length} private note${group.notes.length === 1 ? "" : "s"} queued for relayed withdrawal.`,
+        status: "done",
+      }));
       onToast(
         "Shielded withdrawal batch queued.",
         `${formatRawToken(group.totalRaw)} BUDOL queued as ${group.notes.length} fixed-denomination private note${group.notes.length === 1 ? "" : "s"}.`,
       );
-      setShieldedWithdrawalGroup(null);
     } catch (err) {
       if (err instanceof ShieldedWithdrawalArtifactError) {
-        setError("Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.");
+        const message = "Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.";
+        setError(message);
+        setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, { detail: message, status: "failed" }));
+        onToast("Shielded withdrawal failed.", message);
       } else {
         const partial = queuedCount > 0 ? `${queuedCount}/${group.notes.length} withdrawals were queued before the error. ` : "";
-        setError(`${partial}${err instanceof Error ? err.message : "Unable to withdraw shielded payout."}`);
+        const message = `${partial}${err instanceof Error ? err.message : "Unable to withdraw shielded payout."}`;
+        setError(message);
+        setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, { detail: message, status: "failed" }));
+        onToast("Shielded withdrawal failed.", message);
       }
     } finally {
-      setPendingShieldedWithdrawal("");
       setShieldedWithdrawalProgress("");
     }
   };
@@ -518,6 +553,29 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                 {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
                 {trade.payoutStatus === "claim_failed" ? "Retry" : "Claim"} {formatToken(trade.settlementPayout)} BUDOL
               </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {backgroundWithdrawalJobs.length > 0 ? (
+        <section className="panel shielded-background-card">
+          <div className="panel-title">
+            <ShieldCheck size={19} />
+            <h2>Private withdrawal updates</h2>
+          </div>
+          <div className="shielded-note-list">
+            {backgroundWithdrawalJobs.map(job => (
+              <div className={`shielded-note-row shielded-job-row ${job.status}`} key={job.id}>
+                <span>
+                  <strong>
+                    {job.title}
+                    <i className={`trade-status-pill payout-${job.status === "done" ? "confirmed" : job.status === "failed" ? "failed" : "queued"}`}>{job.status}</i>
+                  </strong>
+                  <small>{job.detail}</small>
+                </span>
+                {job.status === "running" ? <LoaderCircle className="spin-icon" size={18} /> : null}
+              </div>
             ))}
           </div>
         </section>
@@ -837,6 +895,10 @@ function groupShieldedPayoutNotes(notes: ShieldedPayoutNote[], trades: Trade[]):
       };
     })
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function updateWithdrawalJob(jobs: BackgroundWithdrawalJob[], id: string, patch: Pick<BackgroundWithdrawalJob, "detail" | "status">) {
+  return jobs.map(job => job.id === id ? { ...job, ...patch } : job);
 }
 
 function compareShieldedNotes(left: ShieldedPayoutNote, right: ShieldedPayoutNote) {
