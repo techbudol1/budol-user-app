@@ -30,6 +30,9 @@ const routePaths: Record<AppRoute, string> = {
   logout: "/logout",
 };
 
+const NOTIFICATION_STORAGE_KEY = "budol-account-notifications";
+const NOTIFICATION_LIMIT = 100;
+
 function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string } {
   const normalizedPath = pathname.replace(/\/+$/, "") || "/";
   if (normalizedPath === "/account" || normalizedPath === "/my-account") {
@@ -59,6 +62,36 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
   return { route: "markets", marketSlug: "" };
 }
 
+function notificationTimestamp(notification: AccountNotification) {
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(notification.createdAt) ? `${notification.createdAt}Z` : notification.createdAt;
+  const timestamp = Date.parse(normalized);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function sortNotifications(notifications: AccountNotification[]) {
+  return [...notifications].sort((left, right) => notificationTimestamp(right) - notificationTimestamp(left));
+}
+
+function saveAccountNotifications(notifications: AccountNotification[]) {
+  localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(notifications));
+}
+
+function mergeAccountNotifications(current: AccountNotification[], incoming: AccountNotification[]) {
+  const byId = new Map<string, AccountNotification>();
+  for (const notification of current) {
+    byId.set(notification.id, notification);
+  }
+  for (const notification of incoming) {
+    const existing = byId.get(notification.id);
+    byId.set(notification.id, {
+      ...existing,
+      ...notification,
+      readAt: existing?.readAt || notification.readAt,
+    });
+  }
+  return sortNotifications(Array.from(byId.values())).slice(0, NOTIFICATION_LIMIT);
+}
+
 export default function App() {
   const logoutRouteHandled = useRef(false);
   const [activeFilter, setActiveFilter] = useState("Trending");
@@ -80,7 +113,7 @@ export default function App() {
   const [watchlist, setWatchlist] = useState<string[]>(() => JSON.parse(localStorage.getItem("budol-watchlist") || "[]") as string[]);
   const [accountNotifications, setAccountNotifications] = useState<AccountNotification[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("budol-account-notifications") || "[]") as AccountNotification[];
+      return sortNotifications(JSON.parse(localStorage.getItem(NOTIFICATION_STORAGE_KEY) || "[]") as AccountNotification[]);
     } catch {
       return [];
     }
@@ -108,8 +141,11 @@ export default function App() {
   const refreshAccountNotifications = async () => {
     try {
       const notifications = await loadNotifications();
-      setAccountNotifications(notifications);
-      localStorage.setItem("budol-account-notifications", JSON.stringify(notifications));
+      setAccountNotifications(current => {
+        const next = mergeAccountNotifications(current, notifications);
+        saveAccountNotifications(next);
+        return next;
+      });
     } catch {
       // Keep the local notification list if the API is temporarily unavailable.
     }
@@ -149,16 +185,13 @@ export default function App() {
   const notify = (message: string, detail = message, syncFromServer = true) => {
     showToast(message);
     setAccountNotifications(current => {
-      const next = [
-        {
-          id: crypto.randomUUID(),
-          title: message,
-          detail,
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ].slice(0, 12);
-      localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+      const next = mergeAccountNotifications(current, [{
+        id: crypto.randomUUID(),
+        title: message,
+        detail,
+        createdAt: new Date().toISOString(),
+      }]);
+      saveAccountNotifications(next);
       return next;
     });
     if (syncFromServer && budolUser) {
@@ -172,7 +205,7 @@ export default function App() {
     setAccountNotifications(current => {
       const now = new Date().toISOString();
       const next = current.map(notification => ({ ...notification, readAt: notification.readAt || now }));
-      localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+      saveAccountNotifications(next);
       return next;
     });
     try {
@@ -224,15 +257,15 @@ export default function App() {
       const readAt = new Date().toISOString();
       setAccountNotifications(current => {
         const next = current.map(item => (item.id === notification.id ? { ...item, readAt } : item));
-        localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+        saveAccountNotifications(next);
         return next;
       });
       if (budolUser && notification.userId) {
         void markNotificationRead(notification.id)
           .then(updatedNotification => {
             setAccountNotifications(current => {
-              const next = current.map(item => (item.id === updatedNotification.id ? updatedNotification : item));
-              localStorage.setItem("budol-account-notifications", JSON.stringify(next));
+              const next = mergeAccountNotifications(current, [updatedNotification]);
+              saveAccountNotifications(next);
               return next;
             });
           })
@@ -447,7 +480,7 @@ export default function App() {
     } else if (!isAuthLoading) {
       setWalletBalances([]);
       setAccountNotifications([]);
-      localStorage.setItem("budol-account-notifications", "[]");
+      saveAccountNotifications([]);
     }
   }, [budolUser?.id, isAuthLoading, refreshWalletBalances]);
 

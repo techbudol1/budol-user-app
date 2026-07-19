@@ -1,6 +1,6 @@
 import { ArrowLeft, Bell, CheckCheck } from "lucide-react";
 import { useMemo, useState } from "react";
-import { formatDate } from "../lib/format";
+import { formatNotificationTime } from "../lib/format";
 import type { AccountNotification } from "../types";
 
 type NotificationsPageProps = {
@@ -55,7 +55,7 @@ export function NotificationsPage({ notifications, onBack, onMarkRead, onOpen }:
             <button className={`notification-item ${notification.readAt ? "" : "unread"}`} key={notification.id} onClick={() => onOpen(notification)}>
               <strong>{notification.title}</strong>
               <span>{notification.detail}</span>
-              <small>{formatDate(notification.createdAt)}</small>
+              <small>{formatNotificationTime(notification.createdAt)}</small>
             </button>
           ))}
           {filtered.length === 0 ? <div className="empty-state">No notifications match this filter.</div> : null}

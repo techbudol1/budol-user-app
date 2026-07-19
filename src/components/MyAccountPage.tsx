@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { formatDate, shortAddress } from "../lib/format";
+import { formatDate, formatNotificationTime, shortAddress } from "../lib/format";
 import { updateAccountDisplayName } from "../lib/api";
 import type { AccountNotification, BudolUser } from "../types";
 
@@ -300,7 +300,7 @@ export function MyAccountPage({ accountAddress, notifications, onBack, onLogout,
                     detail={notification.detail}
                     key={notification.id}
                     label={notification.title}
-                    value={formatDate(notification.createdAt)}
+                    value={formatNotificationTime(notification.createdAt)}
                   />
                 ))
               ) : (

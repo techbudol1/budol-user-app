@@ -1,7 +1,7 @@
 import { Bell, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AccountNotification, WalletBalance } from "../types";
-import { formatDate } from "../lib/format";
+import { formatNotificationTime } from "../lib/format";
 import { shortAddress } from "../lib/format";
 import budolLogoImage from "../../public/assets/budol-market.png";
 
@@ -247,7 +247,7 @@ export function Topbar({
                     <button className={`notification-item ${notification.readAt ? "" : "unread"}`} key={notification.id} onClick={() => openNotification(notification)}>
                       <strong>{notification.title}</strong>
                       <span>{notification.detail}</span>
-                      <small>{formatDate(notification.createdAt)}</small>
+                      <small>{formatNotificationTime(notification.createdAt)}</small>
                     </button>
                   ))}
                 </div>
