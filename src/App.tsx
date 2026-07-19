@@ -131,6 +131,16 @@ export default function App() {
     }
   }, [budolUser?.id]);
 
+  const refreshPortfolio = async () => {
+    try {
+      const nextPortfolio = await loadPortfolio();
+      setUserPortfolio(nextPortfolio);
+      recordPortfolioSettlements(nextPortfolio);
+    } catch {
+      setUserPortfolio(null);
+    }
+  };
+
   const showToast = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(""), 3200);
@@ -425,6 +435,7 @@ export default function App() {
   useEffect(() => {
     if (budolUser) {
       void refreshAccountNotifications();
+      void refreshPortfolio();
       void refreshWalletBalances();
       loadWatchlist()
         .then(items => {
@@ -482,6 +493,7 @@ export default function App() {
         onLoggedIn={user => {
           setBudolUser(user);
           setIsAuthLoading(false);
+          void refreshPortfolio();
           void refreshWalletBalances({ forceRefresh: true });
           void refreshAccountNotifications();
           showToast("Login successful.");
