@@ -30,7 +30,8 @@ const routePaths: Record<AppRoute, string> = {
   logout: "/logout",
 };
 
-const NOTIFICATION_STORAGE_KEY = "budol-account-notifications";
+const LEGACY_NOTIFICATION_STORAGE_KEY = "budol-account-notifications";
+const NOTIFICATION_STORAGE_KEY = "budol-account-notifications-v2";
 const NOTIFICATION_LIMIT = 100;
 
 function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string } {
@@ -76,20 +77,25 @@ function saveAccountNotifications(notifications: AccountNotification[]) {
   localStorage.setItem(NOTIFICATION_STORAGE_KEY, JSON.stringify(notifications));
 }
 
-function mergeAccountNotifications(current: AccountNotification[], incoming: AccountNotification[]) {
-  const byId = new Map<string, AccountNotification>();
-  for (const notification of current) {
-    byId.set(notification.id, notification);
-  }
+function normalizeServerNotifications(incoming: AccountNotification[], current: AccountNotification[] = []) {
+  const localReadById = new Map(current.map(notification => [notification.id, notification.readAt || ""]));
+  const deduped = new Map<string, AccountNotification>();
   for (const notification of incoming) {
-    const existing = byId.get(notification.id);
-    byId.set(notification.id, {
-      ...existing,
+    deduped.set(notification.id, {
       ...notification,
-      readAt: existing?.readAt || notification.readAt,
+      readAt: localReadById.get(notification.id) || notification.readAt,
     });
   }
-  return sortNotifications(Array.from(byId.values())).slice(0, NOTIFICATION_LIMIT);
+  return sortNotifications(Array.from(deduped.values())).slice(0, NOTIFICATION_LIMIT);
+}
+
+function mergeServerNotificationUpdate(current: AccountNotification[], incoming: AccountNotification) {
+  const next = current.map(notification => (
+    notification.id === incoming.id
+      ? { ...notification, ...incoming, readAt: notification.readAt || incoming.readAt }
+      : notification
+  ));
+  return sortNotifications(next).slice(0, NOTIFICATION_LIMIT);
 }
 
 export default function App() {
@@ -142,7 +148,7 @@ export default function App() {
     try {
       const notifications = await loadNotifications();
       setAccountNotifications(current => {
-        const next = mergeAccountNotifications(current, notifications);
+        const next = normalizeServerNotifications(notifications, current);
         saveAccountNotifications(next);
         return next;
       });
@@ -184,16 +190,6 @@ export default function App() {
 
   const notify = (message: string, detail = message, syncFromServer = true) => {
     showToast(message);
-    setAccountNotifications(current => {
-      const next = mergeAccountNotifications(current, [{
-        id: crypto.randomUUID(),
-        title: message,
-        detail,
-        createdAt: new Date().toISOString(),
-      }]);
-      saveAccountNotifications(next);
-      return next;
-    });
     if (syncFromServer && budolUser) {
       window.setTimeout(() => {
         void refreshAccountNotifications();
@@ -264,7 +260,7 @@ export default function App() {
         void markNotificationRead(notification.id)
           .then(updatedNotification => {
             setAccountNotifications(current => {
-              const next = mergeAccountNotifications(current, [updatedNotification]);
+              const next = mergeServerNotificationUpdate(current, updatedNotification);
               saveAccountNotifications(next);
               return next;
             });
@@ -481,6 +477,7 @@ export default function App() {
       setWalletBalances([]);
       setAccountNotifications([]);
       saveAccountNotifications([]);
+      localStorage.removeItem(LEGACY_NOTIFICATION_STORAGE_KEY);
     }
   }, [budolUser?.id, isAuthLoading, refreshWalletBalances]);
 
