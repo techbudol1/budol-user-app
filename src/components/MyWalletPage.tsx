@@ -29,6 +29,7 @@ type MyWalletPageProps = {
 
 const horizenTestnetChainId = 2651420;
 const horizenExplorerBaseURL = "https://horizen-testnet.explorer.caldera.xyz";
+const walletHistoryPageSize = 5;
 
 export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyWalletPageProps) {
   const [balances, setBalances] = useState<WalletBalance[]>([]);
@@ -36,6 +37,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [copied, setCopied] = useState(false);
   const [isLoadingWallet, setIsLoadingWallet] = useState(false);
   const [isLoadingSmartWallet, setIsLoadingSmartWallet] = useState(false);
+  const [historyPage, setHistoryPage] = useState(1);
   const [walletError, setWalletError] = useState("");
   const [smartWalletError, setSmartWalletError] = useState("");
   const [smartWalletConfig, setSmartWalletConfig] = useState<SmartWalletConfig | null>(null);
@@ -45,6 +47,8 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
   const explorerURL = displayAddress ? `${horizenExplorerBaseURL}/address/${displayAddress}` : "";
   const displayBalances = normalizeWalletBalances(balances, displayAddress);
+  const totalHistoryPages = Math.max(1, Math.ceil(history.length / walletHistoryPageSize));
+  const visibleHistory = history.slice((historyPage - 1) * walletHistoryPageSize, historyPage * walletHistoryPageSize);
   const receiveQRCode = useMemo(() => {
     if (!displayAddress) {
       return "";
@@ -112,6 +116,16 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     }
     void refreshWallet({ retryIfHistoryEmpty: true });
   }, [displayAddress]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [displayAddress]);
+
+  useEffect(() => {
+    if (historyPage > totalHistoryPages) {
+      setHistoryPage(totalHistoryPages);
+    }
+  }, [historyPage, totalHistoryPages]);
 
   useEffect(() => {
     let isMounted = true;
@@ -270,7 +284,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
           </div>
           {walletError ? <p className="wallet-note">{walletError}</p> : null}
           <div className="wallet-history-list">
-            {history.length > 0 ? history.map(transfer => (
+            {history.length > 0 ? visibleHistory.map(transfer => (
               <a className="wallet-history-item" href={`${horizenExplorerBaseURL}/tx/${transfer.transactionHash}`} target="_blank" rel="noreferrer" key={`${transfer.transactionHash}-${transfer.logIndex}`}>
                 <span className={`wallet-history-icon ${transfer.direction === "received" ? "received" : "sent"}`}>
                   {transfer.direction === "received" ? <ArrowDownLeft size={17} /> : <ExternalLink size={17} />}
@@ -299,6 +313,22 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
               </div>
             )}
           </div>
+          {history.length > walletHistoryPageSize ? (
+            <div className="wallet-history-pagination" aria-label="Wallet activity pagination">
+              <span>
+                Showing {(historyPage - 1) * walletHistoryPageSize + 1}-{Math.min(historyPage * walletHistoryPageSize, history.length)} of {history.length}
+              </span>
+              <div>
+                <button className="ghost-button" type="button" onClick={() => setHistoryPage(page => Math.max(1, page - 1))} disabled={historyPage <= 1}>
+                  Previous
+                </button>
+                <strong>{historyPage} / {totalHistoryPages}</strong>
+                <button className="ghost-button" type="button" onClick={() => setHistoryPage(page => Math.min(totalHistoryPages, page + 1))} disabled={historyPage >= totalHistoryPages}>
+                  Next
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
       </div>
 
