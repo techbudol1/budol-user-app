@@ -6179,6 +6179,14 @@ select:focus-visible {
   margin: 0 0 4px auto;
 }
 
+.wallet-history-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  white-space: nowrap;
+}
+
 .wallet-token-pill.token-eth {
   border-color: color-mix(in srgb, var(--blue) 34%, var(--border));
   color: var(--blue);
@@ -6311,6 +6319,10 @@ select:focus-visible {
 
   .wallet-history-item > small:last-child {
     grid-column: 2;
+  }
+
+  .wallet-history-meta {
+    justify-content: flex-start;
   }
 
   .wallet-token-pill {

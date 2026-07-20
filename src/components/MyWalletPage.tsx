@@ -293,7 +293,7 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <strong>{transfer.direction === "received" ? "Received" : "Sent"} {formatTokenAmount(transfer.amount)} {transfer.tokenSymbol || "Token"}</strong>
                   <small>{transfer.direction === "received" ? "From" : "To"} {shortAddress(transfer.counterparty)}</small>
                 </span>
-                <small>
+                <small className="wallet-history-meta">
                   <span className={`wallet-token-pill token-${tokenClass(transfer.tokenSymbol || transfer.tokenLabel)}`}>
                     {transfer.tokenSymbol || transfer.tokenLabel || "Token"}
                   </span>
