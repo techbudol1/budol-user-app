@@ -722,7 +722,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </section>
       ) : null}
 
-      <section className="panel shielded-note-card">
+      <section className="panel shielded-note-card portfolio-withdrawal-queue-card">
         <div className="panel-title panel-title-between">
           <span>
             <History size={19} />

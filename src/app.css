@@ -3548,6 +3548,17 @@ a {
   gap: 12px;
 }
 
+.portfolio-withdrawal-queue-card {
+  order: 20;
+  margin-top: clamp(64px, 14vh, 180px);
+}
+
+@media (max-width: 760px) {
+  .portfolio-withdrawal-queue-card {
+    margin-top: 34px;
+  }
+}
+
 .shielded-background-card {
   display: grid;
   gap: 12px;
