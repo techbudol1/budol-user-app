@@ -67,6 +67,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [isBackupWorking, setIsBackupWorking] = useState(false);
   const [privateClaimRecipientTrade, setPrivateClaimRecipientTrade] = useState<Trade | null>(null);
   const [shieldedWithdrawalGroup, setShieldedWithdrawalGroup] = useState<ShieldedPayoutGroup | null>(null);
+  const [hiddenShieldedPayoutGroups, setHiddenShieldedPayoutGroups] = useState<Record<string, boolean>>({});
   const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
   const [backgroundWithdrawalJobs, setBackgroundWithdrawalJobs] = useState<BackgroundWithdrawalJob[]>([]);
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
@@ -161,6 +162,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   );
   const withdrawableShieldedNotes = shieldedNotes.filter(note => !queuedWithdrawalCommitments.has(note.commitment.toLowerCase()));
   const shieldedPayoutGroups = groupShieldedPayoutNotes(withdrawableShieldedNotes, portfolio?.trades ?? []);
+  const visibleShieldedPayoutGroups = shieldedPayoutGroups.filter(group => !hiddenShieldedPayoutGroups[group.id]);
   const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
   const shieldedWithdrawalPageSize = 5;
   const totalShieldedWithdrawalPages = Math.max(1, Math.ceil(shieldedWithdrawals.length / shieldedWithdrawalPageSize));
@@ -273,7 +275,10 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
         setPrivateClaimRecipientTrade(null);
-        const creditedShieldedGroups = groupShieldedPayoutNotes(result.shieldedPayoutNotes ?? [], [result.trade]);
+        const creditedShieldedNotes = result.shieldedPayoutNotes?.length
+          ? result.shieldedPayoutNotes
+          : listShieldedPayoutNotes().filter(note => note.tradeId === trade.id);
+        const creditedShieldedGroups = groupShieldedPayoutNotes(creditedShieldedNotes, [result.trade, trade]);
         const creditedShieldedGroup = creditedShieldedGroups[0];
         if (result.shieldedPayout && cleanShieldedRecipient && creditedShieldedGroup) {
           onToast(
@@ -402,6 +407,8 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const withdrawShieldedGroup = async (group: ShieldedPayoutGroup, cleanRecipient: string) => {
     const jobId = `${group.id}-${Date.now()}`;
     setShieldedWithdrawalGroup(null);
+    setPendingShieldedWithdrawal(group.id);
+    setHiddenShieldedPayoutGroups(current => ({ ...current, [group.id]: true }));
     setBackgroundWithdrawalJobs(current => [
       {
         detail: `Preparing ${group.notes.length} private note${group.notes.length === 1 ? "" : "s"} for ${shortHash(cleanRecipient)}.`,
@@ -471,16 +478,19 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       if (err instanceof ShieldedWithdrawalArtifactError) {
         const message = "Shielded withdrawal artifacts are missing. Regenerate the shielded withdrawal proving files before withdrawing.";
         setError(message);
+        setHiddenShieldedPayoutGroups(current => ({ ...current, [group.id]: false }));
         setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, { detail: message, status: "failed" }));
         onToast("Shielded withdrawal failed.", message);
       } else {
         const partial = queuedCount > 0 ? `${queuedCount}/${group.notes.length} withdrawals were queued before the error. ` : "";
         const message = `${partial}${err instanceof Error ? err.message : "Unable to withdraw shielded payout."}`;
         setError(message);
+        setHiddenShieldedPayoutGroups(current => ({ ...current, [group.id]: false }));
         setBackgroundWithdrawalJobs(current => updateWithdrawalJob(current, jobId, { detail: message, status: "failed" }));
         onToast("Shielded withdrawal failed.", message);
       }
     } finally {
+      setPendingShieldedWithdrawal("");
       setShieldedWithdrawalProgress("");
     }
   };
@@ -671,7 +681,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
             <ShieldCheck size={19} />
             <h2>Private claim notes</h2>
           </div>
-          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {shieldedPayoutGroups.length} shielded payout batch{shieldedPayoutGroups.length === 1 ? "" : "es"} ready in this browser.</p>
+          <p>{listPrivateClaimNotes().length} local claim note{listPrivateClaimNotes().length === 1 ? "" : "s"} and {visibleShieldedPayoutGroups.length} shielded payout recovery batch{visibleShieldedPayoutGroups.length === 1 ? "" : "es"} ready in this browser.</p>
           {backupStatus ? <small>{backupStatus}</small> : null}
         </div>
         <div className="claim-note-backup-actions">
@@ -686,14 +696,17 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </div>
       </section>
 
-      {shieldedPayoutGroups.length > 0 ? (
+      {visibleShieldedPayoutGroups.length > 0 ? (
         <section className="panel shielded-note-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
-            <h2>Shielded payouts</h2>
+            <h2>Private payout recovery</h2>
           </div>
+          <p className="shielded-withdrawal-help">
+            New private claims queue withdrawal automatically after you enter a recipient. These recovered notes are from an older or interrupted claim and can be withdrawn as a batch.
+          </p>
           <div className="shielded-note-list">
-            {shieldedPayoutGroups.map(group => (
+            {visibleShieldedPayoutGroups.map(group => (
               <div className="shielded-note-row" key={group.id}>
                 <span>
                   <strong>{formatRawToken(group.totalRaw)} BUDOL private payout</strong>
