@@ -3494,6 +3494,36 @@ a {
   min-height: 40px;
 }
 
+.portfolio-review-claims-button {
+  min-width: 190px;
+}
+
+.claimable-trades-card {
+  border-color: color-mix(in srgb, var(--yellow) 34%, var(--border));
+}
+
+.claimable-trade-row {
+  border-color: color-mix(in srgb, var(--yellow) 26%, var(--border));
+}
+
+.claim-option-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.claim-option-actions .ghost-button,
+.claim-option-actions .primary-button {
+  min-height: 40px;
+  width: 100%;
+}
+
+.drawer-claim-actions {
+  grid-template-columns: 1fr;
+}
+
 .claim-note-backup-card p,
 .claim-note-backup-card small {
   margin: 6px 0 0;

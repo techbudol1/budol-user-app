@@ -73,6 +73,15 @@ type PrivateClaimResponse = {
   transactionIds: string[];
 };
 
+type PublicClaimResponse = {
+  trade: Trade;
+  portfolio: UserPortfolio;
+  payoutStatus: string;
+  payoutError: string;
+  payoutMode: "direct";
+  transactionIds: string[];
+};
+
 type PrivateClaimTreeResponse = {
   tree: {
     pollId: string;
@@ -712,6 +721,24 @@ export async function claimPrivatePayout(tradeId: string, zkProofSubmissionId: s
     shieldedPayoutNote: creditedNotes[0],
     shieldedPayoutNotes: creditedNotes,
   };
+}
+
+export async function claimPublicPayout(tradeId: string): Promise<PublicClaimResponse> {
+  const response = await fetch(`${apiBaseURL()}/api/trades/${encodeURIComponent(tradeId)}/public-claim`, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+  const payload = (await response.json().catch(() => null)) as (PublicClaimResponse & { error?: string }) | null;
+  if (!response.ok) {
+    throw new Error(payload?.error || "Unable to claim public payout.");
+  }
+  if (!payload?.trade || !payload?.portfolio) {
+    throw new Error("Public payout claim did not return an updated portfolio.");
+  }
+  return payload;
 }
 
 export async function loadPrivacyAccessConfig(): Promise<PrivacyAccessConfig> {

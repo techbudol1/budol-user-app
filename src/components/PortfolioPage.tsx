@@ -1,7 +1,7 @@
 import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, History, LoaderCircle, ReceiptText, RefreshCcw, ShieldCheck, Trophy, TrendingUp, Upload, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { cashoutPosition, claimPrivatePayout, loadCashoutQuote, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { useEffect, useRef, useState } from "react";
+import { cashoutPosition, claimPrivatePayout, claimPublicPayout, loadCashoutQuote, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
 import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
@@ -50,9 +50,11 @@ type PortfolioPageProps = {
 };
 
 export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio, walletCustody }: PortfolioPageProps) {
+  const claimableTradesRef = useRef<HTMLElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
   const [pendingClaim, setPendingClaim] = useState("");
+  const [pendingPublicClaim, setPendingPublicClaim] = useState("");
   const [claimProgress, setClaimProgress] = useState<Record<string, string>>({});
   const [pendingShieldedWithdrawal, setPendingShieldedWithdrawal] = useState("");
   const [pendingWithdrawalRetry, setPendingWithdrawalRetry] = useState("");
@@ -67,6 +69,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
   const [backgroundWithdrawalJobs, setBackgroundWithdrawalJobs] = useState<BackgroundWithdrawalJob[]>([]);
   const [proofWork, setProofWork] = useState<{ circuitInput: PrivateClaimCircuitInput; trade: Trade } | null>(null);
+  const [showClaimableTrades, setShowClaimableTrades] = useState(false);
   const [backupStatus, setBackupStatus] = useState("");
   const [error, setError] = useState("");
   const [, setShieldedNotesRevision] = useState(0);
@@ -202,6 +205,26 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       setError(err instanceof Error ? err.message : "Unable to cash out position.");
     } finally {
       setPendingCashout("");
+    }
+  };
+
+  const showClaimablePayouts = () => {
+    setShowClaimableTrades(true);
+    window.setTimeout(() => claimableTradesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const claimPublic = async (trade: Trade) => {
+    setPendingPublicClaim(trade.id);
+    setError("");
+    try {
+      const result = await claimPublicPayout(trade.id);
+      setPortfolio(result.portfolio);
+      setSelectedTrade(result.trade);
+      onToast("Public payout claimed.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL direct payout status is ${result.payoutStatus}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to claim public payout.");
+    } finally {
+      setPendingPublicClaim("");
     }
   };
 
@@ -547,21 +570,55 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
               <Trophy size={19} />
               <h2>Payouts ready to claim</h2>
             </div>
-            <p>{claimableTrades.length} resolved position{claimableTrades.length === 1 ? "" : "s"} need a private ZK claim or payout retry.</p>
+            <p>{claimableTrades.length} resolved position{claimableTrades.length === 1 ? "" : "s"} ready. Review each trade and choose public direct payout or private shielded payout.</p>
           </div>
-          <div className="portfolio-action-list">
-            {claimableTrades.slice(0, 3).map(trade => (
-              <button
-                className="ghost-button"
-                disabled={pendingClaim === trade.id}
-                key={trade.id}
-                onClick={() => void claimPayout(trade)}
-                type="button"
-              >
-                {pendingClaim === trade.id ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
-                {trade.payoutStatus === "claim_failed" ? "Retry" : "Claim"} {formatToken(trade.settlementPayout)} BUDOL
-              </button>
-            ))}
+          <button className="primary-button portfolio-review-claims-button" onClick={showClaimablePayouts} type="button">
+            <Trophy size={17} />
+            Review claim options
+          </button>
+        </section>
+      ) : null}
+
+      {showClaimableTrades && claimableTrades.length > 0 ? (
+        <section className="panel portfolio-table-card claimable-trades-card" ref={claimableTradesRef}>
+          <div className="panel-title">
+            <Trophy size={19} />
+            <h2>Trades ready to claim</h2>
+          </div>
+          <div className="trade-history-list">
+            {claimableTrades.map(trade => {
+              const isPublicClaiming = pendingPublicClaim === trade.id;
+              const isPrivateClaiming = pendingClaim === trade.id;
+              const isClaiming = isPublicClaiming || isPrivateClaiming;
+              return (
+                <div className="trade-history-row claimable-trade-row" key={trade.id}>
+                  <div className="trade-history-primary">
+                    <div className="trade-history-badges">
+                      <i className={`position-side-pill ${trade.side}`}>{trade.side === "yes" ? "YES" : "NO"}</i>
+                      <i className={`trade-status-pill ${trade.status}`}>{trade.status}</i>
+                      <i className={`trade-status-pill payout-${trade.payoutStatus}`}>{trade.payoutStatus}</i>
+                    </div>
+                    <strong>Bought {trade.side === "yes" ? "YES" : "NO"}</strong>
+                    <small className="trade-outcome-label">{trade.outcomeLabel}</small>
+                    <small>{trade.pollTitle}</small>
+                    <small className="trade-next-action warning">Choose how to claim this payout.</small>
+                  </div>
+                  <div className="trade-history-value">
+                    <small>Payout</small>
+                    <strong>{formatToken(trade.settlementPayout)} BUDOL</strong>
+                    <span>settled {formatDate(trade.settledAt)}</span>
+                  </div>
+                  <div className="claim-option-actions">
+                    <button className="ghost-button" disabled={isClaiming} onClick={() => void claimPublic(trade)} type="button">
+                      {isPublicClaiming ? <><LoaderCircle className="spin-icon" size={16} /> Claiming...</> : "Claim publicly"}
+                    </button>
+                    <button className="primary-button" disabled={isClaiming} onClick={() => void claimPayout(trade)} type="button">
+                      {isPrivateClaiming ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry private claim" : "Claim privately"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       ) : null}
@@ -794,17 +851,24 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                   </span>
                 </div>
                 {["claimable", "claim_failed"].includes(trade.payoutStatus) ? (
-                  <button
-                    className="ghost-button"
-                    disabled={pendingClaim === trade.id}
-                    onClick={event => {
-                      event.stopPropagation();
-                      void claimPayout(trade);
-                    }}
-                    type="button"
-                  >
-                    {pendingClaim === trade.id ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
-                  </button>
+                  <div className="claim-option-actions" onClick={event => event.stopPropagation()}>
+                    <button
+                      className="ghost-button"
+                      disabled={pendingPublicClaim === trade.id || pendingClaim === trade.id}
+                      onClick={() => void claimPublic(trade)}
+                      type="button"
+                    >
+                      {pendingPublicClaim === trade.id ? <><LoaderCircle className="spin-icon" size={16} /> Claiming...</> : "Claim publicly"}
+                    </button>
+                    <button
+                      className="primary-button"
+                      disabled={pendingPublicClaim === trade.id || pendingClaim === trade.id}
+                      onClick={() => void claimPayout(trade)}
+                      type="button"
+                    >
+                      {pendingClaim === trade.id ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry private claim" : "Claim privately"}
+                    </button>
+                  </div>
                 ) : null}
               </div>
             ))}
@@ -815,9 +879,11 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         <TradeDetailDrawer
           claimProgress={claimProgress[selectedTrade.id] || ""}
           isClaiming={pendingClaim === selectedTrade.id}
+          isPublicClaiming={pendingPublicClaim === selectedTrade.id}
           onClaim={() => void claimPayout(selectedTrade)}
           onClose={() => setSelectedTrade(null)}
           onOpenMarket={() => onMarketOpen(selectedTrade.pollSlug)}
+          onPublicClaim={() => void claimPublic(selectedTrade)}
           trade={selectedTrade}
         />
       ) : null}
@@ -1009,7 +1075,7 @@ function decimalToRawToken(value: string | number, decimals: number) {
   return BigInt(wholePart || "0") * 10n ** BigInt(decimals) + BigInt(fraction || "0");
 }
 
-function TradeDetailDrawer({ claimProgress, isClaiming, onClaim, onClose, onOpenMarket, trade }: { claimProgress: string; isClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; trade: Trade }) {
+function TradeDetailDrawer({ claimProgress, isClaiming, isPublicClaiming, onClaim, onClose, onOpenMarket, onPublicClaim, trade }: { claimProgress: string; isClaiming: boolean; isPublicClaiming: boolean; onClaim: () => void; onClose: () => void; onOpenMarket: () => void; onPublicClaim: () => void; trade: Trade }) {
   const payoutStatus = trade.payoutStatus || (trade.status === "open" ? "pending" : "none");
   return (
     <div className="drawer-backdrop" role="presentation" onClick={onClose}>
@@ -1057,9 +1123,14 @@ function TradeDetailDrawer({ claimProgress, isClaiming, onClaim, onClose, onOpen
           <TimelineItem label="Payout" value={payoutStatus} done={["confirmed", "sent", "submitted", "none"].includes(payoutStatus)} />
         </div>
         {["claimable", "claim_failed"].includes(trade.payoutStatus) ? (
-          <button className="primary-button" disabled={isClaiming} onClick={onClaim}>
-            {isClaiming ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry ZK claim" : "Submit ZK claim"}
-          </button>
+          <div className="claim-option-actions drawer-claim-actions">
+            <button className="ghost-button" disabled={isClaiming || isPublicClaiming} onClick={onPublicClaim}>
+              {isPublicClaiming ? <><LoaderCircle className="spin-icon" size={16} /> Claiming...</> : "Claim publicly"}
+            </button>
+            <button className="primary-button" disabled={isClaiming || isPublicClaiming} onClick={onClaim}>
+              {isClaiming ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry private claim" : "Claim privately"}
+            </button>
+          </div>
         ) : null}
         <button className="primary-button" onClick={onOpenMarket}>Open market</button>
       </aside>
@@ -1083,7 +1154,7 @@ function TradeNextAction({ trade }: { trade: Trade }) {
 
 function tradeNextAction(trade: Trade) {
   if (trade.payoutStatus === "claimable") {
-    return { label: `Action needed: submit ZK claim for ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "warning" };
+    return { label: `Ready to claim: choose public payout or private payout for ${formatToken(trade.settlementPayout)} BUDOL.`, tone: "warning" };
   }
   if (["queued", "processing", "submitted", "retry", "claim_pending"].includes(trade.payoutStatus)) {
     return { label: `Payout in progress: ${trade.payoutStatus}.`, tone: "pending" };
