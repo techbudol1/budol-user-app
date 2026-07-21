@@ -158,7 +158,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const withdrawableShieldedNotes = shieldedNotes.filter(note => !queuedWithdrawalCommitments.has(note.commitment.toLowerCase()));
   const shieldedPayoutGroups = groupShieldedPayoutNotes(withdrawableShieldedNotes, portfolio?.trades ?? []);
   const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
-  const shieldedWithdrawalPageSize = 10;
+  const shieldedWithdrawalPageSize = 5;
   const totalShieldedWithdrawalPages = Math.max(1, Math.ceil(shieldedWithdrawals.length / shieldedWithdrawalPageSize));
   const currentShieldedWithdrawalPage = Math.min(shieldedWithdrawalPage, totalShieldedWithdrawalPages);
   const visibleShieldedWithdrawals = shieldedWithdrawals.slice(
