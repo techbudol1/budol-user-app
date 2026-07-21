@@ -57,6 +57,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [pendingShieldedWithdrawal, setPendingShieldedWithdrawal] = useState("");
   const [pendingWithdrawalRetry, setPendingWithdrawalRetry] = useState("");
   const [shieldedWithdrawals, setShieldedWithdrawals] = useState<ShieldedWithdrawal[]>([]);
+  const [shieldedWithdrawalPage, setShieldedWithdrawalPage] = useState(1);
   const [sellAmounts, setSellAmounts] = useState<Record<string, string>>({});
   const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
   const [cashoutConfirmation, setCashoutConfirmation] = useState<CashoutConfirmation | null>(null);
@@ -157,6 +158,13 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const withdrawableShieldedNotes = shieldedNotes.filter(note => !queuedWithdrawalCommitments.has(note.commitment.toLowerCase()));
   const shieldedPayoutGroups = groupShieldedPayoutNotes(withdrawableShieldedNotes, portfolio?.trades ?? []);
   const claimableTrades = portfolio?.trades.filter(trade => ["claimable", "claim_failed"].includes(trade.payoutStatus)) ?? [];
+  const shieldedWithdrawalPageSize = 10;
+  const totalShieldedWithdrawalPages = Math.max(1, Math.ceil(shieldedWithdrawals.length / shieldedWithdrawalPageSize));
+  const currentShieldedWithdrawalPage = Math.min(shieldedWithdrawalPage, totalShieldedWithdrawalPages);
+  const visibleShieldedWithdrawals = shieldedWithdrawals.slice(
+    (currentShieldedWithdrawalPage - 1) * shieldedWithdrawalPageSize,
+    currentShieldedWithdrawalPage * shieldedWithdrawalPageSize,
+  );
 
   const cashout = async (pollId: string, side: TradeSide, amount = 0) => {
     const key = `${pollId}-${side}`;
@@ -639,33 +647,51 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         {shieldedWithdrawals.length === 0 ? (
           <div className="empty-state">No shielded withdrawals queued yet.</div>
         ) : (
-          <div className="shielded-note-list">
-            {shieldedWithdrawals.map(withdrawal => (
-              <div className="shielded-note-row" key={withdrawal.id}>
-                <span>
-                  <strong>
-                    {shortHash(withdrawal.noteCommitment)}
-                    <i className={`trade-status-pill payout-${withdrawal.status}`}>{withdrawal.status}</i>
-                  </strong>
-                  <small>
-                    To {shortHash(withdrawal.recipient)} / scheduled {formatDate(withdrawal.executeAfter)} / attempts {withdrawal.attempts}
-                  </small>
-                  {withdrawal.error ? <small className="comment-error">{withdrawal.error}</small> : null}
-                  {withdrawal.transactionHash ? (
-                    <a href={horizenTestnetTxURL(withdrawal.transactionHash)} target="_blank" rel="noreferrer">
-                      {shortHash(withdrawal.transactionHash)}
-                    </a>
+          <>
+            <div className="shielded-note-list">
+              {visibleShieldedWithdrawals.map(withdrawal => (
+                <div className="shielded-note-row" key={withdrawal.id}>
+                  <span>
+                    <strong>
+                      {shortHash(withdrawal.noteCommitment)}
+                      <i className={`trade-status-pill payout-${withdrawal.status}`}>{withdrawal.status}</i>
+                    </strong>
+                    <small>
+                      To {shortHash(withdrawal.recipient)} / scheduled {formatDate(withdrawal.executeAfter)} / attempts {withdrawal.attempts}
+                    </small>
+                    {withdrawal.error ? <small className="comment-error">{withdrawal.error}</small> : null}
+                    {withdrawal.transactionHash ? (
+                      <a href={horizenTestnetTxURL(withdrawal.transactionHash)} target="_blank" rel="noreferrer">
+                        {shortHash(withdrawal.transactionHash)}
+                      </a>
+                    ) : null}
+                  </span>
+                  {withdrawal.status === "failed" ? (
+                    <button className="ghost-button" disabled={pendingWithdrawalRetry === withdrawal.id} onClick={() => void retryWithdrawal(withdrawal)} type="button">
+                      {pendingWithdrawalRetry === withdrawal.id ? <LoaderCircle className="spin-icon" size={16} /> : <RefreshCcw size={16} />}
+                      Retry
+                    </button>
                   ) : null}
+                </div>
+              ))}
+            </div>
+            {shieldedWithdrawals.length > shieldedWithdrawalPageSize ? (
+              <div className="wallet-history-pagination" aria-label="Shielded withdrawal queue pagination">
+                <span>
+                  Showing {(currentShieldedWithdrawalPage - 1) * shieldedWithdrawalPageSize + 1}-{Math.min(currentShieldedWithdrawalPage * shieldedWithdrawalPageSize, shieldedWithdrawals.length)} of {shieldedWithdrawals.length}
                 </span>
-                {withdrawal.status === "failed" ? (
-                  <button className="ghost-button" disabled={pendingWithdrawalRetry === withdrawal.id} onClick={() => void retryWithdrawal(withdrawal)} type="button">
-                    {pendingWithdrawalRetry === withdrawal.id ? <LoaderCircle className="spin-icon" size={16} /> : <RefreshCcw size={16} />}
-                    Retry
+                <div>
+                  <button className="ghost-button" type="button" onClick={() => setShieldedWithdrawalPage(page => Math.max(1, page - 1))} disabled={currentShieldedWithdrawalPage <= 1}>
+                    Previous
                   </button>
-                ) : null}
+                  <strong>{currentShieldedWithdrawalPage} / {totalShieldedWithdrawalPages}</strong>
+                  <button className="ghost-button" type="button" onClick={() => setShieldedWithdrawalPage(page => Math.min(totalShieldedWithdrawalPages, page + 1))} disabled={currentShieldedWithdrawalPage >= totalShieldedWithdrawalPages}>
+                    Next
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            ) : null}
+          </>
         )}
       </section>
 
