@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRightLeft, BookOpen, CheckCircle2, Coins, FileText, LockKeyhole, Search, ShieldCheck, Trophy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
+import { TokenIcon } from "./TokenIcon";
 
 type LegalPageProps = {
   onBack: () => void;
@@ -121,7 +122,9 @@ export function HowToPage({ onBack }: LegalPageProps) {
 function TokenRole({ copy, symbol, title }: { copy: string; symbol: "ETH" | "tZEN" | "BUDOL"; title: string }) {
   return (
     <article className={`howto-token-card ${symbol.toLowerCase()}`}>
-      <span>{symbol}</span>
+      <span className="howto-token-mark" aria-hidden="true">
+        <TokenIcon symbol={symbol} />
+      </span>
       <strong>{title}</strong>
       <p>{copy}</p>
     </article>
