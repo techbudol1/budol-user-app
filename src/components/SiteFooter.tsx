@@ -3,6 +3,7 @@ import budolLogoImage from "../../public/assets/budol-market.png";
 
 type SiteFooterProps = {
   onAccountClick: () => void;
+  onHowToClick: () => void;
   onMarketsClick: () => void;
   onPortfolioClick: () => void;
   onPrivacyClick: () => void;
@@ -10,7 +11,7 @@ type SiteFooterProps = {
   onWalletClick: () => void;
 };
 
-export function SiteFooter({ onAccountClick, onMarketsClick, onPortfolioClick, onPrivacyClick, onTermsClick, onWalletClick }: SiteFooterProps) {
+export function SiteFooter({ onAccountClick, onHowToClick, onMarketsClick, onPortfolioClick, onPrivacyClick, onTermsClick, onWalletClick }: SiteFooterProps) {
   return (
     <footer className="site-footer">
       <div className="site-footer-brand">
@@ -25,6 +26,7 @@ export function SiteFooter({ onAccountClick, onMarketsClick, onPortfolioClick, o
           <strong>Explore</strong>
           <button onClick={onMarketsClick}>Markets</button>
           <button onClick={onPortfolioClick}>Portfolio</button>
+          <button onClick={onHowToClick}>How to use</button>
         </div>
         <div>
           <strong>Legal</strong>

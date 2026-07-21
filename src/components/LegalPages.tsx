@@ -1,9 +1,50 @@
-import { ArrowLeft, FileText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BookOpen, FileText, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
 type LegalPageProps = {
   onBack: () => void;
 };
+
+export function HowToPage({ onBack }: LegalPageProps) {
+  return (
+    <LegalPage
+      eyebrow="Guide"
+      icon={<BookOpen size={22} />}
+      onBack={onBack}
+      title="How to use BudolPH"
+      updated="Horizen testnet user guide"
+    >
+      <LegalSection title="1. Connect your wallet">
+        <p>Open the login modal, choose your wallet, and approve the connection. BudolPH runs on Horizen Testnet. If your wallet asks to add or switch networks, approve Horizen Testnet before trading.</p>
+      </LegalSection>
+      <LegalSection title="2. Understand the three balances">
+        <p>ETH is used for Horizen testnet gas when gas-free trading is off. tZEN is the privacy-access token used for private claim and shielded payout flows on testnet. BUDOL is the trading token used to buy positions and receive payouts.</p>
+      </LegalSection>
+      <LegalSection title="3. Choose a market">
+        <p>Go to Markets, open a market card, and read the question carefully. Check the choices, closing time, rules, and resolution details before placing a trade.</p>
+      </LegalSection>
+      <LegalSection title="4. Place a trade">
+        <p>Pick Yes or No, choose one of the fixed trade amounts, then review cost, trading fee, total escrow, and estimated payout. If gas-free trading is off, your wallet will submit the transaction and pay gas. If gas-free trading is on, the app may ask for a signature while the sponsor handles gas.</p>
+      </LegalSection>
+      <LegalSection title="5. Track your position">
+        <p>Use Portfolio to see open positions, current value, possible payout, settled trades, and claim actions. Use Wallet to see ETH, tZEN, BUDOL balances, the connected wallet address, smart-account details, and recent token activity.</p>
+      </LegalSection>
+      <LegalSection title="6. Reduce or sell a position">
+        <p>If a market is still open, Portfolio can show controls to reduce a position or sell all. Review the amount before confirming because blockchain transactions cannot usually be reversed.</p>
+      </LegalSection>
+      <LegalSection title="7. Claim after resolution">
+        <p>When a market is resolved, winning positions become claimable. A normal claim sends the BUDOL payout directly to your wallet. Losing positions do not receive a payout.</p>
+      </LegalSection>
+      <LegalSection title="8. Use private claim and shielded payout">
+        <p>Trades are public by default. Privacy features let you pay the testnet privacy fee, create private claim notes, and withdraw through shielded payout batches. For better privacy, withdraw to a fresh wallet that has not interacted with BudolPH.</p>
+        <p>Important: private claim notes are stored in your browser. Export an encrypted backup if you need to keep them across devices, browsers, or cache resets.</p>
+      </LegalSection>
+      <LegalSection title="9. Testnet safety notes">
+        <p>BudolPH on Horizen Testnet is for testing. Testnet ETH, tZEN, and BUDOL are not real-money balances. Market prices are crowd estimates, not financial advice. Keep your wallet safe and only sign actions you understand.</p>
+      </LegalSection>
+    </LegalPage>
+  );
+}
 
 export function TermsPage({ onBack }: LegalPageProps) {
   return (

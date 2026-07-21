@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HeroPanel } from "./components/HeroPanel";
-import { PrivacyPage, TermsPage } from "./components/LegalPages";
+import { HowToPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { LoginModal } from "./components/LoginModal";
 import { MarketBoard } from "./components/MarketBoard";
 import { MarketDetailPage } from "./components/MarketDetailPage";
@@ -16,7 +16,7 @@ import { sendBudolEscrowTransfer, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
-type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "privacy" | "terms" | "logout";
+type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "privacy" | "terms" | "logout";
 
 const routePaths: Record<AppRoute, string> = {
   markets: "/markets",
@@ -25,6 +25,7 @@ const routePaths: Record<AppRoute, string> = {
   portfolio: "/portfolio",
   notifications: "/notifications",
   marketDetail: "/markets",
+  howTo: "/how-to",
   privacy: "/privacy",
   terms: "/terms",
   logout: "/logout",
@@ -47,6 +48,9 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
   }
   if (normalizedPath === "/notifications") {
     return { route: "notifications", marketSlug: "" };
+  }
+  if (normalizedPath === "/how-to" || normalizedPath === "/how") {
+    return { route: "howTo", marketSlug: "" };
   }
   if (normalizedPath === "/privacy") {
     return { route: "privacy", marketSlug: "" };
@@ -573,6 +577,8 @@ export default function App() {
           onMarkRead={markNotificationsRead}
           onOpen={openNotification}
         />
+      ) : route === "howTo" ? (
+        <HowToPage onBack={() => navigate("markets")} />
       ) : route === "terms" ? (
         <TermsPage onBack={() => navigate("markets")} />
       ) : route === "privacy" ? (
@@ -617,6 +623,7 @@ export default function App() {
       )}
       <SiteFooter
         onAccountClick={() => navigate("account")}
+        onHowToClick={() => navigate("howTo")}
         onMarketsClick={() => navigate("markets")}
         onPortfolioClick={() => navigate("portfolio")}
         onPrivacyClick={() => navigate("privacy")}
