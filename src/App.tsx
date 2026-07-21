@@ -499,12 +499,13 @@ export default function App() {
   return (
     <main className="app-shell">
       <Topbar
-        activePage={route === "markets" || route === "marketDetail" ? "markets" : route === "portfolio" ? "portfolio" : undefined}
+        activePage={route === "markets" || route === "marketDetail" ? "markets" : route === "portfolio" ? "portfolio" : route === "howTo" ? "howTo" : undefined}
         accountAddress={accountAddress}
         isAuthLoading={isAuthLoading && !accountAddress}
         isDark={isDark}
         isWalletBalanceLoading={isWalletBalanceLoading}
         onAccountClick={() => navigate("account")}
+        onHowToClick={() => navigate("howTo")}
         onLoginClick={() => setIsLoginOpen(true)}
         onLogout={async () => {
           navigate("logout");

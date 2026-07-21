@@ -1,4 +1,4 @@
-import { ArrowLeft, BookOpen, FileText, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BookOpen, CheckCircle2, Coins, FileText, LockKeyhole, Search, ShieldCheck, Trophy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 
 type LegalPageProps = {
@@ -6,43 +6,125 @@ type LegalPageProps = {
 };
 
 export function HowToPage({ onBack }: LegalPageProps) {
+  const steps = [
+    {
+      icon: <Wallet size={22} />,
+      title: "Connect your wallet",
+      copy: "Open Login, choose your wallet, and approve the connection. BudolPH runs on Horizen Testnet, so approve the network switch if your wallet asks.",
+    },
+    {
+      icon: <Coins size={22} />,
+      title: "Check your balances",
+      copy: "ETH pays gas when gas-free trading is off. tZEN unlocks privacy features on testnet. BUDOL is the token used for trades and payouts.",
+    },
+    {
+      icon: <Search size={22} />,
+      title: "Open a market",
+      copy: "Pick a market, then review the exact question, choices, closing time, rules, and resolution details before committing BUDOL.",
+    },
+    {
+      icon: <ArrowRightLeft size={22} />,
+      title: "Place a trade",
+      copy: "Choose Yes or No, select a fixed amount, and review the cost, trading fee, total escrow, and estimated payout before confirming.",
+    },
+    {
+      icon: <Trophy size={22} />,
+      title: "Claim winnings",
+      copy: "After resolution, winning trades become claimable in Portfolio. Normal claims send BUDOL directly to your connected wallet.",
+    },
+    {
+      icon: <LockKeyhole size={22} />,
+      title: "Use privacy flows",
+      copy: "Private claims and shielded payouts reduce direct links between winning positions and withdrawal wallets. For best privacy, withdraw to a fresh wallet.",
+    },
+  ];
+
   return (
-    <LegalPage
-      eyebrow="Guide"
-      icon={<BookOpen size={22} />}
-      onBack={onBack}
-      title="How to use BudolPH"
-      updated="Horizen testnet user guide"
-    >
-      <LegalSection title="1. Connect your wallet">
-        <p>Open the login modal, choose your wallet, and approve the connection. BudolPH runs on Horizen Testnet. If your wallet asks to add or switch networks, approve Horizen Testnet before trading.</p>
-      </LegalSection>
-      <LegalSection title="2. Understand the three balances">
-        <p>ETH is used for Horizen testnet gas when gas-free trading is off. tZEN is the privacy-access token used for private claim and shielded payout flows on testnet. BUDOL is the trading token used to buy positions and receive payouts.</p>
-      </LegalSection>
-      <LegalSection title="3. Choose a market">
-        <p>Go to Markets, open a market card, and read the question carefully. Check the choices, closing time, rules, and resolution details before placing a trade.</p>
-      </LegalSection>
-      <LegalSection title="4. Place a trade">
-        <p>Pick Yes or No, choose one of the fixed trade amounts, then review cost, trading fee, total escrow, and estimated payout. If gas-free trading is off, your wallet will submit the transaction and pay gas. If gas-free trading is on, the app may ask for a signature while the sponsor handles gas.</p>
-      </LegalSection>
-      <LegalSection title="5. Track your position">
-        <p>Use Portfolio to see open positions, current value, possible payout, settled trades, and claim actions. Use Wallet to see ETH, tZEN, BUDOL balances, the connected wallet address, smart-account details, and recent token activity.</p>
-      </LegalSection>
-      <LegalSection title="6. Reduce or sell a position">
-        <p>If a market is still open, Portfolio can show controls to reduce a position or sell all. Review the amount before confirming because blockchain transactions cannot usually be reversed.</p>
-      </LegalSection>
-      <LegalSection title="7. Claim after resolution">
-        <p>When a market is resolved, winning positions become claimable. A normal claim sends the BUDOL payout directly to your wallet. Losing positions do not receive a payout.</p>
-      </LegalSection>
-      <LegalSection title="8. Use private claim and shielded payout">
-        <p>Trades are public by default. Privacy features let you pay the testnet privacy fee, create private claim notes, and withdraw through shielded payout batches. For better privacy, withdraw to a fresh wallet that has not interacted with BudolPH.</p>
-        <p>Important: private claim notes are stored in your browser. Export an encrypted backup if you need to keep them across devices, browsers, or cache resets.</p>
-      </LegalSection>
-      <LegalSection title="9. Testnet safety notes">
-        <p>BudolPH on Horizen Testnet is for testing. Testnet ETH, tZEN, and BUDOL are not real-money balances. Market prices are crowd estimates, not financial advice. Keep your wallet safe and only sign actions you understand.</p>
-      </LegalSection>
-    </LegalPage>
+    <section className="howto-page">
+      <button className="ghost-button legal-back-button" onClick={onBack}>
+        <ArrowLeft size={18} />
+        Back to markets
+      </button>
+
+      <section className="howto-hero panel">
+        <div className="howto-hero-copy">
+          <span className="eyebrow">User guide</span>
+          <h1>Trade, track, and claim on BudolPH.</h1>
+          <p>Use this flow when testing Philippine prediction markets on Horizen Testnet. Start public, then add privacy features when you want private claim notes or shielded payout withdrawals.</p>
+          <div className="howto-hero-actions">
+            <button className="primary-button" onClick={onBack}>
+              Open markets
+            </button>
+            <a className="ghost-button howto-wallet-link" href="/wallet">
+              View wallet
+            </a>
+          </div>
+        </div>
+        <div className="howto-visual-card" aria-hidden="true">
+          <div className="howto-market-mini">
+            <span>Market ticket</span>
+            <strong>Yes 50¢</strong>
+            <div />
+            <small>10 BUDOL + fee</small>
+          </div>
+          <div className="howto-flow-line" />
+          <div className="howto-payout-mini">
+            <ShieldCheck size={24} />
+            <strong>Claim ready</strong>
+            <span>Normal or shielded payout</span>
+          </div>
+        </div>
+      </section>
+
+      <section className="howto-token-grid" aria-label="BudolPH token roles">
+        <TokenRole symbol="ETH" title="Gas token" copy="Pays Horizen testnet gas when a transaction is not sponsored." />
+        <TokenRole symbol="tZEN" title="Privacy token" copy="Pays testnet privacy-access fees for private claim and shielded payout flows." />
+        <TokenRole symbol="BUDOL" title="Trading token" copy="Used to buy positions, pay trading fees, and receive market payouts." />
+      </section>
+
+      <section className="howto-step-grid" aria-label="How to use BudolPH">
+        {steps.map((step, index) => (
+          <article className="howto-step-card panel" key={step.title}>
+            <div className="howto-step-number">{String(index + 1).padStart(2, "0")}</div>
+            <div className="howto-step-icon">{step.icon}</div>
+            <h2>{step.title}</h2>
+            <p>{step.copy}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="howto-claim-panel panel">
+        <div>
+          <span className="eyebrow">Claim flow</span>
+          <h2>Normal claim vs private claim</h2>
+          <p>Normal claims are simplest and visible on-chain. Private claim notes and shielded payouts are for privacy testing: the app creates local notes, batches fixed-denomination payout pieces, then lets you withdraw to a recipient wallet.</p>
+        </div>
+        <div className="howto-checklist">
+          <span><CheckCircle2 size={17} /> Winning position is resolved</span>
+          <span><CheckCircle2 size={17} /> Private note is saved in this browser</span>
+          <span><CheckCircle2 size={17} /> Encrypted backup is exported if needed</span>
+          <span><CheckCircle2 size={17} /> Fresh recipient wallet is recommended</span>
+        </div>
+      </section>
+
+      <section className="howto-warning panel">
+        <ShieldCheck size={22} />
+        <div>
+          <strong>Testnet only</strong>
+          <p>Testnet ETH, tZEN, and BUDOL are not real-money balances. Market prices are crowd estimates, not financial advice. Only sign wallet actions you understand.</p>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function TokenRole({ copy, symbol, title }: { copy: string; symbol: "ETH" | "tZEN" | "BUDOL"; title: string }) {
+  return (
+    <article className={`howto-token-card ${symbol.toLowerCase()}`}>
+      <span>{symbol}</span>
+      <strong>{title}</strong>
+      <p>{copy}</p>
+    </article>
   );
 }
 

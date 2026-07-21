@@ -174,7 +174,7 @@ a {
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr) auto auto;
+  grid-template-columns: auto minmax(220px, 1fr) auto auto auto;
   gap: 16px;
   align-items: center;
   padding: 12px;
@@ -300,6 +300,33 @@ a {
   box-shadow: 0 5px 15px rgba(8, 18, 22, 0.08);
 }
 
+.header-guide-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 72%, var(--button-border));
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.55), transparent 34%),
+    linear-gradient(135deg, var(--yellow), color-mix(in srgb, var(--yellow) 76%, var(--green)));
+  color: #121c21;
+  box-shadow: 0 12px 30px rgba(255, 212, 71, 0.2);
+  font-weight: 950;
+  letter-spacing: -0.01em;
+  transition:
+    transform 190ms var(--ease-out),
+    box-shadow 190ms ease;
+}
+
+.header-guide-button:hover,
+.header-guide-button.active {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 36px rgba(255, 212, 71, 0.28);
+}
+
 .topbar-actions {
   justify-content: flex-end;
   gap: 8px;
@@ -370,6 +397,9 @@ a {
 }
 
 .mobile-nav-menu button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-height: 42px;
   padding: 0 12px;
   border: 0;
@@ -384,6 +414,11 @@ a {
 .mobile-nav-menu button:focus-visible,
 .mobile-nav-menu button.active {
   background: var(--surface-soft);
+}
+
+.mobile-nav-menu .mobile-guide-link {
+  background: color-mix(in srgb, var(--yellow) 86%, transparent);
+  color: #121c21;
 }
 
 .account-dropdown {
@@ -2661,6 +2696,277 @@ a {
   line-height: 1.72;
 }
 
+.howto-page {
+  display: grid;
+  gap: 18px;
+  width: min(1180px, 100%);
+  margin: 24px auto 0;
+}
+
+.howto-page .legal-back-button {
+  color: var(--text);
+}
+
+.howto-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.72fr);
+  gap: clamp(22px, 4vw, 46px);
+  min-height: 390px;
+  padding: clamp(24px, 5vw, 56px);
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--green) 28%, var(--border));
+  background:
+    radial-gradient(circle at 82% 18%, rgba(35, 104, 191, 0.24), transparent 28%),
+    radial-gradient(circle at 16% 18%, rgba(255, 212, 71, 0.24), transparent 26%),
+    linear-gradient(135deg, var(--glass-highlight), transparent 44%),
+    var(--surface);
+}
+
+.howto-hero::after {
+  position: absolute;
+  inset: auto -12% -34% 32%;
+  height: 280px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(22, 163, 127, 0.2), transparent 68%);
+  content: "";
+  pointer-events: none;
+}
+
+.howto-hero-copy {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+}
+
+.howto-hero h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(3rem, 8vw, 6.7rem);
+  line-height: 0.88;
+  letter-spacing: -0.07em;
+}
+
+.howto-hero p {
+  max-width: 640px;
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  line-height: 1.7;
+}
+
+.howto-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.howto-wallet-link {
+  background: color-mix(in srgb, var(--surface-solid) 70%, transparent);
+  color: var(--text);
+}
+
+.howto-visual-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  align-content: center;
+  gap: 16px;
+}
+
+.howto-market-mini,
+.howto-payout-mini {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface-solid) 78%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.howto-market-mini span,
+.howto-payout-mini span,
+.howto-market-mini small {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.howto-market-mini strong {
+  font-size: 2.6rem;
+  line-height: 1;
+}
+
+.howto-market-mini div {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green) 58%, var(--yellow) 58%);
+}
+
+.howto-flow-line {
+  width: 4px;
+  height: 42px;
+  margin: -4px auto;
+  border-radius: 999px;
+  background: linear-gradient(var(--yellow), var(--green));
+}
+
+.howto-payout-mini {
+  color: var(--positive);
+}
+
+.howto-payout-mini strong {
+  color: var(--text);
+  font-size: 1.45rem;
+}
+
+.howto-token-grid,
+.howto-step-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.howto-token-card {
+  display: grid;
+  gap: 9px;
+  min-height: 170px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.howto-token-card span {
+  display: inline-grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  font-weight: 1000;
+  letter-spacing: -0.04em;
+}
+
+.howto-token-card.eth span {
+  background: linear-gradient(135deg, #dcecff, #6a90c8);
+  color: #102033;
+}
+
+.howto-token-card.tzen span {
+  background: #ffd21f;
+  color: #06132c;
+}
+
+.howto-token-card.budol span {
+  background: linear-gradient(135deg, var(--yellow), var(--green));
+  color: #102015;
+}
+
+.howto-token-card strong,
+.howto-step-card h2,
+.howto-claim-panel h2 {
+  margin: 0;
+}
+
+.howto-token-card p,
+.howto-step-card p,
+.howto-claim-panel p,
+.howto-warning p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.62;
+}
+
+.howto-step-card {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  min-height: 245px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.howto-step-number {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: color-mix(in srgb, var(--text) 10%, transparent);
+  font-size: 3.8rem;
+  font-weight: 1000;
+  line-height: 1;
+  letter-spacing: -0.08em;
+}
+
+.howto-step-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--border));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--green) 12%, var(--surface-solid));
+  color: var(--positive);
+}
+
+.howto-step-card h2 {
+  max-width: 76%;
+  font-size: 1.2rem;
+}
+
+.howto-claim-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+  gap: 24px;
+  padding: clamp(22px, 4vw, 34px);
+  border-color: color-mix(in srgb, var(--yellow) 34%, var(--border));
+}
+
+.howto-checklist {
+  display: grid;
+  gap: 10px;
+}
+
+.howto-checklist span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  color: var(--muted-strong);
+  font-weight: 850;
+}
+
+.howto-checklist svg {
+  flex: 0 0 auto;
+  color: var(--positive);
+}
+
+.howto-warning {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 18px;
+  border-color: color-mix(in srgb, var(--yellow) 45%, var(--border));
+  background: color-mix(in srgb, var(--yellow) 12%, var(--surface));
+}
+
+.howto-warning svg {
+  color: var(--positive);
+}
+
+.howto-warning strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
 .account-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4049,7 +4355,8 @@ a {
   }
 
   .search-box,
-  .desktop-nav {
+  .desktop-nav,
+  .header-guide-button {
     display: none;
   }
 
@@ -4348,6 +4655,29 @@ a {
 
   .legal-document > header {
     grid-template-columns: 1fr;
+  }
+
+  .howto-hero,
+  .howto-claim-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .howto-hero {
+    min-height: 0;
+    padding: 24px;
+  }
+
+  .howto-hero h1 {
+    font-size: clamp(3rem, 16vw, 4.5rem);
+  }
+
+  .howto-token-grid,
+  .howto-step-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .howto-step-card {
+    min-height: 0;
   }
 
   .account-danger-card,
@@ -6530,7 +6860,8 @@ select:focus-visible {
   }
 
   .search-box,
-  .desktop-nav {
+  .desktop-nav,
+  .header-guide-button {
     display: none;
   }
 

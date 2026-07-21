@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
+import { Bell, BookOpen, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AccountNotification, WalletBalance } from "../types";
 import { formatNotificationTime } from "../lib/format";
@@ -6,12 +6,13 @@ import { shortAddress } from "../lib/format";
 import budolLogoImage from "../../public/assets/budol-market.png";
 
 type TopbarProps = {
-  activePage?: "markets" | "portfolio";
+  activePage?: "markets" | "portfolio" | "howTo";
   accountAddress?: string;
   isAuthLoading: boolean;
   isDark: boolean;
   isWalletBalanceLoading?: boolean;
   onAccountClick: () => void;
+  onHowToClick: () => void;
   onLoginClick: () => void;
   onLogout: () => Promise<void>;
   notifications: AccountNotification[];
@@ -33,6 +34,7 @@ export function Topbar({
   isDark,
   isWalletBalanceLoading = false,
   onAccountClick,
+  onHowToClick,
   onLoginClick,
   onLogout,
   notifications,
@@ -109,10 +111,11 @@ export function Topbar({
     setIsNotificationsOpen(open => !open);
   };
 
-  const openMobileDestination = (destination: "markets" | "portfolio" | "account" | "wallet") => {
+  const openMobileDestination = (destination: "markets" | "portfolio" | "howTo" | "account" | "wallet") => {
     setIsMobileMenuOpen(false);
     if (destination === "markets") onMarketsClick();
     if (destination === "portfolio") onPortfolioClick();
+    if (destination === "howTo") onHowToClick();
     if (destination === "account") onAccountClick();
     if (destination === "wallet") onWalletClick();
   };
@@ -199,6 +202,11 @@ export function Topbar({
         <button className={activePage === "markets" ? "active" : ""} onClick={onMarketsClick}>Markets</button>
         <button className={activePage === "portfolio" ? "active" : ""} onClick={onPortfolioClick}>Portfolio</button>
       </nav>
+
+      <button className={`header-guide-button ${activePage === "howTo" ? "active" : ""}`} onClick={onHowToClick} type="button">
+        <BookOpen size={17} />
+        How to use
+      </button>
 
       <div className="topbar-actions">
         {accountAddress ? (
@@ -313,6 +321,10 @@ export function Topbar({
             <nav className="mobile-nav-menu" aria-label="Mobile navigation">
               <button className={activePage === "markets" ? "active" : ""} onClick={() => openMobileDestination("markets")}>Markets</button>
               <button className={activePage === "portfolio" ? "active" : ""} onClick={() => openMobileDestination("portfolio")}>Portfolio</button>
+              <button className={`mobile-guide-link ${activePage === "howTo" ? "active" : ""}`} onClick={() => openMobileDestination("howTo")}>
+                <BookOpen size={16} />
+                How to use
+              </button>
               {accountAddress ? (
                 <>
                   <button onClick={() => openMobileDestination("account")}>My Account</button>
