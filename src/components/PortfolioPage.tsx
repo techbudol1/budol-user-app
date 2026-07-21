@@ -65,6 +65,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
   const [cashoutConfirmation, setCashoutConfirmation] = useState<CashoutConfirmation | null>(null);
   const [backupPassphraseRequest, setBackupPassphraseRequest] = useState<BackupPassphraseRequest | null>(null);
   const [isBackupWorking, setIsBackupWorking] = useState(false);
+  const [privateClaimRecipientTrade, setPrivateClaimRecipientTrade] = useState<Trade | null>(null);
   const [shieldedWithdrawalGroup, setShieldedWithdrawalGroup] = useState<ShieldedPayoutGroup | null>(null);
   const [shieldedWithdrawalProgress, setShieldedWithdrawalProgress] = useState("");
   const [backgroundWithdrawalJobs, setBackgroundWithdrawalJobs] = useState<BackgroundWithdrawalJob[]>([]);
@@ -228,7 +229,13 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     }
   };
 
-  const claimPayout = async (trade: Trade) => {
+  const openPrivateClaim = (trade: Trade) => {
+    setError("");
+    setPrivateClaimRecipientTrade(trade);
+  };
+
+  const claimPayout = async (trade: Trade, shieldedRecipient = "") => {
+    const cleanShieldedRecipient = shieldedRecipient.trim();
     setPendingClaim(trade.id);
     setClaimProgress(progress => ({ ...progress, [trade.id]: "Preparing private claim..." }));
     setError("");
@@ -265,6 +272,17 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout, shieldedFeeTxHash);
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
+        setPrivateClaimRecipientTrade(null);
+        const creditedShieldedGroups = groupShieldedPayoutNotes(result.shieldedPayoutNotes ?? [], [result.trade]);
+        const creditedShieldedGroup = creditedShieldedGroups[0];
+        if (result.shieldedPayout && cleanShieldedRecipient && creditedShieldedGroup) {
+          onToast(
+            "Private claim accepted.",
+            `${trade.pollTitle}: queueing ${formatRawToken(creditedShieldedGroup.totalRaw)} BUDOL to ${shortHash(cleanShieldedRecipient)}.`,
+          );
+          void withdrawShieldedGroup(creditedShieldedGroup, cleanShieldedRecipient);
+          return;
+        }
         onToast(
           "Private claim submitted.",
           result.shieldedPayout
@@ -276,6 +294,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         return;
       } catch (err) {
         if (err instanceof PrivateClaimArtifactError) {
+          setPrivateClaimRecipientTrade(null);
           setProofWork({ circuitInput, trade });
           setError("Private claim input is ready. Add proving artifacts or generate the proof manually, then submit it from the claim modal.");
           return;
@@ -612,7 +631,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                     <button className="ghost-button" disabled={isClaiming} onClick={() => void claimPublic(trade)} type="button">
                       {isPublicClaiming ? <><LoaderCircle className="spin-icon" size={16} /> Claiming...</> : "Claim publicly"}
                     </button>
-                    <button className="primary-button" disabled={isClaiming} onClick={() => void claimPayout(trade)} type="button">
+                    <button className="primary-button" disabled={isClaiming} onClick={() => openPrivateClaim(trade)} type="button">
                       {isPrivateClaiming ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry private claim" : "Claim privately"}
                     </button>
                   </div>
@@ -863,7 +882,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
                     <button
                       className="primary-button"
                       disabled={pendingPublicClaim === trade.id || pendingClaim === trade.id}
-                      onClick={() => void claimPayout(trade)}
+                      onClick={() => openPrivateClaim(trade)}
                       type="button"
                     >
                       {pendingClaim === trade.id ? <><LoaderCircle className="spin-icon" size={16} /> {claimProgress[trade.id] || "Working..."}</> : trade.payoutStatus === "claim_failed" ? "Retry private claim" : "Claim privately"}
@@ -880,7 +899,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           claimProgress={claimProgress[selectedTrade.id] || ""}
           isClaiming={pendingClaim === selectedTrade.id}
           isPublicClaiming={pendingPublicClaim === selectedTrade.id}
-          onClaim={() => void claimPayout(selectedTrade)}
+          onClaim={() => openPrivateClaim(selectedTrade)}
           onClose={() => setSelectedTrade(null)}
           onOpenMarket={() => onMarketOpen(selectedTrade.pollSlug)}
           onPublicClaim={() => void claimPublic(selectedTrade)}
@@ -910,6 +929,16 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
           onClose={() => setProofWork(null)}
           onSubmit={(proof, publicSignals, vk) => void submitManualProof(proofWork.trade, proof, publicSignals, vk)}
           trade={proofWork.trade}
+        />
+      ) : null}
+      {privateClaimRecipientTrade ? (
+        <PrivateClaimRecipientModal
+          connectedWallet={accountAddress || ""}
+          isSubmitting={pendingClaim === privateClaimRecipientTrade.id}
+          onClose={() => setPrivateClaimRecipientTrade(null)}
+          onSubmit={recipient => void claimPayout(privateClaimRecipientTrade, recipient)}
+          progress={claimProgress[privateClaimRecipientTrade.id] || ""}
+          trade={privateClaimRecipientTrade}
         />
       ) : null}
       {shieldedWithdrawalGroup ? (
@@ -1313,6 +1342,94 @@ function BackupPassphraseModal({
   );
 }
 
+function PrivateClaimRecipientModal({
+  connectedWallet,
+  isSubmitting,
+  onClose,
+  onSubmit,
+  progress,
+  trade,
+}: {
+  connectedWallet: string;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (recipient: string) => void;
+  progress: string;
+  trade: Trade;
+}) {
+  const [recipient, setRecipient] = useState(connectedWallet);
+  const [localError, setLocalError] = useState("");
+  const cleanRecipient = recipient.trim();
+  const usesConnectedWallet = connectedWallet.trim() !== "" && cleanRecipient.toLowerCase() === connectedWallet.trim().toLowerCase();
+
+  const submit = () => {
+    setLocalError("");
+    if (!isValidEVMAddress(cleanRecipient)) {
+      setLocalError("Enter a valid EVM wallet address.");
+      return;
+    }
+    onSubmit(cleanRecipient);
+  };
+
+  return (
+    <div className="drawer-backdrop centered-modal-backdrop" role="presentation" onClick={isSubmitting ? undefined : onClose}>
+      <aside className="private-proof-modal shielded-withdrawal-modal" role="dialog" aria-modal="true" aria-label="Claim privately" onClick={event => event.stopPropagation()}>
+        <header>
+          <span>
+            <ShieldCheck size={18} />
+            Claim privately
+          </span>
+          <button disabled={isSubmitting} onClick={onClose} aria-label="Close private claim">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="proof-market-title">
+          <strong>{formatToken(trade.settlementPayout)} BUDOL private payout</strong>
+          <small>{trade.outcomeLabel}</small>
+          <small>{trade.pollTitle}</small>
+        </div>
+        <p className="shielded-withdrawal-help">
+          Enter the wallet that should receive this payout. BudolPH will submit the private claim and queue the shielded withdrawal in one flow.
+          For better privacy, use a fresh wallet that has not interacted with BudolPH.
+        </p>
+        <label>
+          Recipient wallet
+          <input
+            autoFocus
+            disabled={isSubmitting}
+            onChange={event => {
+              setRecipient(event.currentTarget.value);
+              setLocalError("");
+            }}
+            onKeyDown={event => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="0x..."
+            value={recipient}
+          />
+        </label>
+        {usesConnectedWallet ? (
+          <div className="privacy-warning">
+            This is your connected BudolPH wallet. The withdrawal will work, but it is easier to link to your account. A fresh wallet is better for privacy.
+          </div>
+        ) : null}
+        {localError ? <div className="login-error">{localError}</div> : null}
+        {progress ? <div className="notice compact-notice">{progress}</div> : null}
+        <div className="modal-action-row">
+          <button className="ghost-button" disabled={isSubmitting} onClick={onClose} type="button">Cancel</button>
+          <button className="primary-button" disabled={isSubmitting} onClick={submit} type="button">
+            {isSubmitting ? <LoaderCircle className="spin-icon" size={16} /> : <ShieldCheck size={16} />}
+            {isSubmitting ? "Claiming..." : "Claim privately"}
+          </button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
 function ShieldedWithdrawalRecipientModal({
   connectedWallet,
   group,
@@ -1335,7 +1452,7 @@ function ShieldedWithdrawalRecipientModal({
 
   const submit = () => {
     setLocalError("");
-    if (!/^0x[0-9a-fA-F]{40}$/.test(cleanRecipient)) {
+    if (!isValidEVMAddress(cleanRecipient)) {
       setLocalError("Enter a valid EVM wallet address.");
       return;
     }
@@ -1389,6 +1506,10 @@ function ShieldedWithdrawalRecipientModal({
       </aside>
     </div>
   );
+}
+
+function isValidEVMAddress(value: string) {
+  return /^0x[0-9a-fA-F]{40}$/.test(value);
 }
 
 function PrivateClaimProofModal({
