@@ -118,7 +118,7 @@ bun run deploy
 
 Build-time frontend environment values are public. Never put API secrets, private keys, OAuth client secrets, paymaster keys, or Vault credentials in `VITE_*` variables or Cloudflare frontend settings.
 
-## Grant readiness and honest boundaries
+## Testnet and production boundaries
 
 The current testnet MVP demonstrates:
 
