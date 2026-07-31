@@ -6549,8 +6549,12 @@ select:focus-visible {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
+  column-gap: 18px;
   white-space: nowrap;
+}
+
+.wallet-history-timestamp {
+  display: inline-block;
 }
 
 .wallet-token-pill.token-eth {
