@@ -413,7 +413,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       {
         detail: `Preparing ${group.notes.length} private note${group.notes.length === 1 ? "" : "s"} for ${shortHash(cleanRecipient)}.`,
         id: jobId,
-        status: "running",
+        status: "running" as const,
         title: `${formatRawToken(group.totalRaw)} BUDOL private withdrawal`,
       },
       ...current,

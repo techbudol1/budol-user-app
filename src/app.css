@@ -6542,14 +6542,14 @@ select:focus-visible {
 }
 
 .wallet-token-pill {
-  margin: 0 0 4px auto;
+  margin: 0;
 }
 
 .wallet-history-meta {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 16px;
   white-space: nowrap;
 }
 
