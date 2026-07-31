@@ -297,7 +297,9 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <span className={`wallet-token-pill token-${tokenClass(transfer.tokenSymbol || transfer.tokenLabel)}`}>
                     {transfer.tokenSymbol || transfer.tokenLabel || "Token"}
                   </span>
-                  <time className="wallet-history-timestamp">{formatWalletDate(transfer.timestamp)}</time>
+                  <time className="wallet-history-timestamp" style={{ marginInlineStart: 24 }}>
+                    {formatWalletDate(transfer.timestamp)}
+                  </time>
                 </small>
               </a>
             )) : (
