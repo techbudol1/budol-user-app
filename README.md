@@ -1,8 +1,8 @@
 # BudolPH User App
 
-BudolPH is a privacy-aware prediction-market frontend built for **Horizen Testnet**. It lets users trade Philippine market outcomes with BUDOL, then optionally use tZEN privacy access for private claim and shielded-payout flows.
+BudolPH is a privacy-aware prediction-market frontend built for **Horizen Testnet**. It lets users trade Philippine public-interest market outcomes with BUDOL, then optionally use tZEN privacy access for private claim and shielded-payout flows.
 
-> **Testnet MVP:** this repository is for demonstration and beta testing on Horizen Testnet (`2651420`). It is not a real-value or mainnet release.
+> **Testnet software:** this repository is for demonstration and beta testing on Horizen Testnet (`2651420`). It is not a real-value or mainnet release.
 
 ## Why Horizen
 
@@ -118,9 +118,9 @@ bun run deploy
 
 Build-time frontend environment values are public. Never put API secrets, private keys, OAuth client secrets, paymaster keys, or Vault credentials in `VITE_*` variables or Cloudflare frontend settings.
 
-## Testnet and production boundaries
+## Testnet boundaries
 
-The current testnet MVP demonstrates:
+The current testnet implementation demonstrates:
 
 - Horizen integration and testnet market operations.
 - Direct tZEN utility for privacy access.
@@ -131,7 +131,7 @@ Still required before mainnet or real funds:
 
 - multi-party ZK ceremony and production proving artifacts;
 - independent smart-contract, paymaster, relayer, and API security review;
-- recorded live E2E tests for self-paid, sponsored, and managed smart-account trading;
+- recorded live end-to-end tests for self-paid, sponsored, and managed smart-account trading;
 - funded operations, project KYC, and legal/compliance approval.
 
 See [HORIZEN_TESTNET_FRONTEND.md](./HORIZEN_TESTNET_FRONTEND.md) for frontend integration notes.

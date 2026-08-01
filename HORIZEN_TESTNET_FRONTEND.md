@@ -1,20 +1,6 @@
-# BudolPH User App: Horizen Testnet Frontend
+# BudolPH User App: Horizen Testnet Integration
 
-This branch is the Cloudflare-deployed user app adaptation for Horizen testnet.
-
-## Branch
-
-```bash
-git switch horizen-testnet-adaptation
-```
-
-## Scope
-
-This keeps the current Arbitrum Sepolia production branch intact and adds support for Horizen testnet.
-
-Default trading still uses direct external-wallet transactions. ERC-4337 smart-wallet discovery is now supported when the API exposes `/api/smart-wallet/config` with a deployed EntryPoint, SimpleAccountFactory, and bundler URL.
-
-Google/social login is disabled in this branch; users authenticate by signing a wallet message.
+This application targets Horizen Testnet and obtains active chain, token, privacy, and account-abstraction configuration from the BudolPH API. It supports self-custodial EVM wallets and the configured Google-managed wallet flow.
 
 ## Horizen Testnet
 
@@ -28,29 +14,27 @@ Explorer: https://horizen-testnet.explorer.caldera.xyz/
 Faucet/Bridge: https://horizen-testnet.hub.caldera.xyz/
 ```
 
-## Required Backend
+## Required backend configuration
 
-The frontend only follows whatever `/api/trade/config` returns.
-
-For Horizen testing, the API behind `VITE_API_BASE_URL` must return:
+The API behind `VITE_API_BASE_URL` is the source of truth. Its trade configuration must identify BUDOL as the trading token on Horizen Testnet:
 
 ```json
 {
   "chainId": 2651420,
   "networkName": "Horizen Testnet",
-  "tokenAddress": "0xb06EC4ce262D8dbDc24Fac87479A49A7DC4cFb87",
+  "tokenAddress": "0x689513fb392e460c6d9225f911fce57fe50d6db4",
   "tokenDecimals": 18,
-  "tokenSymbol": "tZEN"
+  "tokenSymbol": "BUDOL"
 }
 ```
 
-The backend must also verify escrow transfers against:
+The backend must verify escrow transfers against:
 
 ```text
 https://horizen-testnet.rpc.caldera.xyz/http
 ```
 
-## Smart-wallet config
+## Smart-account configuration
 
 The wallet page calls:
 
@@ -58,7 +42,7 @@ The wallet page calls:
 GET /api/smart-wallet/config
 ```
 
-When enabled, the frontend derives the user's ERC-4337 SimpleAccount address from:
+When enabled, the frontend derives an ERC-4337 SimpleAccount address from:
 
 - `entryPointAddress`
 - `factoryAddress`
@@ -67,15 +51,8 @@ When enabled, the frontend derives the user's ERC-4337 SimpleAccount address fro
 
 When `enabled: true`, the trade escrow transfer is submitted as an ERC-4337 UserOperation through the configured bundler. The frontend waits for the UserOperation receipt, extracts the underlying transaction hash, and sends that hash to the API for the existing escrow verification flow.
 
-When disabled, normal external-wallet trading remains the active transaction path.
+When disabled, direct external-wallet trading remains the active transaction path.
 
-## Cloudflare Deployment Recommendation
+## Deployment notes
 
-Do not point production `budolph.xyz` at this branch yet.
-
-Use either:
-
-- a Cloudflare preview deployment for `horizen-testnet-adaptation`, or
-- a separate Worker/Pages project/domain like `horizen-testnet.budolph.xyz`.
-
-Last Cloudflare rebuild trigger: 2026-07-09.
+Build-time variables are public. Keep only public endpoint URLs in Cloudflare build settings; never add wallet keys, paymaster credentials, OAuth secrets, or Vault credentials.
