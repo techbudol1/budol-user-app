@@ -75,7 +75,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const tradingFeeBps = tradeConfig ? normalizeTradingFeeBps(tradeConfig.tradingFeeBps) : 0;
   const selectedTradingFee = tradingFeeAmount(numericAmount || 0, tradingFeeBps);
   const selectedEscrowTotal = roundMoney((numericAmount || 0) + selectedTradingFee);
-	const shieldedAvailable = Boolean(shieldedConfig?.enabled && shieldedConfig.vaults.some(vault => vault.available && vault.batch && Number(vault.amount) === numericAmount));
+	const shieldedAvailable = Boolean(shieldedConfig?.enabled && shieldedConfig.vaults.some(vault => vault.available && Number(vault.amount) === numericAmount));
 
   useEffect(() => {
     if (!tradeable || !numericAmount || numericAmount <= 0) {

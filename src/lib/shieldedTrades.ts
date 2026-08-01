@@ -56,8 +56,9 @@ export async function placeShieldedTrade(input: {
   wallet: ConnectedWallet;
 }) {
   const config = await loadShieldedTradeConfig();
-  const vault = config.vaults.find(item => item.available && Number(item.amount) === input.amount && item.batch);
-  if (!config.enabled || !vault?.batch) throw new Error("No open shielded batch supports this trade amount.");
+  const vault = config.vaults.find(item => item.available && Number(item.amount) === input.amount);
+  if (!config.enabled || !vault) throw new Error("No shielded vault supports this trade amount.");
+  const batch = vault.batch ?? await ensureShieldedTradeBatch(input.amount);
   await input.wallet.switchChain?.(config.chainId);
   const provider = await input.wallet.getEthereumProvider();
   const publicClient = createPublicClient({ transport: http(rpcURL) });
@@ -90,7 +91,7 @@ export async function placeShieldedTrade(input: {
   const amountRaw = parseUnits(input.amount.toString(), config.tokenDecimals);
   const marketId = BigInt(keccak256(stringToHex(input.pollId))) % FIELD;
   const outcome = input.side === "yes" ? 1n : 2n;
-  const batchId = BigInt(vault.batch.batchId);
+  const batchId = BigInt(batch.batchId);
   const orderCommitment = hash([marketId, outcome, amountRaw, orderSalt, batchId]);
   const nullifierHash = hash([secret, blinding, BigInt(vault.vaultAddress)]);
   const circuitInput = {
@@ -118,7 +119,7 @@ export async function placeShieldedTrade(input: {
 	const privacyReceiptTxHash = await input.getPrivacyReceiptTxHash();
   const response = await fetch(`${apiBaseURL()}/api/shielded-trades`, {
     method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ batchId: vault.batch.batchId, pollId: input.pollId, side: input.side, amount: input.amount, orderSalt: orderSalt.toString(), nullifierHash: nullifierHash.toString(), orderCommitment: orderCommitment.toString(), privateClaimLeaf: privateClaimNote.leaf, privacyReceiptTxHash, proof, solidityProof, publicSignals }),
+    body: JSON.stringify({ batchId: batch.batchId, pollId: input.pollId, side: input.side, amount: input.amount, orderSalt: orderSalt.toString(), nullifierHash: nullifierHash.toString(), orderCommitment: orderCommitment.toString(), privateClaimLeaf: privateClaimNote.leaf, privacyReceiptTxHash, proof, solidityProof, publicSignals }),
   });
   const payload = await response.json().catch(() => null) as { error?: string; order?: { id: string; status: string }; batch?: ShieldedTradeBatch } | null;
   if (!response.ok || !payload?.order) throw new Error(payload?.error || "Shielded order relay failed.");
@@ -126,6 +127,18 @@ export async function placeShieldedTrade(input: {
 	// accepted on-chain. Retain only the private payout note awaiting the batch.
 	savePendingNote({ commitment: commitment.toString(), createdAt: new Date().toISOString(), privateClaimNote });
   return payload;
+}
+
+async function ensureShieldedTradeBatch(amount: number): Promise<ShieldedTradeBatch> {
+  const response = await fetch(`${apiBaseURL()}/api/shielded-trades/batches`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount }),
+  });
+  const payload = await response.json().catch(() => null) as { batch?: ShieldedTradeBatch; error?: string } | null;
+  if (!response.ok || !payload?.batch) throw new Error(payload?.error || "Could not open a shielded trade batch.");
+  return payload.batch;
 }
 
 export function claimPendingShieldedTradeNote(leaf: string): PrivateClaimNote | null {
