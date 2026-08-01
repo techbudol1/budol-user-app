@@ -1163,7 +1163,9 @@ function sparkFromMarket(poll: PublicPoll): number[] {
   const clamped = Math.max(8, Math.min(92, percent));
   const activity = Math.max(0, Number(poll.marketMakerCollected || 0));
   if (!activity) {
-    return sparkFromPercent(clamped);
+    // A newly published market has only its opening probability. Do not invent
+    // a price history before recorded market activity exists.
+    return [clamped, clamped];
   }
   const drift = Math.min(8, Math.log10(activity + 1) * 3);
   const direction = (poll.yesShares || 0) >= (poll.noShares || 0) ? 1 : -1;
@@ -1176,13 +1178,6 @@ function sparkFromMarket(poll: PublicPoll): number[] {
     clamped + direction * drift * 0.8,
     clamped + direction * drift,
   ].map(value =>
-    Math.max(8, Math.min(92, value)),
-  );
-}
-
-function sparkFromPercent(percent: number): number[] {
-  const clamped = Math.max(8, Math.min(92, percent));
-  return [clamped - 12, clamped - 5, clamped - 9, clamped + 4, clamped - 2, clamped + 3, clamped].map(value =>
     Math.max(8, Math.min(92, value)),
   );
 }
