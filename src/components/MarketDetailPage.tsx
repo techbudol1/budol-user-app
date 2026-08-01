@@ -14,6 +14,7 @@ type MarketDetailPageProps = {
   markets: Market[];
   onBack: () => void;
   onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<EscrowTransferResult>;
+	onShieldedTrade?: (amount: number, pollId: string, side: TradeSide) => Promise<void>;
   onLoginClick: () => void;
   onMarketChange: (market: Market) => void;
   onMarketOpen: (slug: string) => void;
@@ -27,7 +28,7 @@ type MarketDetailPageProps = {
 
 type MarketDetailTab = "overview" | "activity" | "comments" | "rules" | "holders";
 
-export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onTradePlaced, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
+export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onTradePlaced, onShieldedTrade, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
   const [loadedMarket, setLoadedMarket] = useState<Market | null>(market);
   const [activity, setActivity] = useState<MarketActivity[]>([]);
   const [comments, setComments] = useState<MarketComment[]>([]);
@@ -508,6 +509,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
             isLoggedIn={isLoggedIn}
             market={activeMarket}
             onEscrowTransfer={onEscrowTransfer}
+			onShieldedTrade={onShieldedTrade}
             onLoginClick={onLoginClick}
             onMarketChange={onMarketChange}
             onPortfolioChange={onPortfolioChange}

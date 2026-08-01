@@ -6029,6 +6029,28 @@ select:focus-visible {
   border-bottom: 1px solid var(--rule);
 }
 
+.private-trade-toggle {
+  align-items: center;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  border-radius: 14px;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: auto auto 1fr;
+  margin: 14px 0;
+  padding: 12px;
+}
+
+.private-trade-toggle.selected {
+  background: rgba(16, 185, 129, 0.13);
+  border-color: var(--mint);
+}
+
+.private-trade-toggle input { accent-color: var(--mint); }
+.private-trade-toggle span { display: grid; gap: 2px; }
+.private-trade-toggle small { color: var(--muted); line-height: 1.35; }
+
 .simple-ticket-summary > div {
   justify-content: space-between;
   gap: 12px;

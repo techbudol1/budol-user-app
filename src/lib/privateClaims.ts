@@ -278,6 +278,10 @@ export function listPrivateClaimNotes(): PrivateClaimNoteRecord[] {
   return notes.sort((a, b) => a.tradeId.localeCompare(b.tradeId));
 }
 
+export function findPrivateClaimNoteByLeaf(leaf: string): PrivateClaimNoteRecord | null {
+	return listPrivateClaimNotes().find(record => record.note.leaf === leaf) || null;
+}
+
 export async function exportEncryptedPrivateClaimNotes(passphrase: string): Promise<PrivateClaimNoteBackup> {
   const cleanPassphrase = passphrase.trim();
   if (cleanPassphrase.length < 8) {

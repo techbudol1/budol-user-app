@@ -177,6 +177,8 @@ export type Trade = {
   privateClaimRoot: string;
   privateClaimNullifierHash: string;
   privateClaimId: string;
+	privacyMode?: "public" | "shielded";
+	shieldedBatchId?: string;
   settledAt: string;
   createdAt: string;
 };

@@ -1,7 +1,8 @@
 import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedPayoutPool, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
-import { createPrivateClaimNote, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
+import { createPrivateClaimNote, findPrivateClaimNoteByLeaf, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
 import { apiBaseURL } from "./runtimeConfig";
 import { createShieldedPayoutNotesForAmount, fieldPublicSignalToBytes32, removeShieldedPayoutNote, saveShieldedPayoutNotes, type ShieldedPayoutConfig } from "./shieldedPayouts";
+import { claimPendingShieldedTradeNote } from "./shieldedTrades";
 
 type AuthResponse = {
   user: BudolUser;
@@ -601,6 +602,12 @@ export async function loadPortfolio(): Promise<UserPortfolio | null> {
   }
 
   const payload = (await response.json()) as PortfolioResponse;
+	payload.portfolio.trades.forEach(trade => {
+		if (trade.privacyMode === "shielded" && !loadPrivateClaimNote(trade.id)) {
+			const note = claimPendingShieldedTradeNote(trade.privateClaimLeaf) || findPrivateClaimNoteByLeaf(trade.privateClaimLeaf)?.note;
+			if (note) savePrivateClaimNote(trade.id, note);
+		}
+	});
   return payload.portfolio;
 }
 

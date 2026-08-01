@@ -11,9 +11,10 @@ import { PortfolioPage } from "./components/PortfolioPage";
 import { SiteFooter } from "./components/SiteFooter";
 import { Topbar } from "./components/Topbar";
 import { filters } from "./data/budol";
-import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWalletBalances, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
-import { sendBudolEscrowTransfer, signBudolPermit } from "./lib/erc20Transfer";
+import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadCurrentUser, loadNotifications, loadPortfolio, loadPrivacyAccessConfig, loadPublicMarkets, loadTradeConfig, loadTradeQuote, loadWalletBalances, loadWatchlist, logoutCurrentUser, markAllNotificationsRead, markNotificationRead, removeWatchlist } from "./lib/api";
+import { sendBudolEscrowTransfer, sendERC20PrivacyFee, sendNativePrivacyFee, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
+import { placeShieldedTrade } from "./lib/shieldedTrades";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "privacy" | "terms" | "logout";
@@ -320,6 +321,25 @@ export default function App() {
     });
   }, [accountAddress, budolUser?.walletCustody]);
 
+	const sendShieldedTrade = useCallback(async (amount: number, pollId: string, side: TradeSide) => {
+		if (!accountAddress) throw new Error("Reconnect your wallet before placing a private trade.");
+		if (budolUser?.walletCustody === "managed") throw new Error("Managed-wallet private deposits are not enabled in this testnet build. Connect a self-custody wallet.");
+		const wallet = browserWalletForAddress(accountAddress);
+		if (!wallet) throw new Error("Private trading requires a connected self-custody wallet.");
+		await placeShieldedTrade({
+			accountAddress, amount, pollId, side, wallet,
+			getPrivacyReceiptTxHash: async () => {
+				const config = await loadPrivacyAccessConfig();
+				const amountRaw = config.fees.hide_position || "0";
+				if (BigInt(amountRaw) === 0n) return "";
+				if (config.mode === "erc20") {
+					return sendERC20PrivacyFee({ amountRaw, chainId: config.chainId, collectorAddress: config.collectorAddress, from: accountAddress, tokenAddress: config.tokenAddress, wallet });
+				}
+				return sendNativePrivacyFee({ amountRaw, chainId: config.chainId, collectorAddress: config.collectorAddress, from: accountAddress, wallet });
+			},
+		});
+	}, [accountAddress, budolUser?.walletCustody]);
+
   const recordPortfolioSettlements = (nextPortfolio: UserPortfolio | null) => {
     if (!nextPortfolio) {
       return;
@@ -592,6 +612,7 @@ export default function App() {
           markets={marketList}
           onBack={() => navigate("markets")}
           onEscrowTransfer={sendEscrowTransfer}
+		  onShieldedTrade={sendShieldedTrade}
           onLoginClick={() => setIsLoginOpen(true)}
           onMarketChange={updateMarket}
           onMarketOpen={slug => navigate("marketDetail", "push", slug)}

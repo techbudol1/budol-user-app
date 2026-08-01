@@ -1,8 +1,9 @@
-import { CircleDollarSign, ShieldCheck, X } from "lucide-react";
+import { CircleDollarSign, EyeOff, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { loadTradeConfig, loadTradeQuote, placeTrade } from "../lib/api";
 import { isHorizen } from "../lib/chains";
 import { isMarketTradeable, marketStateLabel } from "../lib/marketState";
+import { loadShieldedTradeConfig, type ShieldedTradeConfig } from "../lib/shieldedTrades";
 import type { Market, TradeConfig, TradeQuote, TradeSide, UserPortfolio } from "../types";
 
 export type EscrowTransferResult = {
@@ -19,6 +20,7 @@ type TradeTicketCardProps = {
   onMarketChange?: (market: Market) => void;
   onPortfolioChange?: (portfolio: UserPortfolio) => void;
   onTradePlaced?: () => void;
+	onShieldedTrade?: (amount: number, pollId: string, side: TradeSide) => Promise<void>;
 };
 
 type ConfirmOrder = {
@@ -37,7 +39,7 @@ type QuoteSnapshot = {
 
 const FIXED_TRADE_AMOUNTS = [10, 25, 50, 100, 250, 500] as const;
 
-export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTransfer, onLoginClick, onMarketChange, onPortfolioChange, onTradePlaced }: TradeTicketCardProps) {
+export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTransfer, onLoginClick, onMarketChange, onPortfolioChange, onTradePlaced, onShieldedTrade }: TradeTicketCardProps) {
   const [amount, setAmount] = useState("10");
   const [confirmOrder, setConfirmOrder] = useState<ConfirmOrder | null>(null);
   const [message, setMessage] = useState("");
@@ -46,6 +48,8 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const [quoteError, setQuoteError] = useState("");
   const [tradeConfig, setTradeConfig] = useState<TradeConfig | null>(null);
   const [selectedSide, setSelectedSide] = useState<TradeSide>("yes");
+	const [privateTrade, setPrivateTrade] = useState(false);
+	const [shieldedConfig, setShieldedConfig] = useState<ShieldedTradeConfig | null>(null);
   const numericAmount = Number(amount);
   const quoteKey = `${market.id}:${numericAmount}`;
   const quotes = quoteSnapshot?.key === quoteKey ? quoteSnapshot.quotes : {};
@@ -71,6 +75,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const tradingFeeBps = tradeConfig ? normalizeTradingFeeBps(tradeConfig.tradingFeeBps) : 0;
   const selectedTradingFee = tradingFeeAmount(numericAmount || 0, tradingFeeBps);
   const selectedEscrowTotal = roundMoney((numericAmount || 0) + selectedTradingFee);
+	const shieldedAvailable = Boolean(shieldedConfig?.enabled && shieldedConfig.vaults.some(vault => vault.available && vault.batch && Number(vault.amount) === numericAmount));
 
   useEffect(() => {
     if (!tradeable || !numericAmount || numericAmount <= 0) {
@@ -131,6 +136,17 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     };
   }, [isLoggedIn]);
 
+	useEffect(() => {
+		if (!isLoggedIn) { setShieldedConfig(null); return; }
+		let active = true;
+		const refresh = () => loadShieldedTradeConfig().then(config => { if (active) setShieldedConfig(config); }).catch(() => { if (active) setShieldedConfig(null); });
+		void refresh();
+		const interval = window.setInterval(refresh, 15_000);
+		return () => { active = false; window.clearInterval(interval); };
+	}, [isLoggedIn]);
+
+	useEffect(() => { if (!shieldedAvailable) setPrivateTrade(false); }, [shieldedAvailable]);
+
   const requestTrade = async (side: TradeSide) => {
     setMessage("");
     setQuoteError("");
@@ -175,6 +191,14 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
     setPendingSide(confirmOrder.side);
     try {
       setConfirmOrder(null);
+		if (privateTrade) {
+			if (!onShieldedTrade) throw new Error("Shielded trading is not available.");
+			setMessage("Creating a private deposit note and zero-knowledge order proof…");
+			await onShieldedTrade(confirmOrder.amount, market.id, confirmOrder.side);
+			onTradePlaced?.();
+			setMessage("Private order accepted. Odds update only after the aggregate batch settles.");
+			return;
+		}
       setMessage(tradeConfig && isHorizen(tradeConfig.chainId) ? "Confirm the Horizen escrow wallet operation." : "Confirm the escrow transfer in your wallet.");
       const escrow = await onEscrowTransfer?.(confirmOrder.transferAmount, market.id, confirmOrder.side);
       if (!escrow?.txHash) {
@@ -273,6 +297,12 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
           </div>
         </div>
 
+		{shieldedAvailable ? <label className={`private-trade-toggle ${privateTrade ? "selected" : ""}`}>
+			<input checked={privateTrade} onChange={event => setPrivateTrade(event.target.checked)} type="checkbox" />
+			<EyeOff size={18} />
+			<span><strong>Private trade</strong><small>Hide wallet, side, and size behind a batched ZK order.</small></span>
+		</label> : null}
+
         <div className="trade-impact-preview" aria-live="polite">
           <div className="trade-impact-head">
             <strong>Price impact</strong>
@@ -352,7 +382,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
                 <strong>{formatToken(confirmOrder.expectedPayout)} BUDOL</strong>
               </div>
             </div>
-            <p className="order-confirm-note">BudolPH escrows the trade amount plus the trading fee when you confirm.</p>
+            <p className="order-confirm-note">{privateTrade ? "Your wallet deposits a fixed-denomination note, generates a ZK proof locally, and sends the order through a relayer. The testnet operator can still see order details." : "BudolPH escrows the trade amount plus the trading fee when you confirm."}</p>
             <div className="order-confirm-actions">
               <button className="ghost-button" onClick={() => setConfirmOrder(null)}>Cancel</button>
               <button className="primary-button" onClick={() => void confirmTrade()}>Confirm trade</button>

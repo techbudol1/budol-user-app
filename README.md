@@ -21,6 +21,8 @@ Prediction-market activity can reveal sensitive civic preferences. BudolPH keeps
 - Use a configured ERC-4337 smart account, bundler, and paymaster/sponsor path.
 - Select self-paid gas or an admin-enabled sponsored trade flow.
 - Hide a position until market resolution by paying the configured tZEN privacy fee.
+- Place a cryptographically shielded fixed-denomination order whose deposit is
+  spent with a Poseidon/Merkle membership proof and one-time nullifier.
 - Submit a private winning-claim proof and route a shielded payout to a recipient wallet.
 - Review BUDOL, ETH, and tZEN balances plus unified wallet activity.
 
@@ -28,12 +30,19 @@ Prediction-market activity can reveal sensitive civic preferences. BudolPH keeps
 
 Public trading and portfolio history are free. Privacy is opt-in:
 
-1. Pay tZEN for a privacy-access receipt.
-2. Create a private claim proof after a winning market resolves.
-3. Enter the payout recipient once.
-4. BudolPH queues internal fixed-denomination payout notes as a relay batch.
+1. Enable **Private trade** in the trade ticket.
+2. Deposit a fixed-denomination BUDOL commitment and create the order proof in
+   the browser.
+3. Pay tZEN for the privacy-access receipt and relay the order into a delayed
+   batch.
+4. After resolution, create a private claim and enter the payout recipient once.
+5. BudolPH queues internal fixed-denomination payout notes as a relay batch.
 
-The fixed denominations and delayed relaying reduce the direct claim-to-withdrawal link. They do **not** make the final ERC-20 withdrawal or recipient invisible on a public blockchain. For stronger privacy, users should withdraw to a fresh wallet.
+The order proof hides which vault deposit was spent and binds the hidden market,
+side, and amount to an accepted commitment. Public odds move only after an
+aggregate batch settles. The testnet coordinator still receives the plaintext
+order, and the final ERC-20 withdrawal and recipient remain visible on-chain.
+For stronger payout privacy, users should withdraw to a fresh wallet.
 
 The checked-in Groth16 artifacts are development artifacts for testnet. A verified multi-party ceremony, final verifier deployment, and independent security review are required before any real-value or mainnet privacy claim.
 
@@ -77,6 +86,7 @@ Useful backend configuration endpoints:
 - `GET /api/privacy-access/config`
 - `GET /api/privacy-access/metrics`
 - `GET /api/private-claims/shielded-config`
+- `GET /api/shielded-trades/config`
 
 ## Local development
 
