@@ -5123,6 +5123,7 @@ select:focus-visible {
 }
 
 .hero-panel img {
+  object-position: 54% center;
   transform: scale(1.035);
   animation: hero-drift 18s ease-in-out infinite alternate;
 }
@@ -6970,7 +6971,7 @@ select:focus-visible {
   }
 
   .hero-panel img {
-    object-position: 62% center;
+    object-position: 58% center;
   }
 
   .hero-copy {

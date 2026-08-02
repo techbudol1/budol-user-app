@@ -1,5 +1,5 @@
 import { Activity, ArrowRight, FileCheck2, LockKeyhole, Radio, ShieldCheck, Sparkles } from "lucide-react";
-import bannerImage from "../../public/assets/budol-jeepney-hero.png";
+import bannerImage from "../../public/assets/budol-jeepneys-hero.webp";
 
 type HeroPanelProps = {
   marketCount: number;
@@ -10,7 +10,12 @@ export function HeroPanel({ marketCount }: HeroPanelProps) {
 
   return (
     <section className="hero-panel">
-      <img src={bannerImage} alt="Playful Philippine prediction market illustration" />
+      <img
+        src={bannerImage}
+        alt="Colorful Philippine jeepneys parked together"
+        decoding="async"
+        fetchPriority="high"
+      />
       <div className="hero-copy">
         <div className="status-pill">
           <span className="live-indicator" aria-hidden="true" />
