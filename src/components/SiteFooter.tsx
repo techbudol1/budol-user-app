@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { ExternalLink, MessageCircle, ShieldCheck } from "lucide-react";
 import budolLogoImage from "../../public/assets/budol-market.png";
 
 type SiteFooterProps = {
@@ -37,6 +37,17 @@ export function SiteFooter({ onAccountClick, onHowToClick, onMarketsClick, onPor
           <strong>Account</strong>
           <button onClick={onAccountClick}>Profile</button>
           <button onClick={onWalletClick}>Wallet</button>
+        </div>
+        <div>
+          <strong>Social</strong>
+          <a href="https://x.com/budolph_" rel="noreferrer" target="_blank">
+            <ExternalLink size={14} />
+            X
+          </a>
+          <a href="https://www.facebook.com/profile.php?id=61590670526100" rel="noreferrer" target="_blank">
+            <MessageCircle size={14} />
+            Facebook
+          </a>
         </div>
       </nav>
       <div className="site-footer-meta">

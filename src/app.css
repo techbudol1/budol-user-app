@@ -2588,7 +2588,7 @@ a {
 
 .site-footer nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 24px;
 }
 
@@ -2599,16 +2599,23 @@ a {
   text-transform: uppercase;
 }
 
-.site-footer nav button {
+.site-footer nav button,
+.site-footer nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   width: max-content;
   padding: 0;
   border: 0;
   background: transparent;
   color: var(--muted-strong);
+  font: inherit;
   text-align: left;
+  text-decoration: none;
 }
 
-.site-footer nav button:hover {
+.site-footer nav button:hover,
+.site-footer nav a:hover {
   color: var(--positive);
 }
 
