@@ -1,21 +1,35 @@
 import { Activity, ArrowRight, FileCheck2, LockKeyhole, Radio, ShieldCheck, Sparkles } from "lucide-react";
-import bannerImage from "../../public/assets/budol-jeepneys-hero.webp";
+import islandsHeroImage from "../../public/assets/budol-islands-hero.webp";
+import jeepneysHeroImage from "../../public/assets/budol-jeepneys-hero.webp";
+import marketHeroImage from "../../public/assets/budol-market-hero.webp";
 
 type HeroPanelProps = {
   marketCount: number;
 };
+
+const heroImages = [
+  { src: jeepneysHeroImage, className: "hero-slide hero-slide-jeepneys" },
+  { src: marketHeroImage, className: "hero-slide hero-slide-market" },
+  { src: islandsHeroImage, className: "hero-slide hero-slide-islands" },
+];
 
 export function HeroPanel({ marketCount }: HeroPanelProps) {
   const hasLiveMarkets = marketCount > 0;
 
   return (
     <section className="hero-panel">
-      <img
-        src={bannerImage}
-        alt="Colorful Philippine jeepneys parked together"
-        decoding="async"
-        fetchPriority="high"
-      />
+      {heroImages.map((image, index) => (
+        <img
+          key={image.src}
+          className={image.className}
+          src={image.src}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          fetchPriority={index === 0 ? "high" : "auto"}
+          loading={index === 0 ? "eager" : "lazy"}
+        />
+      ))}
       <div className="hero-copy">
         <div className="status-pill">
           <span className="live-indicator" aria-hidden="true" />

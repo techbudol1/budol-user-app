@@ -1433,7 +1433,8 @@ a {
   box-shadow: var(--shadow-strong);
 }
 
-.hero-panel img {
+.hero-panel img,
+.hero-slide {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -5122,10 +5123,27 @@ select:focus-visible {
   animation: surface-enter 780ms 70ms var(--ease-out) both;
 }
 
-.hero-panel img {
+.hero-panel .hero-slide {
+  opacity: 0;
   object-position: 54% center;
   transform: scale(1.035);
-  animation: hero-drift 18s ease-in-out infinite alternate;
+  animation:
+    hero-carousel 18s ease-in-out infinite,
+    hero-drift 18s ease-in-out infinite alternate;
+}
+
+.hero-panel .hero-slide-jeepneys {
+  animation-delay: 0s, 0s;
+}
+
+.hero-panel .hero-slide-market {
+  object-position: 52% center;
+  animation-delay: 6s, 0s;
+}
+
+.hero-panel .hero-slide-islands {
+  object-position: 50% center;
+  animation-delay: 12s, 0s;
 }
 
 .hero-panel::before {
@@ -6775,6 +6793,20 @@ select:focus-visible {
   }
 }
 
+@keyframes hero-carousel {
+  0%,
+  29% {
+    opacity: 1;
+  }
+  33%,
+  96% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes ambient-orbit {
   from {
     transform: translate3d(0, 0, 0) scale(0.96);
@@ -6970,7 +7002,7 @@ select:focus-visible {
     background: linear-gradient(180deg, rgba(3, 9, 12, 0.92), rgba(3, 9, 12, 0.57) 70%, rgba(3, 9, 12, 0.4));
   }
 
-  .hero-panel img {
+  .hero-panel .hero-slide {
     object-position: 58% center;
   }
 
@@ -7222,7 +7254,7 @@ select:focus-visible {
   body::before,
   body::after,
   .hero-panel,
-  .hero-panel img,
+  .hero-panel .hero-slide,
   .hero-copy > *,
   .ticker-card,
   .ticker-track i,
