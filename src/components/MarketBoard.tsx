@@ -1,4 +1,4 @@
-import { LayoutGrid, Sparkles } from "lucide-react";
+import { FlaskConical, LayoutGrid, Sparkles } from "lucide-react";
 import type { Market } from "../types";
 import { MarketCard, marketCategory } from "./MarketCard";
 
@@ -34,10 +34,20 @@ export function MarketBoard({
           <span className="eyebrow">Market board</span>
           <h2>Markets for the Philippines</h2>
         </div>
-        <span className="board-status">
-          <LayoutGrid size={16} />
-          {boardItems.length} {boardItems.length === 1 ? "market" : "markets"}
-        </span>
+        <div className="market-board-badges" aria-label="Market board status">
+          <span className="testnet-status">
+            <FlaskConical size={15} />
+            Testing only
+          </span>
+          <span className="board-status">
+            <LayoutGrid size={16} />
+            {boardItems.length} {boardItems.length === 1 ? "market" : "markets"}
+          </span>
+        </div>
+      </div>
+
+      <div className="market-testnet-notice" role="note">
+        Live markets are running on testnet for product testing only. Testnet BUDOL, tZEN, and ETH have no real-money value.
       </div>
 
       <div className="filter-tabs" role="tablist" aria-label="Market categories">
