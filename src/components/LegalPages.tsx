@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRightLeft, BookOpen, CheckCircle2, Coins, FileText, LockKeyhole, Search, ShieldCheck, Trophy, Wallet } from "lucide-react";
+import { ArrowLeft, ArrowRightLeft, BookOpen, CheckCircle2, Coins, FileText, LockKeyhole, Search, ShieldCheck, TrendingDown, TrendingUp, Trophy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
 import { TokenIcon } from "./TokenIcon";
 
@@ -83,6 +83,48 @@ export function HowToPage({ onBack }: LegalPageProps) {
         <TokenRole symbol="BUDOL" title="Trading token" copy="Used to buy positions, pay trading fees, and receive market payouts." />
       </section>
 
+      <section className="howto-trading-panel panel" aria-label="How BudolPH trading works">
+        <div className="howto-trading-copy">
+          <span className="eyebrow">Trading basics</span>
+          <h2>You are buying positions, not voting.</h2>
+          <p>Each market has two sides: Yes and No. Their prices move in opposite directions. When more BUDOL flows into Yes, Yes gets more expensive and No gets cheaper. You can sell before resolution, or hold until the market is settled.</p>
+        </div>
+        <div className="howto-price-example" aria-label="Example price movement">
+          <div>
+            <span>Start</span>
+            <strong>Yes 50c</strong>
+            <small>No 50c</small>
+          </div>
+          <ArrowRightLeft size={22} />
+          <div>
+            <span>After Yes demand</span>
+            <strong>Yes 70c</strong>
+            <small>No 30c</small>
+          </div>
+        </div>
+        <div className="howto-scenario-grid">
+          <TradingScenario
+            icon={<TrendingUp size={18} />}
+            title="Early Yes buyer"
+            copy="Buying 10 BUDOL of Yes at 50c gives about 20 Yes shares. If Yes rises to 70c, those shares are worth about 14 BUDOL before fees."
+          />
+          <TradingScenario
+            icon={<TrendingDown size={18} />}
+            title="Existing No holder"
+            copy="If No falls from 50c to 30c, a 20-share No position drops from about 10 BUDOL to about 6 BUDOL if sold at that price."
+          />
+          <TradingScenario
+            icon={<Trophy size={18} />}
+            title="Holding to resolution"
+            copy="When the final result is Yes, Yes shares redeem at 1 BUDOL each and No shares redeem at 0. If the result is No, the opposite happens."
+          />
+        </div>
+        <div className="howto-scenario-note">
+          <span>Simple rule:</span>
+          Price movement changes your position value before resolution. Final resolution decides which side pays out.
+        </div>
+      </section>
+
       <section className="howto-step-grid" aria-label="How to use BudolPH">
         {steps.map((step, index) => (
           <article className="howto-step-card panel" key={step.title}>
@@ -125,6 +167,16 @@ function TokenRole({ copy, symbol, title }: { copy: string; symbol: "ETH" | "tZE
       <span className="howto-token-mark" aria-hidden="true">
         <TokenIcon symbol={symbol} />
       </span>
+      <strong>{title}</strong>
+      <p>{copy}</p>
+    </article>
+  );
+}
+
+function TradingScenario({ copy, icon, title }: { copy: string; icon: ReactNode; title: string }) {
+  return (
+    <article className="howto-scenario-card">
+      <span aria-hidden="true">{icon}</span>
       <strong>{title}</strong>
       <p>{copy}</p>
     </article>
