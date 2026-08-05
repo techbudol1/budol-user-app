@@ -2987,6 +2987,136 @@ a {
   font-weight: 1000;
 }
 
+.howto-calculator {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.75fr) minmax(310px, 1fr);
+  gap: 24px;
+  padding: clamp(22px, 4vw, 34px);
+  border-color: color-mix(in srgb, var(--yellow) 36%, var(--border));
+  background:
+    radial-gradient(circle at 8% 12%, color-mix(in srgb, var(--yellow) 12%, transparent), transparent 28%),
+    var(--surface);
+}
+
+.howto-calculator-copy {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+}
+
+.howto-calculator-copy h2,
+.howto-section-heading h2,
+.howto-resolution-panel h2,
+.howto-testnet-panel h2,
+.howto-privacy-expectations h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+}
+
+.howto-calculator-copy p,
+.howto-section-heading p,
+.howto-resolution-panel p,
+.howto-testnet-panel p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.62;
+}
+
+.howto-calculator-icon,
+.howto-resolution-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 4px;
+  border: 1px solid color-mix(in srgb, var(--yellow) 42%, var(--border));
+  border-radius: 15px;
+  background: color-mix(in srgb, var(--yellow) 12%, var(--surface-solid));
+  color: var(--yellow);
+}
+
+.howto-calculator-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.howto-calculator-inputs label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.howto-calculator-inputs label > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+}
+
+.howto-calculator-inputs input {
+  min-width: 0;
+  padding: 13px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 950;
+}
+
+.howto-calculator-inputs b {
+  padding-right: 12px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.howto-calculator-results {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.howto-calculator-results > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface-muted);
+}
+
+.howto-calculator-results span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.howto-calculator-results strong {
+  font-size: 1.08rem;
+}
+
+.howto-calculator-results .is-positive strong {
+  color: var(--positive);
+}
+
+.howto-calculator-results .is-negative strong {
+  color: var(--danger);
+}
+
+.howto-section-heading {
+  display: grid;
+  gap: 7px;
+  padding: 14px 4px 0;
+}
+
 .howto-step-card {
   position: relative;
   display: grid;
@@ -3029,6 +3159,161 @@ a {
   gap: 24px;
   padding: clamp(22px, 4vw, 34px);
   border-color: color-mix(in srgb, var(--yellow) 34%, var(--border));
+}
+
+.howto-claim-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.howto-claim-options article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: var(--surface-muted);
+}
+
+.howto-claim-options article.private {
+  border-color: color-mix(in srgb, var(--green) 42%, var(--border));
+  background: color-mix(in srgb, var(--green) 8%, var(--surface-muted));
+}
+
+.howto-claim-options svg {
+  color: var(--positive);
+}
+
+.howto-claim-options span {
+  color: var(--yellow);
+  font-size: 0.76rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.howto-claim-options p {
+  font-size: 0.9rem;
+}
+
+.howto-resolution-panel,
+.howto-testnet-panel,
+.howto-privacy-expectations {
+  padding: clamp(22px, 4vw, 34px);
+}
+
+.howto-resolution-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px 18px;
+}
+
+.howto-resolution-panel > div:nth-child(2),
+.howto-testnet-panel > div:first-child {
+  display: grid;
+  gap: 8px;
+}
+
+.howto-resolution-flow {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: center;
+}
+
+.howto-resolution-flow span {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  color: var(--muted-strong);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.howto-resolution-flow svg {
+  color: var(--yellow);
+}
+
+.howto-testnet-panel {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.7fr) minmax(320px, 1fr);
+  gap: 24px;
+}
+
+.howto-testnet-list,
+.howto-privacy-grid {
+  display: grid;
+  gap: 9px;
+}
+
+.howto-testnet-list > span,
+.howto-privacy-grid > span {
+  display: grid;
+  grid-template-columns: 22px auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-muted);
+  color: var(--muted-strong);
+  font-size: 0.88rem;
+}
+
+.howto-testnet-list svg,
+.howto-testnet-list img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.howto-testnet-list > span:first-child svg,
+.howto-privacy-grid svg {
+  color: var(--positive);
+}
+
+.howto-testnet-list b,
+.howto-privacy-grid b {
+  color: var(--text);
+}
+
+.howto-privacy-expectations {
+  display: grid;
+  gap: 18px;
+  border-color: color-mix(in srgb, var(--green) 30%, var(--border));
+}
+
+.howto-privacy-title {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+
+.howto-privacy-title > svg {
+  flex: 0 0 auto;
+  color: var(--positive);
+}
+
+.howto-privacy-title > div {
+  display: grid;
+  gap: 5px;
+}
+
+.howto-privacy-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.howto-privacy-grid > span {
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  line-height: 1.5;
+}
+
+.howto-privacy-grid > span:nth-child(n + 3) svg {
+  color: var(--yellow);
 }
 
 .howto-checklist {
@@ -4808,7 +5093,9 @@ a {
   }
 
   .howto-hero,
-  .howto-claim-panel {
+  .howto-claim-panel,
+  .howto-calculator,
+  .howto-testnet-panel {
     grid-template-columns: 1fr;
   }
 
@@ -4823,8 +5110,44 @@ a {
 
   .howto-token-grid,
   .howto-step-grid,
-  .howto-scenario-grid {
+  .howto-scenario-grid,
+  .howto-claim-options,
+  .howto-privacy-grid,
+  .howto-calculator-inputs,
+  .howto-calculator-results {
     grid-template-columns: 1fr;
+  }
+
+  .howto-calculator-results {
+    grid-column: 1;
+  }
+
+  .howto-resolution-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .howto-resolution-flow {
+    grid-column: 1;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .howto-resolution-flow svg {
+    align-self: center;
+    transform: rotate(90deg);
+  }
+
+  .howto-resolution-flow span {
+    border-radius: 14px;
+    text-align: center;
+  }
+
+  .howto-testnet-list > span {
+    grid-template-columns: 22px minmax(0, 1fr);
+  }
+
+  .howto-testnet-list > span b {
+    grid-column: 2;
   }
 
   .howto-price-example {

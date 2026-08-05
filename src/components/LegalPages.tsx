@@ -1,5 +1,6 @@
-import { ArrowLeft, ArrowRightLeft, BookOpen, CheckCircle2, Coins, FileText, LockKeyhole, Search, ShieldCheck, TrendingDown, TrendingUp, Trophy, Wallet } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRightLeft, BookOpen, Calculator, CheckCircle2, Coins, FileText, Gavel, LockKeyhole, Search, ShieldCheck, TrendingDown, TrendingUp, Trophy, Wallet } from "lucide-react";
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { TokenIcon } from "./TokenIcon";
 
 type LegalPageProps = {
@@ -125,6 +126,14 @@ export function HowToPage({ onBack }: LegalPageProps) {
         </div>
       </section>
 
+      <PositionCalculator />
+
+      <header className="howto-section-heading">
+        <span className="eyebrow">Start to finish</span>
+        <h2>Your testnet journey</h2>
+        <p>Follow these six steps from connecting a wallet to collecting a winning payout.</p>
+      </header>
+
       <section className="howto-step-grid" aria-label="How to use BudolPH">
         {steps.map((step, index) => (
           <article className="howto-step-card panel" key={step.title}>
@@ -138,27 +147,132 @@ export function HowToPage({ onBack }: LegalPageProps) {
 
       <section className="howto-claim-panel panel">
         <div>
-          <span className="eyebrow">Claim flow</span>
+          <span className="eyebrow">Choose your claim</span>
           <h2>Normal claim vs private claim</h2>
-          <p>Normal claims are simplest and visible on-chain. Private claim notes and shielded payouts are for privacy testing: the app creates local notes, batches fixed-denomination payout pieces, then lets you withdraw to a recipient wallet.</p>
+          <p>Both routes pay a winning position. The difference is how directly the payout can be connected to your trading wallet.</p>
         </div>
-        <div className="howto-checklist">
-          <span><CheckCircle2 size={17} /> Winning position is resolved</span>
-          <span><CheckCircle2 size={17} /> Private note is saved in this browser</span>
-          <span><CheckCircle2 size={17} /> Encrypted backup is exported if needed</span>
-          <span><CheckCircle2 size={17} /> Fresh recipient wallet is recommended</span>
+        <div className="howto-claim-options">
+          <article>
+            <Wallet size={22} />
+            <strong>Normal claim</strong>
+            <span>Fastest and simplest</span>
+            <p>BUDOL is sent directly to your connected wallet. The recipient and amount remain visible on-chain.</p>
+          </article>
+          <article className="private">
+            <ShieldCheck size={22} />
+            <strong>Private claim</strong>
+            <span>Uses tZEN + a ZK proof</span>
+            <p>The payout becomes shielded notes and is relayed in fixed-denomination pieces to the recipient address you choose.</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="howto-resolution-panel panel">
+        <div className="howto-resolution-icon"><Gavel size={28} /></div>
+        <div>
+          <span className="eyebrow">Market resolution</span>
+          <h2>Clear rules decide the winning side.</h2>
+          <p>Every market includes a closing time, resolution criteria, and an evidence source. After the deadline, BudolPH reviews the published source and resolves Yes or No. If the question cannot be resolved fairly because evidence is unavailable, conflicting, or ambiguous, the market may be cancelled and eligible stakes returned under its rules.</p>
+        </div>
+        <div className="howto-resolution-flow" aria-label="Market resolution flow">
+          <span>Market closes</span>
+          <ArrowRightLeft size={17} />
+          <span>Evidence reviewed</span>
+          <ArrowRightLeft size={17} />
+          <span>Winner pays 1 BUDOL per share</span>
+        </div>
+      </section>
+
+      <section className="howto-testnet-panel panel">
+        <div>
+          <span className="eyebrow">Before your first trade</span>
+          <h2>Testnet starter checklist</h2>
+          <p>Open Wallet to confirm all three balances. Test tokens have no cash value and may be reset while the product is being tested.</p>
+        </div>
+        <div className="howto-testnet-list">
+          <span><CheckCircle2 size={18} /><b>Network</b> Horizen Testnet (chain ID 2651420)</span>
+          <span><TokenIcon symbol="ETH" /><b>ETH</b> Needed for wallet gas when a transaction is not sponsored</span>
+          <span><TokenIcon symbol="BUDOL" /><b>BUDOL</b> Needed to open positions and pay the trading fee</span>
+          <span><TokenIcon symbol="tZEN" /><b>tZEN</b> Needed only when testing paid privacy features</span>
+        </div>
+      </section>
+
+      <section className="howto-privacy-expectations panel">
+        <div className="howto-privacy-title">
+          <LockKeyhole size={25} />
+          <div>
+            <span className="eyebrow">Privacy expectations</span>
+            <h2>Private means harder to link—not invisible.</h2>
+          </div>
+        </div>
+        <div className="howto-privacy-grid">
+          <span><CheckCircle2 size={18} /><b>Protected:</b> the secret note and proof path are not published.</span>
+          <span><CheckCircle2 size={18} /><b>Reduced linkage:</b> fixed pieces, batching, and a fresh recipient make direct tracing harder.</span>
+          <span><AlertTriangle size={18} /><b>Still public:</b> blockchain transfers, timing, and the final recipient remain observable.</span>
+          <span><AlertTriangle size={18} /><b>Your responsibility:</b> export an encrypted note backup and never lose its passphrase.</span>
         </div>
       </section>
 
       <section className="howto-warning panel">
-        <ShieldCheck size={22} />
+        <AlertTriangle size={22} />
         <div>
           <strong>Testnet only</strong>
-          <p>Testnet ETH, tZEN, and BUDOL are not real-money balances. Market prices are crowd estimates, not financial advice. Only sign wallet actions you understand.</p>
+          <p>A losing position can become worth zero. Prices are crowd estimates—not facts, guarantees, or financial advice. Testnet ETH, tZEN, and BUDOL have no real-money value. Only sign wallet actions you understand.</p>
         </div>
       </section>
     </section>
   );
+}
+
+function PositionCalculator() {
+  const [amount, setAmount] = useState(10);
+  const [entryPrice, setEntryPrice] = useState(50);
+  const [laterPrice, setLaterPrice] = useState(70);
+  const safeAmount = Number.isFinite(amount) ? Math.max(0, amount) : 0;
+  const safeEntry = Number.isFinite(entryPrice) ? Math.min(99, Math.max(1, entryPrice)) : 50;
+  const safeLater = Number.isFinite(laterPrice) ? Math.min(100, Math.max(0, laterPrice)) : 50;
+  const shares = safeAmount / (safeEntry / 100);
+  const currentValue = shares * (safeLater / 100);
+  const movement = currentValue - safeAmount;
+
+  return (
+    <section className="howto-calculator panel" aria-label="Position value calculator">
+      <div className="howto-calculator-copy">
+        <span className="howto-calculator-icon"><Calculator size={24} /></span>
+        <span className="eyebrow">Try an example</span>
+        <h2>See how a position changes value.</h2>
+        <p>This simplified estimate excludes trading fees and price impact. Actual execution is shown in the trade widget before confirmation.</p>
+      </div>
+      <div className="howto-calculator-inputs">
+        <label>
+          <span>Amount</span>
+          <div><input type="number" min="0" step="1" value={amount} onChange={event => setAmount(Number(event.target.value))} /><b>BUDOL</b></div>
+        </label>
+        <label>
+          <span>Buy price</span>
+          <div><input type="number" min="1" max="99" step="1" value={entryPrice} onChange={event => setEntryPrice(Number(event.target.value))} /><b>¢</b></div>
+        </label>
+        <label>
+          <span>Later price</span>
+          <div><input type="number" min="0" max="100" step="1" value={laterPrice} onChange={event => setLaterPrice(Number(event.target.value))} /><b>¢</b></div>
+        </label>
+      </div>
+      <div className="howto-calculator-results">
+        <ResultMetric label="Estimated shares" value={formatGuideNumber(shares)} />
+        <ResultMetric label="Value at later price" value={`${formatGuideNumber(currentValue)} BUDOL`} />
+        <ResultMetric label="Change before fees" tone={movement >= 0 ? "positive" : "negative"} value={`${movement >= 0 ? "+" : ""}${formatGuideNumber(movement)} BUDOL`} />
+        <ResultMetric label="Payout if correct at resolution" value={`${formatGuideNumber(shares)} BUDOL`} />
+      </div>
+    </section>
+  );
+}
+
+function ResultMetric({ label, tone, value }: { label: string; tone?: "positive" | "negative"; value: string }) {
+  return <div className={tone ? `is-${tone}` : undefined}><span>{label}</span><strong>{value}</strong></div>;
+}
+
+function formatGuideNumber(value: number) {
+  return new Intl.NumberFormat("en-PH", { maximumFractionDigits: 2 }).format(value);
 }
 
 function TokenRole({ copy, symbol, title }: { copy: string; symbol: "ETH" | "tZEN" | "BUDOL"; title: string }) {
