@@ -2541,7 +2541,7 @@ a {
 
 .site-footer {
   display: grid;
-  grid-template-columns: minmax(300px, 1.05fr) minmax(500px, 1.5fr) minmax(250px, 0.85fr);
+  grid-template-columns: minmax(300px, 0.85fr) minmax(600px, 1.65fr);
   gap: 28px;
   align-items: start;
   margin-top: 28px;
@@ -2588,8 +2588,8 @@ a {
 
 .site-footer nav {
   display: grid;
-  grid-template-columns: repeat(4, minmax(100px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 24px;
 }
 
 .site-footer nav strong {
@@ -2621,6 +2621,21 @@ a {
 
 .site-footer .footer-social-link {
   gap: 9px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--surface-solid) 68%, transparent);
+  font-size: 0.82rem;
+  font-weight: 800;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.site-footer .footer-social-link:hover {
+  border-color: color-mix(in srgb, var(--positive) 48%, var(--border));
+  background: color-mix(in srgb, var(--positive) 9%, var(--surface-solid));
+  transform: translateY(-1px);
 }
 
 .footer-social-icon {
@@ -2638,9 +2653,20 @@ a {
   color: #1877f2;
 }
 
+.site-footer-social {
+  align-content: start;
+}
+
 .site-footer-meta {
-  justify-items: end;
-  text-align: right;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+  text-align: left;
 }
 
 .site-footer-meta > span {
@@ -4810,8 +4836,7 @@ a {
   }
 
   .site-footer-meta {
-    justify-items: start;
-    text-align: left;
+    justify-content: flex-start;
   }
 }
 
