@@ -190,10 +190,10 @@ export function HowToPage({ onBack }: LegalPageProps) {
           <p>Open Wallet to confirm all three balances. Test tokens have no cash value and may be reset while the product is being tested.</p>
         </div>
         <div className="howto-testnet-list">
-          <span><CheckCircle2 size={18} /><b>Network</b> Horizen Testnet (chain ID 2651420)</span>
-          <span><TokenIcon symbol="ETH" /><b>ETH</b> Needed for wallet gas when a transaction is not sponsored</span>
-          <span><TokenIcon symbol="BUDOL" /><b>BUDOL</b> Needed to open positions and pay the trading fee</span>
-          <span><TokenIcon symbol="tZEN" /><b>tZEN</b> Needed only when testing paid privacy features</span>
+          <span><CheckCircle2 size={18} /><span><b>Network</b> Horizen Testnet (chain ID 2651420)</span></span>
+          <span><TokenIcon symbol="ETH" /><span><b>ETH</b> Needed for wallet gas when a transaction is not sponsored</span></span>
+          <span><TokenIcon symbol="BUDOL" /><span><b>BUDOL</b> Needed to open positions and pay the trading fee</span></span>
+          <span><TokenIcon symbol="tZEN" /><span><b>tZEN</b> Needed only when testing paid privacy features</span></span>
         </div>
       </section>
 
@@ -206,10 +206,10 @@ export function HowToPage({ onBack }: LegalPageProps) {
           </div>
         </div>
         <div className="howto-privacy-grid">
-          <span><CheckCircle2 size={18} /><b>Protected:</b> the secret note and proof path are not published.</span>
-          <span><CheckCircle2 size={18} /><b>Reduced linkage:</b> fixed pieces, batching, and a fresh recipient make direct tracing harder.</span>
-          <span><AlertTriangle size={18} /><b>Still public:</b> blockchain transfers, timing, and the final recipient remain observable.</span>
-          <span><AlertTriangle size={18} /><b>Your responsibility:</b> export an encrypted note backup and never lose its passphrase.</span>
+          <span><CheckCircle2 size={18} /><span><b>Protected:</b> the secret note and proof path are not published.</span></span>
+          <span><CheckCircle2 size={18} /><span><b>Reduced linkage:</b> fixed pieces, batching, and a fresh recipient make direct tracing harder.</span></span>
+          <span><AlertTriangle size={18} /><span><b>Still public:</b> blockchain transfers, timing, and the final recipient remain observable.</span></span>
+          <span><AlertTriangle size={18} /><span><b>Your responsibility:</b> export an encrypted note backup and never lose its passphrase.</span></span>
         </div>
       </section>
 

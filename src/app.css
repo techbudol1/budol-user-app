@@ -3252,7 +3252,7 @@ a {
 .howto-testnet-list > span,
 .howto-privacy-grid > span {
   display: grid;
-  grid-template-columns: 22px auto minmax(0, 1fr);
+  grid-template-columns: 22px minmax(0, 1fr);
   gap: 9px;
   align-items: center;
   padding: 12px;
@@ -3261,6 +3261,17 @@ a {
   background: var(--surface-muted);
   color: var(--muted-strong);
   font-size: 0.88rem;
+}
+
+.howto-testnet-list > span > span,
+.howto-privacy-grid > span > span {
+  min-width: 0;
+  line-height: 1.5;
+}
+
+.howto-testnet-list > span > span b,
+.howto-privacy-grid > span > span b {
+  margin-right: 4px;
 }
 
 .howto-testnet-list svg,
@@ -5140,14 +5151,6 @@ a {
   .howto-resolution-flow span {
     border-radius: 14px;
     text-align: center;
-  }
-
-  .howto-testnet-list > span {
-    grid-template-columns: 22px minmax(0, 1fr);
-  }
-
-  .howto-testnet-list > span b {
-    grid-column: 2;
   }
 
   .howto-price-example {
