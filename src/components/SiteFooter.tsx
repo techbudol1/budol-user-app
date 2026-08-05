@@ -5,13 +5,14 @@ type SiteFooterProps = {
   onAccountClick: () => void;
   onHowToClick: () => void;
   onMarketsClick: () => void;
+  onMetricsClick: () => void;
   onPortfolioClick: () => void;
   onPrivacyClick: () => void;
   onTermsClick: () => void;
   onWalletClick: () => void;
 };
 
-export function SiteFooter({ onAccountClick, onHowToClick, onMarketsClick, onPortfolioClick, onPrivacyClick, onTermsClick, onWalletClick }: SiteFooterProps) {
+export function SiteFooter({ onAccountClick, onHowToClick, onMarketsClick, onMetricsClick, onPortfolioClick, onPrivacyClick, onTermsClick, onWalletClick }: SiteFooterProps) {
   return (
     <footer className="site-footer">
       <div className="site-footer-brand">
@@ -27,6 +28,7 @@ export function SiteFooter({ onAccountClick, onHowToClick, onMarketsClick, onPor
           <button onClick={onMarketsClick}>Markets</button>
           <button onClick={onPortfolioClick}>Portfolio</button>
           <button onClick={onHowToClick}>How to use</button>
+          <button onClick={onMetricsClick}>Testnet metrics</button>
         </div>
         <div>
           <strong>Legal</strong>

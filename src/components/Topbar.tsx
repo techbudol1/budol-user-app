@@ -1,4 +1,4 @@
-import { Bell, BookOpen, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
+import { BarChart3, Bell, BookOpen, ChevronDown, LoaderCircle, LogIn, LogOut, Menu, Moon, Search, Sun, UserRound, Wallet, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { AccountNotification, WalletBalance } from "../types";
 import { formatNotificationTime } from "../lib/format";
@@ -6,7 +6,7 @@ import { shortAddress } from "../lib/format";
 import budolLogoImage from "../../public/assets/budol-market.png";
 
 type TopbarProps = {
-  activePage?: "markets" | "portfolio" | "howTo";
+  activePage?: "markets" | "portfolio" | "howTo" | "metrics";
   accountAddress?: string;
   isAuthLoading: boolean;
   isDark: boolean;
@@ -18,6 +18,7 @@ type TopbarProps = {
   notifications: AccountNotification[];
   onNotificationOpen: (notification: AccountNotification) => void;
   onMarketsClick: () => void;
+  onMetricsClick: () => void;
   onNotificationsReadAll: () => Promise<void>;
   onNotificationsPageClick: () => void;
   onPortfolioClick: () => void;
@@ -39,6 +40,7 @@ export function Topbar({
   onLogout,
   notifications,
   onMarketsClick,
+  onMetricsClick,
   onNotificationOpen,
   onNotificationsReadAll,
   onNotificationsPageClick,
@@ -111,11 +113,12 @@ export function Topbar({
     setIsNotificationsOpen(open => !open);
   };
 
-  const openMobileDestination = (destination: "markets" | "portfolio" | "howTo" | "account" | "wallet") => {
+  const openMobileDestination = (destination: "markets" | "portfolio" | "howTo" | "metrics" | "account" | "wallet") => {
     setIsMobileMenuOpen(false);
     if (destination === "markets") onMarketsClick();
     if (destination === "portfolio") onPortfolioClick();
     if (destination === "howTo") onHowToClick();
+    if (destination === "metrics") onMetricsClick();
     if (destination === "account") onAccountClick();
     if (destination === "wallet") onWalletClick();
   };
@@ -201,6 +204,7 @@ export function Topbar({
       <nav className="desktop-nav" aria-label="Main navigation">
         <button className={activePage === "markets" ? "active" : ""} onClick={onMarketsClick}>Markets</button>
         <button className={activePage === "portfolio" ? "active" : ""} onClick={onPortfolioClick}>Portfolio</button>
+        <button className={activePage === "metrics" ? "active" : ""} onClick={onMetricsClick}>Metrics</button>
       </nav>
 
       <button className={`header-guide-button ${activePage === "howTo" ? "active" : ""}`} onClick={onHowToClick} type="button">
@@ -321,6 +325,10 @@ export function Topbar({
             <nav className="mobile-nav-menu" aria-label="Mobile navigation">
               <button className={activePage === "markets" ? "active" : ""} onClick={() => openMobileDestination("markets")}>Markets</button>
               <button className={activePage === "portfolio" ? "active" : ""} onClick={() => openMobileDestination("portfolio")}>Portfolio</button>
+              <button className={activePage === "metrics" ? "active" : ""} onClick={() => openMobileDestination("metrics")}>
+                <BarChart3 size={16} />
+                Testnet metrics
+              </button>
               <button className={`mobile-guide-link ${activePage === "howTo" ? "active" : ""}`} onClick={() => openMobileDestination("howTo")}>
                 <BookOpen size={16} />
                 How to use

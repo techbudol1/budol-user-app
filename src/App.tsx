@@ -4,6 +4,7 @@ import { HowToPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { LoginModal } from "./components/LoginModal";
 import { MarketBoard } from "./components/MarketBoard";
 import { MarketDetailPage } from "./components/MarketDetailPage";
+import { MetricsPage } from "./components/MetricsPage";
 import { MyAccountPage } from "./components/MyAccountPage";
 import { MyWalletPage } from "./components/MyWalletPage";
 import { NotificationsPage } from "./components/NotificationsPage";
@@ -17,7 +18,7 @@ import { browserWalletForAddress } from "./lib/externalWallet";
 import { placeShieldedTrade } from "./lib/shieldedTrades";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
-type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "privacy" | "terms" | "logout";
+type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "metrics" | "privacy" | "terms" | "logout";
 
 const routePaths: Record<AppRoute, string> = {
   markets: "/markets",
@@ -27,6 +28,7 @@ const routePaths: Record<AppRoute, string> = {
   notifications: "/notifications",
   marketDetail: "/markets",
   howTo: "/how-to",
+  metrics: "/metrics",
   privacy: "/privacy",
   terms: "/terms",
   logout: "/logout",
@@ -52,6 +54,9 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
   }
   if (normalizedPath === "/how-to" || normalizedPath === "/how") {
     return { route: "howTo", marketSlug: "" };
+  }
+  if (normalizedPath === "/metrics" || normalizedPath === "/stats") {
+    return { route: "metrics", marketSlug: "" };
   }
   if (normalizedPath === "/privacy") {
     return { route: "privacy", marketSlug: "" };
@@ -519,7 +524,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <Topbar
-        activePage={route === "markets" || route === "marketDetail" ? "markets" : route === "portfolio" ? "portfolio" : route === "howTo" ? "howTo" : undefined}
+        activePage={route === "markets" || route === "marketDetail" ? "markets" : route === "portfolio" ? "portfolio" : route === "howTo" ? "howTo" : route === "metrics" ? "metrics" : undefined}
         accountAddress={accountAddress}
         isAuthLoading={isAuthLoading && !accountAddress}
         isDark={isDark}
@@ -532,6 +537,7 @@ export default function App() {
         }}
         notifications={accountNotifications}
         onMarketsClick={() => navigate("markets")}
+        onMetricsClick={() => navigate("metrics")}
         onNotificationOpen={openNotification}
         onNotificationsReadAll={markNotificationsRead}
         onNotificationsPageClick={() => navigate("notifications")}
@@ -600,6 +606,8 @@ export default function App() {
         />
       ) : route === "howTo" ? (
         <HowToPage onBack={() => navigate("markets")} />
+      ) : route === "metrics" ? (
+        <MetricsPage onBack={() => navigate("markets")} />
       ) : route === "terms" ? (
         <TermsPage onBack={() => navigate("markets")} />
       ) : route === "privacy" ? (
@@ -647,6 +655,7 @@ export default function App() {
         onAccountClick={() => navigate("account")}
         onHowToClick={() => navigate("howTo")}
         onMarketsClick={() => navigate("markets")}
+        onMetricsClick={() => navigate("metrics")}
         onPortfolioClick={() => navigate("portfolio")}
         onPrivacyClick={() => navigate("privacy")}
         onTermsClick={() => navigate("terms")}

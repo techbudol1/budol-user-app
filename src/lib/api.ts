@@ -1,4 +1,4 @@
-import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicPoll, ShieldedPayoutNote, ShieldedPayoutPool, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
+import type { AccountNotification, BudolUser, CashoutQuote, Market, MarketActivity, MarketAlert, MarketComment, MarketStats, PrivateClaim, PrivateClaimNote, PublicMetrics, PublicPoll, ShieldedPayoutNote, ShieldedPayoutPool, ShieldedWithdrawal, SmartWalletConfig, Trade, TradeConfig, TradeQuote, TradeSide, UserPortfolio, WalletBalance, WalletTransfer, WatchlistItem } from "../types";
 import { createPrivateClaimNote, findPrivateClaimNoteByLeaf, loadPrivateClaimNote, savePrivateClaimNote } from "./privateClaims";
 import { apiBaseURL } from "./runtimeConfig";
 import { createShieldedPayoutNotesForAmount, fieldPublicSignalToBytes32, removeShieldedPayoutNote, saveShieldedPayoutNotes, type ShieldedPayoutConfig } from "./shieldedPayouts";
@@ -6,6 +6,10 @@ import { claimPendingShieldedTradeNote } from "./shieldedTrades";
 
 type AuthResponse = {
   user: BudolUser;
+};
+
+type PublicMetricsResponse = {
+  metrics: PublicMetrics;
 };
 
 type WalletNonceResponse = {
@@ -488,6 +492,15 @@ export async function loadPublicMarkets(): Promise<Market[]> {
 
   const payload = (await response.json()) as PollsResponse;
   return payload.polls.map(pollToMarket);
+}
+
+export async function loadPublicMetrics(): Promise<PublicMetrics> {
+  const response = await fetch(`${apiBaseURL()}/api/metrics`);
+  if (!response.ok) {
+    throw new Error("Unable to load testnet metrics.");
+  }
+  const payload = (await response.json()) as PublicMetricsResponse;
+  return payload.metrics;
 }
 
 export async function loadPublicMarket(slug: string): Promise<Market> {

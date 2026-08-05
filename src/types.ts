@@ -1,5 +1,48 @@
 export type Theme = "light" | "dark";
 
+export type PublicMetricPeriod = {
+  trades: number;
+  volume: number;
+  activeTraders: number;
+};
+
+export type PublicMetricDay = PublicMetricPeriod & {
+  date: string;
+};
+
+export type PublicMetrics = {
+  generatedAt: string;
+  network: {
+    chainId: number;
+    name: string;
+    stage: string;
+  };
+  totals: {
+    users: number;
+    activeTraders: number;
+    trades: number;
+    volume: number;
+    markets: number;
+    openMarkets: number;
+    resolvedMarkets: number;
+    recordedTransactions: number;
+  };
+  activity: {
+    sevenDays: PublicMetricPeriod;
+    thirtyDays: PublicMetricPeriod;
+    daily: PublicMetricDay[];
+  };
+  privacy: {
+    privateClaims: number;
+    shieldedTrades: number;
+    shieldedWithdrawals: number;
+    completedWithdrawals: number;
+    failedWithdrawals: number;
+    withdrawalSuccessRate: number;
+  };
+  privacyNote: string;
+};
+
 export type MarketColor = "coral" | "green" | "blue" | "yellow";
 
 export type Market = {
