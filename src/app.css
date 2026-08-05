@@ -2541,7 +2541,7 @@ a {
 
 .site-footer {
   display: grid;
-  grid-template-columns: minmax(260px, 1.2fr) minmax(280px, 0.9fr) minmax(240px, 0.8fr);
+  grid-template-columns: minmax(300px, 1.05fr) minmax(500px, 1.5fr) minmax(250px, 0.85fr);
   gap: 28px;
   align-items: start;
   margin-top: 28px;
@@ -2588,8 +2588,8 @@ a {
 
 .site-footer nav {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(100px, 1fr));
+  gap: 18px;
 }
 
 .site-footer nav strong {
@@ -2617,6 +2617,25 @@ a {
 .site-footer nav button:hover,
 .site-footer nav a:hover {
   color: var(--positive);
+}
+
+.site-footer .footer-social-link {
+  gap: 9px;
+}
+
+.footer-social-icon {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.footer-social-link.x .footer-social-icon {
+  color: var(--text);
+}
+
+.footer-social-link.facebook .footer-social-icon {
+  color: #1877f2;
 }
 
 .site-footer-meta {
@@ -4784,6 +4803,15 @@ a {
 
   .trade-ticket {
     position: static;
+  }
+
+  .site-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer-meta {
+    justify-items: start;
+    text-align: left;
   }
 }
 
