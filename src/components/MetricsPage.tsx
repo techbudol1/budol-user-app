@@ -118,6 +118,18 @@ function MetricsContent({ metrics }: { metrics: PublicMetrics }) {
         </article>
       </section>
 
+      <section className="pilot-funnel panel">
+        <header><MessageSquarePilot /><div><span className="eyebrow">Anonymous pilot funnel</span><h2>From visit to meaningful action</h2></div></header>
+        <div className="pilot-funnel-grid">
+          <FunnelStep label="Started" value={metrics.pilot.started} />
+          <FunnelStep label="Connected" value={metrics.pilot.connected} total={metrics.pilot.started} />
+          <FunnelStep label="Traded" value={metrics.pilot.traded} total={metrics.pilot.connected} />
+          <FunnelStep label="Used privacy" value={metrics.pilot.privacyUsed} total={metrics.pilot.connected} />
+          <FunnelStep label="Shared feedback" value={metrics.pilot.feedbackCount} total={metrics.pilot.started} />
+        </div>
+        <p>Each browser is counted with a random, server-hashed pilot identifier. No wallet, market choice, amount, recipient, transaction hash, note, or proof is included.</p>
+      </section>
+
       <section className="metrics-methodology panel">
         <CheckCircle2 size={22} />
         <div>
@@ -128,6 +140,13 @@ function MetricsContent({ metrics }: { metrics: PublicMetrics }) {
       </section>
     </>
   );
+}
+
+function MessageSquarePilot() { return <span className="metrics-pilot-icon">✦</span>; }
+
+function FunnelStep({ label, total, value }: { label: string; total?: number; value: number }) {
+  const conversion = total ? Math.round((value / total) * 100) : null;
+  return <div><span>{label}</span><strong>{formatCount(value)}</strong><small>{conversion === null ? "Entry" : `${conversion}% conversion`}</small></div>;
 }
 
 function MetricCard({ detail, icon, label, value }: { detail: string; icon: ReactNode; label: string; value: string }) {

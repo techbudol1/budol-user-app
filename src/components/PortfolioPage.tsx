@@ -2,6 +2,7 @@ import { ArrowLeft, BriefcaseBusiness, Clock3, Copy, Download, ExternalLink, His
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { cashoutPosition, claimPrivatePayout, claimPublicPayout, loadCashoutQuote, loadPortfolio, loadPrivacyAccessConfig, loadPrivateClaimTreeForTrade, loadShieldedPayoutConfig, loadShieldedWithdrawals, payManagedPrivacyFee, retryShieldedWithdrawal, submitPrivateClaimProof, submitShieldedWithdrawalProof, withdrawShieldedPayout, type PrivacyFeeKind } from "../lib/api";
+import { recordPilotEvent } from "../lib/pilot";
 import { sendERC20PrivacyFee, sendNativePrivacyFee } from "../lib/erc20Transfer";
 import { browserWalletForAddress } from "../lib/externalWallet";
 import { formatDate } from "../lib/format";
@@ -198,6 +199,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     setError("");
     try {
       const result = await cashoutPosition(confirmation.pollId, confirmation.side, confirmation.amount);
+	  void recordPilotEvent("position_sold");
       setPortfolio(result.portfolio);
       onMarketChange(result.market);
       setCashoutConfirmation(null);
@@ -221,6 +223,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
     setError("");
     try {
       const result = await claimPublicPayout(trade.id);
+	  void recordPilotEvent("public_claim_completed");
       setPortfolio(result.portfolio);
       setSelectedTrade(result.trade);
       onToast("Public payout claimed.", `${trade.pollTitle}: ${formatToken(trade.settlementPayout)} BUDOL direct payout status is ${result.payoutStatus}.`);
@@ -272,6 +275,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         const shieldedFeeTxHash = await payShieldedPayoutFeeIfNeeded(trade);
         setClaimProgress(progress => ({ ...progress, [trade.id]: "Claiming private payout..." }));
         const result = await claimPrivatePayout(trade.id, proofSubmission.submission.id, trade.settlementPayout, shieldedFeeTxHash);
+		void recordPilotEvent("private_claim_completed");
         setPortfolio(result.portfolio);
         setSelectedTrade(result.trade);
         setPrivateClaimRecipientTrade(null);

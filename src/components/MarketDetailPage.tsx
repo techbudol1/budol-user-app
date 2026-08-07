@@ -19,7 +19,7 @@ type MarketDetailPageProps = {
   onMarketChange: (market: Market) => void;
   onMarketOpen: (slug: string) => void;
   onPortfolioChange: (portfolio: UserPortfolio) => void;
-  onTradePlaced?: () => void;
+  onTradePlaced?: (privacyMode: "public" | "private") => void;
   onToast: (message: string, detail?: string) => void;
   onWatchlistToggle: (slug: string) => void;
   slug: string;
@@ -513,9 +513,9 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
             onLoginClick={onLoginClick}
             onMarketChange={onMarketChange}
             onPortfolioChange={onPortfolioChange}
-            onTradePlaced={() => {
+            onTradePlaced={privacyMode => {
               onToast("Trade placed. Portfolio updated.");
-              onTradePlaced?.();
+              onTradePlaced?.(privacyMode);
               reloadActivity();
               reloadStats();
             }}

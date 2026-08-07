@@ -19,7 +19,7 @@ type TradeTicketCardProps = {
   onEscrowTransfer?: (amount: string, pollId: string, side: TradeSide) => Promise<EscrowTransferResult>;
   onMarketChange?: (market: Market) => void;
   onPortfolioChange?: (portfolio: UserPortfolio) => void;
-  onTradePlaced?: () => void;
+  onTradePlaced?: (privacyMode: "public" | "private") => void;
 	onShieldedTrade?: (amount: number, pollId: string, side: TradeSide) => Promise<void>;
 };
 
@@ -195,7 +195,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
 			if (!onShieldedTrade) throw new Error("Shielded trading is not available.");
 			setMessage("Creating a private deposit note and zero-knowledge order proof…");
 			await onShieldedTrade(confirmOrder.amount, market.id, confirmOrder.side);
-			onTradePlaced?.();
+			onTradePlaced?.("private");
 			setMessage("Private order accepted. Odds update only after the aggregate batch settles.");
 			return;
 		}
@@ -208,7 +208,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
       const result = await placeTrade(market.id, confirmOrder.side, confirmOrder.amount, escrow.txHash, escrow.fromAddress);
       onMarketChange?.(result.market);
       onPortfolioChange?.(result.portfolio);
-      onTradePlaced?.();
+      onTradePlaced?.("public");
       setMessage(`Bought ${result.trade.outcomeLabel} for ${formatToken(result.trade.amount)} BUDOL.`);
     } catch (error) {
       setMessage(normalizeTradeError(error));

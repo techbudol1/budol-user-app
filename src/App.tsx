@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { HeroPanel } from "./components/HeroPanel";
+import { FeedbackPage } from "./components/FeedbackPage";
 import { HowToPage, PrivacyPage, TermsPage } from "./components/LegalPages";
 import { LoginModal } from "./components/LoginModal";
 import { MarketBoard } from "./components/MarketBoard";
@@ -16,9 +17,10 @@ import { addWatchlist, createGaslessTradeEscrow, createManagedTradeEscrow, loadC
 import { sendBudolEscrowTransfer, sendERC20PrivacyFee, sendNativePrivacyFee, signBudolPermit } from "./lib/erc20Transfer";
 import { browserWalletForAddress } from "./lib/externalWallet";
 import { placeShieldedTrade } from "./lib/shieldedTrades";
+import { recordPilotEvent } from "./lib/pilot";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
-type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "metrics" | "privacy" | "terms" | "logout";
+type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "metrics" | "feedback" | "privacy" | "terms" | "logout";
 
 const routePaths: Record<AppRoute, string> = {
   markets: "/markets",
@@ -29,6 +31,7 @@ const routePaths: Record<AppRoute, string> = {
   marketDetail: "/markets",
   howTo: "/how-to",
   metrics: "/metrics",
+  feedback: "/feedback",
   privacy: "/privacy",
   terms: "/terms",
   logout: "/logout",
@@ -57,6 +60,9 @@ function routeFromPath(pathname: string): { route: AppRoute; marketSlug: string 
   }
   if (normalizedPath === "/metrics" || normalizedPath === "/stats") {
     return { route: "metrics", marketSlug: "" };
+  }
+  if (normalizedPath === "/feedback") {
+    return { route: "feedback", marketSlug: "" };
   }
   if (normalizedPath === "/privacy") {
     return { route: "privacy", marketSlug: "" };
@@ -136,6 +142,9 @@ export default function App() {
   });
   const isDark = theme === "dark";
   const accountAddress = budolUser?.walletAddress;
+
+  useEffect(() => { void recordPilotEvent("pilot_started"); }, []);
+  useEffect(() => { if (accountAddress) void recordPilotEvent("wallet_connected"); }, [accountAddress]);
 
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
   const visibleMarkets = useMemo(() => {
@@ -608,6 +617,8 @@ export default function App() {
         <HowToPage onBack={() => navigate("markets")} />
       ) : route === "metrics" ? (
         <MetricsPage onBack={() => navigate("markets")} />
+      ) : route === "feedback" ? (
+        <FeedbackPage onBack={() => navigate("markets")} />
       ) : route === "terms" ? (
         <TermsPage onBack={() => navigate("markets")} />
       ) : route === "privacy" ? (
@@ -624,7 +635,10 @@ export default function App() {
           onLoginClick={() => setIsLoginOpen(true)}
           onMarketChange={updateMarket}
           onMarketOpen={slug => navigate("marketDetail", "push", slug)}
-          onTradePlaced={() => void refreshWalletBalances({ forceRefresh: true })}
+          onTradePlaced={privacyMode => {
+            void recordPilotEvent(privacyMode === "private" ? "private_trade_completed" : "public_trade_completed");
+            void refreshWalletBalances({ forceRefresh: true });
+          }}
           onPortfolioChange={setUserPortfolio}
           onToast={notify}
           onWatchlistToggle={toggleWatchlist}
@@ -654,6 +668,7 @@ export default function App() {
       <SiteFooter
         onAccountClick={() => navigate("account")}
         onHowToClick={() => navigate("howTo")}
+        onFeedbackClick={() => navigate("feedback")}
         onMarketsClick={() => navigate("markets")}
         onMetricsClick={() => navigate("metrics")}
         onPortfolioClick={() => navigate("portfolio")}
@@ -661,6 +676,7 @@ export default function App() {
         onTermsClick={() => navigate("terms")}
         onWalletClick={() => navigate("wallet")}
       />
+      {route !== "feedback" ? <button className="feedback-launcher" onClick={() => navigate("feedback")} type="button"><span>✦</span> Share feedback</button> : null}
     </main>
   );
 }

@@ -8934,3 +8934,42 @@ select:focus-visible {
     text-align: left;
   }
 }
+/* Anonymous pilot feedback */
+.feedback-page { width: min(960px, calc(100% - 32px)); margin: 0 auto; display: grid; gap: 18px; }
+.feedback-hero { display: flex; align-items: center; gap: 22px; padding: clamp(24px, 5vw, 48px); background: radial-gradient(circle at 90% 10%, rgba(255,209,70,.18), transparent 38%), var(--panel); }
+.feedback-hero h1, .feedback-thanks h1 { margin: 5px 0 8px; font-size: clamp(2rem, 5vw, 4rem); letter-spacing: -.045em; }
+.feedback-hero p, .feedback-thanks p { max-width: 700px; color: var(--muted); line-height: 1.65; margin: 0; }
+.feedback-hero-icon { display: grid; place-items: center; width: 66px; height: 66px; flex: 0 0 66px; border-radius: 22px; color: #10201c; background: linear-gradient(135deg, #ffd64d, #55dab1); box-shadow: 0 16px 40px rgba(255,209,70,.18); }
+.feedback-form { padding: clamp(22px, 4vw, 38px); display: grid; gap: 28px; }
+.feedback-form fieldset { padding: 0; margin: 0; border: 0; }
+.feedback-form legend, .feedback-field > span { display: block; margin-bottom: 12px; font-weight: 800; color: var(--text); }
+.feedback-rating { display: flex; gap: 8px; }
+.feedback-rating button { border: 0; background: transparent; color: #6b7378; cursor: pointer; padding: 4px; transition: transform .16s, color .16s; }
+.feedback-rating button:hover { transform: translateY(-2px); }
+.feedback-rating button.active { color: #ffd449; }
+.feedback-choice-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.feedback-choice-grid button { min-height: 72px; border: 1px solid var(--border); border-radius: 15px; background: var(--panel-soft); color: var(--muted); display: grid; place-items: center; gap: 6px; font-weight: 750; cursor: pointer; }
+.feedback-choice-grid button.active { color: var(--text); border-color: #31cba2; background: rgba(49,203,162,.12); box-shadow: inset 0 0 0 1px rgba(49,203,162,.15); }
+.feedback-field select, .feedback-field textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-soft); color: var(--text); padding: 14px 16px; font: inherit; }
+.feedback-field textarea { resize: vertical; line-height: 1.55; }
+.feedback-field small { display: block; margin-top: 6px; text-align: right; color: var(--muted); }
+.feedback-safe { display: flex; gap: 12px; align-items: flex-start; padding: 15px; border: 1px solid rgba(255,209,70,.3); border-radius: 14px; background: rgba(255,209,70,.07); color: var(--muted); line-height: 1.5; }
+.feedback-safe input { margin-top: 4px; accent-color: #24caa0; }
+.feedback-safe strong { display: block; color: var(--text); }
+.feedback-error { color: #ff9b93; border: 1px solid rgba(255,96,88,.3); background: rgba(255,96,88,.08); border-radius: 12px; padding: 12px 14px; }
+.feedback-submit { min-height: 50px; }
+.feedback-thanks { min-height: 480px; padding: 48px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 10px; }
+.feedback-thanks > svg { color: #2ed1a5; }
+.feedback-thanks .primary-button { margin-top: 16px; }
+.feedback-launcher { position: fixed; z-index: 80; right: 22px; bottom: 22px; border: 0; border-radius: 999px; padding: 12px 18px; background: #ffd449; color: #17211f; font: inherit; font-weight: 900; box-shadow: 0 14px 40px rgba(0,0,0,.3); cursor: pointer; }
+.feedback-launcher span { margin-right: 6px; }
+.pilot-funnel { padding: 28px; }
+.pilot-funnel header { display: flex; gap: 13px; align-items: center; margin-bottom: 22px; }
+.pilot-funnel header h2 { margin: 2px 0 0; }
+.metrics-pilot-icon { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: rgba(255,212,73,.15); color: #ffd449; font-size: 22px; }
+.pilot-funnel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.pilot-funnel-grid > div { padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--panel-soft); display: grid; gap: 4px; }
+.pilot-funnel-grid strong { font-size: 1.8rem; }
+.pilot-funnel-grid span, .pilot-funnel-grid small, .pilot-funnel > p { color: var(--muted); }
+.pilot-funnel > p { margin: 18px 0 0; font-size: .88rem; }
+@media (max-width: 760px) { .feedback-choice-grid { grid-template-columns: repeat(2, 1fr); } .feedback-hero { align-items: flex-start; } .pilot-funnel-grid { grid-template-columns: repeat(2, 1fr); } .feedback-launcher { right: 12px; bottom: 12px; } }

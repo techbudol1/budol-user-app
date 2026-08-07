@@ -40,6 +40,19 @@ export type PublicMetrics = {
     failedWithdrawals: number;
     withdrawalSuccessRate: number;
   };
+  pilot: {
+    started: number;
+    connected: number;
+    publicTrade: number;
+    privateTrade: number;
+    positionSold: number;
+    publicClaim: number;
+    privateClaim: number;
+    traded: number;
+    privacyUsed: number;
+    feedbackCount: number;
+    newFeedback: number;
+  };
   privacyNote: string;
 };
 
