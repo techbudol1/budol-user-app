@@ -9195,6 +9195,10 @@ body::after {
   color: var(--text);
 }
 
+.market-sort-menu {
+  position: relative;
+}
+
 .market-sort-control {
   display: inline-flex;
   align-items: center;
@@ -9207,14 +9211,88 @@ body::after {
   color: var(--muted-strong);
   font-size: 0.82rem;
   font-weight: 800;
+  cursor: pointer;
 }
 
-.market-sort-control select {
-  border: 0;
-  outline: 0;
-  background: transparent;
+.market-sort-control:hover,
+.market-sort-control.open {
+  border-color: var(--border-strong);
+}
+
+.market-sort-control:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.market-sort-control strong {
   color: var(--text);
+  font-size: 0.82rem;
   font-weight: 800;
+}
+
+.market-sort-chevron {
+  margin-left: 3px;
+  transition: transform 160ms ease;
+}
+
+.market-sort-control.open .market-sort-chevron {
+  transform: rotate(180deg);
+}
+
+.market-sort-options {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  z-index: 70;
+  display: grid;
+  width: 210px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-solid);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.24);
+}
+
+.market-sort-options-title {
+  padding: 7px 9px 8px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.market-sort-options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-align: left;
+  cursor: pointer;
+}
+
+.market-sort-options button:hover,
+.market-sort-options button:focus-visible {
+  outline: 0;
+  background: var(--surface-soft);
+  color: var(--text);
+}
+
+.market-sort-options button.active {
+  background: color-mix(in srgb, var(--yellow) 16%, var(--surface-solid));
+  color: var(--text);
+}
+
+.market-sort-options button.active svg {
+  color: var(--green);
 }
 
 .market-clear-button {
@@ -9698,11 +9776,19 @@ body::after {
   }
 
   .market-filter-actions .filter-button,
+  .market-sort-menu,
   .market-sort-control {
     width: 100%;
   }
 
-  .market-sort-control select {
+  .market-sort-control strong {
+    flex: 1;
+    text-align: left;
+  }
+
+  .market-sort-options {
+    right: auto;
+    left: 0;
     width: 100%;
   }
 

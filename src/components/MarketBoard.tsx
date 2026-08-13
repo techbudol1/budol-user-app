@@ -1,4 +1,5 @@
-import { Clock3, FlaskConical, LayoutGrid, ListFilter, RotateCcw, Sparkles, Star } from "lucide-react";
+import { Check, ChevronDown, Clock3, FlaskConical, LayoutGrid, ListFilter, RotateCcw, Sparkles, Star } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { Market } from "../types";
 import { MarketCard, marketCategory } from "./MarketCard";
 
@@ -36,6 +37,33 @@ export function MarketBoard({
   showWatchlistOnly,
 }: MarketBoardProps) {
   const boardItems = groupedMarketItems(markets);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
+  const sortOptions = [
+    { label: "Trending", value: "trending" },
+    { label: "Closing first", value: "closing" },
+    { label: "Most volume", value: "volume" },
+    { label: "Newest", value: "newest" },
+  ] as const;
+  const selectedSort = sortOptions.find(option => option.value === marketSort) ?? sortOptions[0];
+
+  useEffect(() => {
+    if (!isSortOpen) return;
+
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!sortMenuRef.current?.contains(event.target as Node)) setIsSortOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsSortOpen(false);
+    };
+
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [isSortOpen]);
 
   return (
     <section className="markets-column">
@@ -83,16 +111,41 @@ export function MarketBoard({
             <Clock3 size={15} />
             Closing soon
           </button>
-          <label className="market-sort-control">
-            <ListFilter size={15} />
-            <span>Sort</span>
-            <select aria-label="Sort markets" onChange={event => onSortChange(event.currentTarget.value as typeof marketSort)} value={marketSort}>
-              <option value="trending">Trending</option>
-              <option value="closing">Closing first</option>
-              <option value="volume">Most volume</option>
-              <option value="newest">Newest</option>
-            </select>
-          </label>
+          <div className="market-sort-menu" ref={sortMenuRef}>
+            <button
+              aria-expanded={isSortOpen}
+              aria-haspopup="menu"
+              className={isSortOpen ? "market-sort-control open" : "market-sort-control"}
+              onClick={() => setIsSortOpen(open => !open)}
+              type="button"
+            >
+              <ListFilter size={15} />
+              <span className="market-sort-label">Sort</span>
+              <strong>{selectedSort.label}</strong>
+              <ChevronDown className="market-sort-chevron" size={15} />
+            </button>
+            {isSortOpen ? (
+              <div aria-label="Sort markets" className="market-sort-options" role="menu">
+                <span className="market-sort-options-title">Sort markets by</span>
+                {sortOptions.map(option => (
+                  <button
+                    aria-checked={marketSort === option.value}
+                    className={marketSort === option.value ? "active" : ""}
+                    key={option.value}
+                    onClick={() => {
+                      onSortChange(option.value);
+                      setIsSortOpen(false);
+                    }}
+                    role="menuitemradio"
+                    type="button"
+                  >
+                    <span>{option.label}</span>
+                    {marketSort === option.value ? <Check size={16} /> : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           {hasActiveFilters ? (
             <button className="market-clear-button" onClick={onClearFilters} type="button">
               <RotateCcw size={15} />
