@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Clock3, Flame } from "lucide-react";
 import { closesSoon, isMarketTradeable, marketStateLabel } from "../lib/marketState";
 import type { Market } from "../types";
 
@@ -52,21 +52,27 @@ export function MarketCard({ market, onOpen }: MarketCardProps) {
         {!tradeable ? <span className={`market-state-chip ${state.toLowerCase()}`}>{state}</span> : null}
       </div>
       <h3>{market.title}</h3>
-      <div className="probability-row">
-        <span>{market.outcomeA}</span>
-        <strong>{market.yes}%</strong>
+      <div className="market-outcomes" aria-label="Current outcome prices">
+        <button className="yes" onClick={event => { event.stopPropagation(); openMarket(); }} type="button">
+          <span>{market.outcomeA}</span>
+          <strong>{market.yes}¢</strong>
+        </button>
+        <button className="no" onClick={event => { event.stopPropagation(); openMarket(); }} type="button">
+          <span>{market.outcomeB}</span>
+          <strong>{market.no}¢</strong>
+        </button>
       </div>
-      <div className="probability-bar">
-        <span style={{ width: `${market.yes}%` }}></span>
-      </div>
-      <div className="sparkline" aria-hidden="true">
-        <svg viewBox="0 0 100 40" preserveAspectRatio="none">
-          <polygon points={areaPoints} />
-          <polyline points={chartPoints.join(" ")} />
-        </svg>
-      </div>
+      {market.spark.length > 1 ? (
+        <div className="sparkline" aria-hidden="true">
+          <svg viewBox="0 0 100 40" preserveAspectRatio="none">
+            <polygon points={areaPoints} />
+            <polyline points={chartPoints.join(" ")} />
+          </svg>
+        </div>
+      ) : <div className="market-card-spacer" />}
       <div className="market-footer">
-        <span>{market.volume} vol</span>
+        <span className="market-close-time"><Clock3 size={14} /> {formatCloseTime(market.endsAt)}</span>
+        <span>{market.volume} volume</span>
         <strong className={market.change.startsWith("+") ? "positive" : "negative"}>{market.change}</strong>
       </div>
     </article>
@@ -109,4 +115,10 @@ function isRecentlyPublished(value: string) {
   }
   const sevenDays = 7 * 24 * 60 * 60 * 1000;
   return Date.now() - createdAt <= sevenDays;
+}
+
+function formatCloseTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "No close date";
+  return new Intl.DateTimeFormat("en-PH", { day: "numeric", month: "short" }).format(date);
 }

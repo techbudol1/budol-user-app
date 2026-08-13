@@ -52,6 +52,7 @@ type PortfolioPageProps = {
 
 export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketChange, onMarketOpen, onToast, portfolio, setPortfolio, walletCustody }: PortfolioPageProps) {
   const claimableTradesRef = useRef<HTMLElement>(null);
+  const [activeSection, setActiveSection] = useState<"positions" | "history" | "claims">("positions");
   const [isLoading, setIsLoading] = useState(false);
   const [pendingCashout, setPendingCashout] = useState("");
   const [pendingClaim, setPendingClaim] = useState("");
@@ -585,18 +586,27 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
       </div>
 
       <div className="portfolio-summary-grid">
-        <SummaryCard icon={<BriefcaseBusiness size={20} />} label="Open positions" value={summary.openPositions.toString()} />
         <SummaryCard icon={<TrendingUp size={20} />} label="Total exposure" value={`${formatToken(summary.totalExposure)} BUDOL`} />
         <SummaryCard icon={<ExternalLink size={20} />} label="Current value" value={`${formatToken(summary.currentValue)} BUDOL`} />
         <SummaryCard icon={<Clock3 size={20} />} label="Potential payout" value={`${formatToken(summary.potentialPayout)} BUDOL`} />
-        <SummaryCard icon={<Trophy size={20} />} label="Realized P/L" value={`${summary.realizedPnl >= 0 ? "+" : ""}${formatToken(summary.realizedPnl)} BUDOL`} />
-        <SummaryCard icon={<TrendingUp size={20} />} label="Unrealized P/L" value={`${summary.unrealizedPnl >= 0 ? "+" : ""}${formatToken(summary.unrealizedPnl)} BUDOL`} />
         <SummaryCard icon={<Trophy size={20} />} label="Net P/L" value={`${summary.netPnl >= 0 ? "+" : ""}${formatToken(summary.netPnl)} BUDOL`} />
       </div>
 
       {error ? <div className="login-error">{error}</div> : null}
 
-      {claimableTrades.length > 0 ? (
+      <nav className="portfolio-tabs" aria-label="Portfolio sections">
+        <button className={activeSection === "positions" ? "active" : ""} onClick={() => setActiveSection("positions")} type="button">
+          Positions <span>{summary.openPositions}</span>
+        </button>
+        <button className={activeSection === "history" ? "active" : ""} onClick={() => setActiveSection("history")} type="button">
+          History <span>{portfolio?.trades.length ?? 0}</span>
+        </button>
+        <button className={activeSection === "claims" ? "active" : ""} onClick={() => setActiveSection("claims")} type="button">
+          Claims & privacy {claimableTrades.length > 0 ? <span>{claimableTrades.length}</span> : null}
+        </button>
+      </nav>
+
+      {activeSection === "claims" && claimableTrades.length > 0 ? (
         <section className="panel portfolio-action-card">
           <div>
             <div className="panel-title">
@@ -679,7 +689,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </section>
       ) : null}
 
-      <section className="panel claim-note-backup-card">
+      {activeSection === "claims" ? <section className="panel claim-note-backup-card">
         <div>
           <div className="panel-title">
             <ShieldCheck size={19} />
@@ -698,9 +708,9 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
             Import backup
           </button>
         </div>
-      </section>
+      </section> : null}
 
-      {visibleShieldedPayoutGroups.length > 0 ? (
+      {activeSection === "claims" && withdrawableShieldedNotes.length > 0 ? (
         <section className="panel shielded-note-card">
           <div className="panel-title">
             <ShieldCheck size={19} />
@@ -726,7 +736,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
         </section>
       ) : null}
 
-      <section className="panel shielded-note-card portfolio-withdrawal-queue-card">
+      {activeSection === "claims" ? <section className="panel shielded-note-card portfolio-withdrawal-queue-card">
         <div className="panel-title panel-title-between">
           <span>
             <History size={19} />
@@ -786,10 +796,10 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
             ) : null}
           </>
         )}
-      </section>
+      </section> : null}
 
       <div className="portfolio-content-grid">
-        <section className="panel portfolio-table-card">
+        {activeSection === "positions" ? <section className="panel portfolio-table-card">
           <div className="panel-title">
             <BriefcaseBusiness size={19} />
             <h2>Open positions</h2>
@@ -855,9 +865,9 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
               </article>
             ))}
           </div>
-        </section>
+        </section> : null}
 
-        <section className="panel portfolio-table-card">
+        {activeSection === "history" ? <section className="panel portfolio-table-card">
           <div className="panel-title">
             <History size={19} />
             <h2>Recent trades</h2>
@@ -909,7 +919,7 @@ export function PortfolioPage({ accountAddress, onBack, onLoginClick, onMarketCh
               </div>
             ))}
           </div>
-        </section>
+        </section> : null}
       </div>
       {selectedTrade ? (
         <TradeDetailDrawer

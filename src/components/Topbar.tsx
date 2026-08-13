@@ -353,6 +353,26 @@ export function Topbar({
           ) : null}
         </div>
       </div>
+      <div className="search-box mobile-search-box" role="search">
+        <Search className="search-icon" size={18} />
+        <input
+          aria-label="Search markets"
+          placeholder="Search markets"
+          value={searchValue}
+          onChange={event => updateSearch(event.currentTarget.value)}
+          onKeyDown={event => {
+            if (event.key === "Escape") {
+              updateSearch("");
+              event.currentTarget.blur();
+            }
+          }}
+        />
+        {searchValue ? (
+          <button aria-label="Clear search" className="search-clear" onClick={() => updateSearch("")} type="button">
+            <X size={15} />
+          </button>
+        ) : null}
+      </div>
     </header>
   );
 }

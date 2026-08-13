@@ -6,6 +6,7 @@ import { LoginModal } from "./components/LoginModal";
 import { MarketBoard } from "./components/MarketBoard";
 import { MarketDetailPage } from "./components/MarketDetailPage";
 import { MetricsPage } from "./components/MetricsPage";
+import { MobileBottomNav } from "./components/MobileBottomNav";
 import { MyAccountPage } from "./components/MyAccountPage";
 import { MyWalletPage } from "./components/MyWalletPage";
 import { NotificationsPage } from "./components/NotificationsPage";
@@ -21,6 +22,7 @@ import { recordPilotEvent } from "./lib/pilot";
 import type { AccountNotification, BudolUser, Market, Theme, TradeSide, UserPortfolio, WalletBalance } from "./types";
 
 type AppRoute = "markets" | "account" | "wallet" | "portfolio" | "notifications" | "marketDetail" | "howTo" | "metrics" | "feedback" | "privacy" | "terms" | "logout";
+type MarketSort = "trending" | "closing" | "volume" | "newest";
 
 const routePaths: Record<AppRoute, string> = {
   markets: "/markets",
@@ -131,6 +133,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showClosingSoon, setShowClosingSoon] = useState(false);
   const [showWatchlistOnly, setShowWatchlistOnly] = useState(false);
+  const [marketSort, setMarketSort] = useState<MarketSort>("trending");
   const [toast, setToast] = useState("");
   const [watchlist, setWatchlist] = useState<string[]>(() => JSON.parse(localStorage.getItem("budol-watchlist") || "[]") as string[]);
   const [accountNotifications, setAccountNotifications] = useState<AccountNotification[]>(() => {
@@ -149,14 +152,20 @@ export default function App() {
   const filtersWithTrending = useMemo(() => ["Trending", ...Array.from(new Set(marketList.map(market => market.tag)))], [marketList]);
   const visibleMarkets = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    return marketList.filter(market => {
+    const filtered = marketList.filter(market => {
       const categoryMatches = activeFilter === "Trending" || market.tag === activeFilter;
       const queryMatches = !normalizedQuery || `${market.title} ${market.marketGroupTitle ?? ""} ${market.marketChoiceLabel ?? ""} ${market.region} ${market.tag} ${market.type}`.toLowerCase().includes(normalizedQuery);
       const closingMatches = !showClosingSoon || isClosingSoon(market.endsAt);
       const watchlistMatches = !showWatchlistOnly || watchlist.includes(market.slug);
       return categoryMatches && queryMatches && closingMatches && watchlistMatches;
     });
-  }, [activeFilter, marketList, searchQuery, showClosingSoon, showWatchlistOnly, watchlist]);
+    return filtered.sort((left, right) => {
+      if (marketSort === "closing") return dateValue(left.endsAt, Number.MAX_SAFE_INTEGER) - dateValue(right.endsAt, Number.MAX_SAFE_INTEGER);
+      if (marketSort === "newest") return dateValue(right.startsAt, 0) - dateValue(left.startsAt, 0);
+      if (marketSort === "volume") return numericMetric(right.volume) - numericMetric(left.volume);
+      return Number(right.hot) - Number(left.hot) || numericMetric(right.volume) - numericMetric(left.volume);
+    });
+  }, [activeFilter, marketList, marketSort, searchQuery, showClosingSoon, showWatchlistOnly, watchlist]);
   const applyTheme = (nextTheme: Theme) => {
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
@@ -654,14 +663,23 @@ export default function App() {
               activeFilter={activeFilter}
               filters={filtersWithTrending.length > 1 ? filtersWithTrending : filters}
               markets={visibleMarkets}
+              hasPublishedMarkets={marketList.length > 0}
+              hasActiveFilters={Boolean(searchQuery.trim() || activeFilter !== "Trending" || showClosingSoon || showWatchlistOnly)}
+              marketSort={marketSort}
+              onClearFilters={() => {
+                setActiveFilter("Trending");
+                setSearchQuery("");
+                setShowClosingSoon(false);
+                setShowWatchlistOnly(false);
+              }}
               onFilterChange={setActiveFilter}
               onMarketOpen={slug => navigate("marketDetail", "push", slug)}
+              onSortChange={setMarketSort}
               onClosingSoonToggle={() => setShowClosingSoon(value => !value)}
               showClosingSoon={showClosingSoon}
               onWatchlistFilterToggle={() => setShowWatchlistOnly(value => !value)}
               showWatchlistOnly={showWatchlistOnly}
             />
-
           </section>
         </>
       )}
@@ -677,6 +695,15 @@ export default function App() {
         onWalletClick={() => navigate("wallet")}
       />
       {route !== "feedback" ? <button className="feedback-launcher" onClick={() => navigate("feedback")} type="button"><span>✦</span> Share feedback</button> : null}
+      <MobileBottomNav
+        activePage={route === "portfolio" ? "portfolio" : route === "wallet" ? "wallet" : route === "account" ? "account" : "markets"}
+        isLoggedIn={Boolean(accountAddress)}
+        onAccountClick={() => navigate("account")}
+        onLoginClick={() => setIsLoginOpen(true)}
+        onMarketsClick={() => navigate("markets")}
+        onPortfolioClick={() => navigate("portfolio")}
+        onWalletClick={() => navigate("wallet")}
+      />
     </main>
   );
 }
@@ -691,6 +718,16 @@ function isClosingSoon(value: string) {
   }
   const now = Date.now();
   return end >= now && end <= now + 7 * 24 * 60 * 60 * 1000;
+}
+
+function dateValue(value: string, fallback: number) {
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function numericMetric(value: string) {
+  const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function formatToken(value: number) {

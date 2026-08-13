@@ -1,4 +1,4 @@
-import { ArrowLeft, BellRing, CalendarClock, Flag, LoaderCircle, MessageCircle, Newspaper, ShieldCheck, Star, TrendingUp, X } from "lucide-react";
+import { ArrowLeft, BellRing, CalendarClock, CircleDollarSign, Flag, LoaderCircle, MessageCircle, Newspaper, ShieldCheck, Star, TrendingUp, X } from "lucide-react";
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { deleteMarketAlert, loadMarketActivity, loadMarketAlert, loadMarketComments, loadMarketStats, loadPublicMarket, postMarketComment, reportMarketComment, saveMarketAlert } from "../lib/api";
@@ -26,7 +26,7 @@ type MarketDetailPageProps = {
   watchlisted: boolean;
 };
 
-type MarketDetailTab = "overview" | "activity" | "comments" | "rules" | "holders";
+type MarketDetailTab = "overview" | "activity" | "comments" | "resolution";
 
 export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, onBack, onEscrowTransfer, onLoginClick, onMarketChange, onMarketOpen, onPortfolioChange, onToast, onTradePlaced, onShieldedTrade, onWatchlistToggle, slug, watchlisted }: MarketDetailPageProps) {
   const [loadedMarket, setLoadedMarket] = useState<Market | null>(market);
@@ -47,6 +47,7 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isSavingAlert, setIsSavingAlert] = useState(false);
   const [activeTab, setActiveTab] = useState<MarketDetailTab>("overview");
+  const [isMobileTradeOpen, setIsMobileTradeOpen] = useState(false);
   const [error, setError] = useState("");
   const [commentError, setCommentError] = useState("");
   const activeMarket = loadedMarket ?? market;
@@ -337,9 +338,9 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
           </header>
 
           <div className="market-detail-tabs" role="tablist" aria-label="Market detail sections">
-            {(["overview", "activity", "comments", "rules", "holders"] satisfies MarketDetailTab[]).map(tab => (
+            {(["overview", "activity", "comments", "resolution"] satisfies MarketDetailTab[]).map(tab => (
               <button className={activeTab === tab ? "active" : ""} key={tab} onClick={() => setActiveTab(tab)} role="tab" aria-selected={activeTab === tab}>
-                {tab === "holders" ? "Holders" : titleCase(tab)}
+                {titleCase(tab)}
                 {tab === "comments" && comments.length > 0 ? <span>{comments.length}</span> : null}
                 {tab === "activity" && activity.length > 0 ? <span>{activity.length}</span> : null}
               </button>
@@ -388,10 +389,23 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
                 </svg>
               </div>
             </section>
+            <section className="panel detail-rules-card market-depth-summary">
+              <div className="panel-title">
+                <TrendingUp size={19} />
+                <h2>Market depth</h2>
+              </div>
+              {isStatsLoading ? <div className="empty-state">Loading depth...</div> : null}
+              <div className="detail-rule-grid">
+                <DetailFact label="Open interest" value={`${formatToken(stats?.openInterest ?? 0)} BUDOL`} />
+                <DetailFact label="Holders" value={`${stats?.holderCount ?? 0}`} />
+                <DetailFact label="AMM liquidity" value={`${formatToken(stats?.liquidity ?? activeMarket.liquidity)} BUDOL`} />
+                <DetailFact label="Trades" value={`${stats?.tradeCount ?? 0}`} />
+              </div>
+            </section>
           </>
           ) : null}
 
-          {activeTab === "rules" ? (
+          {activeTab === "resolution" ? (
           <section className="panel detail-rules-card">
             <div className="panel-title">
               <ShieldCheck size={19} />
@@ -404,24 +418,6 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
               <DetailFact label="Start date" value={displayDate(activeMarket.startsAt, "Live now")} />
               <DetailFact label="End date" value={displayDate(activeMarket.endsAt, "No end date set")} />
               <DetailFact label="Volume" value={activeMarket.volume} />
-            </div>
-          </section>
-          ) : null}
-
-          {activeTab === "holders" ? (
-          <section className="panel detail-rules-card">
-            <div className="panel-title">
-              <TrendingUp size={19} />
-              <h2>Market depth</h2>
-            </div>
-            {isStatsLoading ? <div className="empty-state">Loading depth...</div> : null}
-            <div className="detail-rule-grid">
-              <DetailFact label="Open interest" value={`${formatToken(stats?.openInterest ?? 0)} BUDOL`} />
-              <DetailFact label="Holders" value={`${stats?.holderCount ?? 0} total / ${stats?.yesHolderCount ?? 0} ${activeMarket.outcomeA} / ${stats?.noHolderCount ?? 0} ${activeMarket.outcomeB}`} />
-              <DetailFact label={`${activeMarket.outcomeA} shares`} value={formatToken(stats?.yesShares ?? activeMarket.yesShares)} />
-              <DetailFact label={`${activeMarket.outcomeB} shares`} value={formatToken(stats?.noShares ?? activeMarket.noShares)} />
-              <DetailFact label="AMM liquidity" value={`${formatToken(stats?.liquidity ?? activeMarket.liquidity)} BUDOL`} />
-              <DetailFact label="Trades" value={`${stats?.tradeCount ?? 0} open trades`} />
             </div>
           </section>
           ) : null}
@@ -503,7 +499,12 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
           ) : null}
         </main>
 
-        <aside className="market-detail-ticket">
+        {isMobileTradeOpen ? <button className="mobile-trade-backdrop" aria-label="Close trade ticket" onClick={() => setIsMobileTradeOpen(false)} type="button" /> : null}
+        <aside className={isMobileTradeOpen ? "market-detail-ticket mobile-open" : "market-detail-ticket"}>
+          <div className="mobile-trade-sheet-head">
+            <strong>Place trade</strong>
+            <button aria-label="Close trade ticket" onClick={() => setIsMobileTradeOpen(false)} type="button"><X size={18} /></button>
+          </div>
           <TradeTicketCard
             accountAddress={accountAddress}
             isLoggedIn={isLoggedIn}
@@ -530,6 +531,11 @@ export function MarketDetailPage({ accountAddress, isLoggedIn, market, markets, 
           onSubmit={reason => void submitCommentReport(reportCommentTarget, reason)}
         />
       ) : null}
+      <button className="mobile-trade-trigger" onClick={() => setIsMobileTradeOpen(true)} type="button">
+        <CircleDollarSign size={18} />
+        Trade
+        <span>{activeMarket.yes}¢ / {activeMarket.no}¢</span>
+      </button>
       {isAlertOpen && alertDraft ? (
         <div className="market-alert-backdrop" role="presentation" onMouseDown={() => setIsAlertOpen(false)}>
           <section className="market-alert-modal" role="dialog" aria-modal="true" aria-label="Market alerts" onMouseDown={event => event.stopPropagation()}>

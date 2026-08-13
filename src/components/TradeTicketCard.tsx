@@ -1,6 +1,6 @@
 import { CircleDollarSign, EyeOff, ShieldCheck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { loadTradeConfig, loadTradeQuote, placeTrade } from "../lib/api";
+import { loadTradeConfig, loadTradeQuote, loadWalletBalances, placeTrade } from "../lib/api";
 import { isHorizen } from "../lib/chains";
 import { isMarketTradeable, marketStateLabel } from "../lib/marketState";
 import { loadShieldedTradeConfig, type ShieldedTradeConfig } from "../lib/shieldedTrades";
@@ -47,6 +47,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   const [quoteSnapshot, setQuoteSnapshot] = useState<QuoteSnapshot | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [tradeConfig, setTradeConfig] = useState<TradeConfig | null>(null);
+  const [budolBalance, setBudolBalance] = useState(0);
   const [selectedSide, setSelectedSide] = useState<TradeSide>("yes");
 	const [privateTrade, setPrivateTrade] = useState(false);
 	const [shieldedConfig, setShieldedConfig] = useState<ShieldedTradeConfig | null>(null);
@@ -117,6 +118,7 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
   useEffect(() => {
     if (!isLoggedIn) {
       setTradeConfig(null);
+      setBudolBalance(0);
       return;
     }
     let isCancelled = false;
@@ -130,6 +132,16 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
         if (!isCancelled) {
           setTradeConfig(null);
         }
+      });
+    loadWalletBalances()
+      .then(balances => {
+        if (!isCancelled) {
+          const balance = balances.find(item => item.symbol?.toUpperCase() === "BUDOL");
+          setBudolBalance(Number(balance?.formatted || 0));
+        }
+      })
+      .catch(() => {
+        if (!isCancelled) setBudolBalance(0);
       });
     return () => {
       isCancelled = true;
@@ -280,6 +292,10 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
 
         <div className="simple-ticket-summary">
           <div>
+            <span>Available balance</span>
+            <strong>{isLoggedIn ? `${formatToken(budolBalance)} BUDOL` : "Log in to view"}</strong>
+          </div>
+          <div>
             <span>Cost</span>
             <strong>{formatToken(numericAmount || 0)} BUDOL</strong>
           </div>
@@ -380,6 +396,10 @@ export function TradeTicketCard({ accountAddress, isLoggedIn, market, onEscrowTr
               <div>
                 <span>If correct</span>
                 <strong>{formatToken(confirmOrder.expectedPayout)} BUDOL</strong>
+              </div>
+              <div>
+                <span>Network</span>
+                <strong>{tradeConfig?.networkName || "Configured market chain"}</strong>
               </div>
             </div>
             <p className="order-confirm-note">{privateTrade ? "Your wallet deposits a fixed-denomination note, generates a ZK proof locally, and sends the order through a relayer. The testnet operator can still see order details." : "BudolPH escrows the trade amount plus the trading fee when you confirm."}</p>

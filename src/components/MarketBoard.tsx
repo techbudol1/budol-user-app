@@ -1,14 +1,19 @@
-import { FlaskConical, LayoutGrid, Sparkles } from "lucide-react";
+import { Clock3, FlaskConical, LayoutGrid, ListFilter, RotateCcw, Sparkles, Star } from "lucide-react";
 import type { Market } from "../types";
 import { MarketCard, marketCategory } from "./MarketCard";
 
 type MarketBoardProps = {
   activeFilter: string;
   filters: string[];
+  hasActiveFilters: boolean;
+  hasPublishedMarkets: boolean;
+  marketSort: "trending" | "closing" | "volume" | "newest";
   markets: Market[];
   onFilterChange: (filter: string) => void;
+  onClearFilters: () => void;
   onClosingSoonToggle: () => void;
   onMarketOpen: (slug: string) => void;
+  onSortChange: (sort: "trending" | "closing" | "volume" | "newest") => void;
   onWatchlistFilterToggle: () => void;
   showClosingSoon: boolean;
   showWatchlistOnly: boolean;
@@ -17,10 +22,15 @@ type MarketBoardProps = {
 export function MarketBoard({
   activeFilter,
   filters,
+  hasActiveFilters,
+  hasPublishedMarkets,
+  marketSort,
   markets,
   onFilterChange,
+  onClearFilters,
   onClosingSoonToggle,
   onMarketOpen,
+  onSortChange,
   onWatchlistFilterToggle,
   showClosingSoon,
   showWatchlistOnly,
@@ -50,24 +60,46 @@ export function MarketBoard({
         Live markets are running on testnet for product testing only. Testnet BUDOL, tZEN, and ETH have no real-money value.
       </div>
 
-      <div className="filter-tabs" role="tablist" aria-label="Market categories">
-        <button className={showWatchlistOnly ? "active" : ""} onClick={onWatchlistFilterToggle} role="tab">
-          Watchlist
-        </button>
-        <button className={showClosingSoon ? "active" : ""} onClick={onClosingSoonToggle} role="tab">
-          Closing soon
-        </button>
-        {filters.map(filter => (
-          <button
-            aria-selected={activeFilter === filter}
-            className={activeFilter === filter ? "active" : ""}
-            key={filter}
-            onClick={() => onFilterChange(filter)}
-            role="tab"
-          >
-            {filter}
+      <div className="market-filter-bar">
+        <div className="filter-tabs" role="tablist" aria-label="Market categories">
+          {filters.map(filter => (
+            <button
+              aria-selected={activeFilter === filter}
+              className={activeFilter === filter ? "active" : ""}
+              key={filter}
+              onClick={() => onFilterChange(filter)}
+              role="tab"
+            >
+              {filter}
+            </button>
+          ))}
+        </div>
+        <div className="market-filter-actions">
+          <button className={showWatchlistOnly ? "filter-button active" : "filter-button"} onClick={onWatchlistFilterToggle} type="button">
+            <Star size={15} />
+            Watchlist
           </button>
-        ))}
+          <button className={showClosingSoon ? "filter-button active" : "filter-button"} onClick={onClosingSoonToggle} type="button">
+            <Clock3 size={15} />
+            Closing soon
+          </button>
+          <label className="market-sort-control">
+            <ListFilter size={15} />
+            <span>Sort</span>
+            <select aria-label="Sort markets" onChange={event => onSortChange(event.currentTarget.value as typeof marketSort)} value={marketSort}>
+              <option value="trending">Trending</option>
+              <option value="closing">Closing first</option>
+              <option value="volume">Most volume</option>
+              <option value="newest">Newest</option>
+            </select>
+          </label>
+          {hasActiveFilters ? (
+            <button className="market-clear-button" onClick={onClearFilters} type="button">
+              <RotateCcw size={15} />
+              Clear
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="market-grid">
@@ -93,14 +125,9 @@ export function MarketBoard({
               <Sparkles size={24} />
             </span>
             <div>
-              <h3>Waiting for the next crowd call</h3>
-              <p>Published markets for Philippine events, trends, business, culture, sports, and civic topics will appear here automatically.</p>
-              <div className="empty-category-row" aria-label="Example market categories">
-                <span>₱ Business</span>
-                <span>🏀 Sports</span>
-                <span>🎬 Culture</span>
-                <span>🚌 Transport</span>
-              </div>
+              <h3>{hasPublishedMarkets ? "No markets match these filters" : "No live markets yet"}</h3>
+              <p>{hasPublishedMarkets ? "Clear or adjust your filters to see more markets." : "Published markets will appear here automatically. Check back shortly."}</p>
+              {hasPublishedMarkets ? <button className="ghost-button" onClick={onClearFilters}>Clear filters</button> : null}
             </div>
             <span className="empty-pulse-stack" aria-hidden="true">
               <i />

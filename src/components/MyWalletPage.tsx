@@ -6,6 +6,7 @@ import {
   Copy,
   ExternalLink,
   Fuel,
+  RefreshCcw,
   ShieldCheck,
   Sparkles,
   Wallet,
@@ -43,12 +44,14 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
   const [smartWalletConfig, setSmartWalletConfig] = useState<SmartWalletConfig | null>(null);
   const [smartWallet, setSmartWallet] = useState<SmartWalletResolution | null>(null);
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState<"all" | "received" | "sent">("all");
   const displayAddress = accountAddress ?? user?.walletAddress ?? "";
   const walletDescription = "Self-custodial EVM wallet connected for BudolPH.";
   const explorerURL = displayAddress ? `${horizenExplorerBaseURL}/address/${displayAddress}` : "";
   const displayBalances = normalizeWalletBalances(balances, displayAddress);
-  const totalHistoryPages = Math.max(1, Math.ceil(history.length / walletHistoryPageSize));
-  const visibleHistory = history.slice((historyPage - 1) * walletHistoryPageSize, historyPage * walletHistoryPageSize);
+  const filteredHistory = historyFilter === "all" ? history : history.filter(transfer => transfer.direction === historyFilter);
+  const totalHistoryPages = Math.max(1, Math.ceil(filteredHistory.length / walletHistoryPageSize));
+  const visibleHistory = filteredHistory.slice((historyPage - 1) * walletHistoryPageSize, historyPage * walletHistoryPageSize);
   const receiveQRCode = useMemo(() => {
     if (!displayAddress) {
       return "";
@@ -62,7 +65,6 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
     });
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
   }, [displayAddress]);
-
   const copyAddress = async () => {
     if (!displayAddress) {
       return;
@@ -205,9 +207,11 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
             {displayBalances.map(item => (
               <div className={`wallet-balance-row token-${tokenClass(item.symbol || item.label)}`} key={`${item.symbol || item.label}-${item.tokenAddress || "native"}`}>
                 <span className="wallet-token-mark" aria-hidden="true"><TokenIcon symbol={item.symbol || item.label} /></span>
-                <span>{item.label || item.symbol || "Token"}</span>
-                <strong>{isLoadingWallet && item.isPlaceholder ? "Loading..." : `${formatTokenAmount(item.formatted)} ${item.symbol || ""}`}</strong>
-                <small>{tokenPurpose(item.symbol || item.label)}</small>
+                <span className="wallet-token-name">
+                  <strong>{item.symbol || item.label || "Token"}</strong>
+                  <small>{tokenPurpose(item.symbol || item.label)} · Horizen Testnet</small>
+                </span>
+                <strong className="wallet-token-amount">{isLoadingWallet && item.isPlaceholder ? "Loading..." : `${formatTokenAmount(item.formatted)} ${item.symbol || ""}`}</strong>
               </div>
             ))}
           </div>
@@ -217,7 +221,8 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
           </div>
           <div className="account-action-row">
             <button className="ghost-button" onClick={() => void refreshWallet({ forceRefresh: true })} disabled={isLoadingWallet}>
-              {isLoadingWallet ? "Refreshing" : "Refresh balance"}
+              <RefreshCcw className={isLoadingWallet ? "spin-icon" : ""} size={18} />
+              {isLoadingWallet ? "Refreshing" : "Refresh"}
             </button>
             <button className="primary-button" onClick={() => setIsReceiveOpen(true)}>
               <ArrowDownLeft size={18} />
@@ -273,18 +278,22 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
 
       <div className="wallet-content-grid">
         <section className="panel wallet-history-card">
-          <div className="panel-title">
-            <ShieldCheck size={19} />
-            <h2>Unified activity</h2>
-          </div>
-          <div className="wallet-history-token-row" aria-label="Tracked wallet activity">
-            <span>ETH gas in Explorer</span>
-            <span>tZEN transfers</span>
-            <span>BUDOL transfers</span>
+          <div className="wallet-history-toolbar">
+            <div className="panel-title">
+              <ShieldCheck size={19} />
+              <h2>Transaction history</h2>
+            </div>
+            <div className="wallet-history-filters" aria-label="Filter transactions">
+              {(["all", "received", "sent"] as const).map(filter => (
+                <button className={historyFilter === filter ? "active" : ""} key={filter} onClick={() => setHistoryFilter(filter)} type="button">
+                  {filter === "all" ? "All" : filter === "received" ? "Received" : "Sent"}
+                </button>
+              ))}
+            </div>
           </div>
           {walletError ? <p className="wallet-note">{walletError}</p> : null}
           <div className="wallet-history-list">
-            {history.length > 0 ? visibleHistory.map(transfer => (
+            {visibleHistory.length > 0 ? visibleHistory.map(transfer => (
               <a className="wallet-history-item" href={`${horizenExplorerBaseURL}/tx/${transfer.transactionHash}`} target="_blank" rel="noreferrer" key={`${transfer.transactionHash}-${transfer.logIndex}`}>
                 <span className={`wallet-history-icon ${transfer.direction === "received" ? "received" : "sent"}`}>
                   {transfer.direction === "received" ? <ArrowDownLeft size={17} /> : <ExternalLink size={17} />}
@@ -308,8 +317,8 @@ export function MyWalletPage({ accountAddress, onBack, onLoginClick, user }: MyW
                   <ShieldCheck size={17} />
                 </span>
                 <span>
-                  <strong>No token transfers yet</strong>
-                  <small>ETH gas activity is visible in Explorer. BUDOL and tZEN ERC-20 transfers will appear here.</small>
+                  <strong>{history.length ? `No ${historyFilter} transfers` : "No token transfers yet"}</strong>
+                  <small>{history.length ? "Choose another transaction filter." : "BUDOL and tZEN ERC-20 transfers will appear here. Native gas activity remains available in Explorer."}</small>
                 </span>
                 <small>{isLoadingWallet ? "Checking" : "Ready"}</small>
               </div>
